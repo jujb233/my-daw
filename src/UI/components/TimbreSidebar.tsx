@@ -3,7 +3,8 @@ import { Surface } from "../lib/Surface";
 import { Button } from "../lib/Button";
 import { IconButton } from "../lib/IconButton";
 import { Slider } from "../lib/Slider";
-import { instances, addInstance, updateInstanceParam, removeInstance, updateInstanceLabel, toggleInstanceExpanded } from "../../store/audio";
+import { instances, addInstance, updateInstanceParam, removeInstance, updateInstanceLabel, toggleInstanceExpanded, updateInstanceRouting } from "../../store/audio";
+import { mixerTracks } from "../../store/mixer";
 
 export const TimbreSidebar: Component<{ isOpen: boolean; onClose: () => void }> = (props) => {
     const [showAddMenu, setShowAddMenu] = createSignal(false);
@@ -55,6 +56,21 @@ export const TimbreSidebar: Component<{ isOpen: boolean; onClose: () => void }> 
                                             onInput={(e) => updateInstanceLabel(inst.id, e.currentTarget.value)}
                                             class="w-full bg-surface-container-highest text-on-surface text-sm px-2 py-1 rounded border-none focus:ring-1 focus:ring-primary outline-none"
                                         />
+                                    </div>
+
+                                    <div class="pt-2">
+                                        <label class="text-xs text-on-surface-variant block mb-1">Output Routing</label>
+                                        <select
+                                            class="w-full bg-surface-container-highest text-on-surface text-sm px-2 py-1 rounded border-none focus:ring-1 focus:ring-primary outline-none"
+                                            value={inst.routingTrackId}
+                                            onChange={(e) => updateInstanceRouting(inst.id, parseInt(e.currentTarget.value))}
+                                        >
+                                            <For each={mixerTracks()}>
+                                                {(track) => (
+                                                    <option value={track.id}>{track.label}</option>
+                                                )}
+                                            </For>
+                                        </select>
                                     </div>
 
                                     <Slider

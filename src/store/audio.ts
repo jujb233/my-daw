@@ -7,6 +7,7 @@ export interface PluginInstance {
     label: string;
     params: { [key: number]: number }; // Local param ID -> Value
     isExpanded?: boolean;
+    routingTrackId: number;
 }
 
 export const [instances, setInstances] = createSignal<PluginInstance[]>([]);
@@ -21,7 +22,8 @@ export const addInstance = async (name: string) => {
                 name,
                 label: "New Instrument",
                 params: { 10: 0.5, 11: 0 }, // Default params for SimpleSynth (10=Gain, 11=Wave)
-                isExpanded: true
+                isExpanded: true,
+                routingTrackId: 0
             }
         ]);
     } catch (e) {
@@ -51,6 +53,15 @@ export const updateInstanceLabel = async (index: number, label: string) => {
     }
 };
 
+export const updateInstanceRouting = async (index: number, trackId: number) => {
+    try {
+        await invoke("set_instrument_routing", { instIndex: index, trackIndex: trackId });
+        setInstances(prev => prev.map(inst => inst.id === index ? { ...inst, routingTrackId: trackId } : inst));
+    } catch (e) {
+        console.error("Failed to update plugin routing:", e);
+    }
+};
+
 export const toggleInstanceExpanded = (index: number) => {
     setInstances(prev => prev.map(inst => inst.id === index ? { ...inst, isExpanded: !inst.isExpanded } : inst));
 };
@@ -72,8 +83,7 @@ export const updateInstanceParam = (instanceId: number, paramId: number, value: 
         return inst;
     }));
 
-    // Calculate global param ID: instanceId * 100 + paramId
-    // Mixer Plugin maps Track Ids to 100-blocks.
-    const globalId = instanceId * 100 + paramId;
+    // Calculate global param ID: 10000 + instanceId * 100 + paramId
+    const globalId = 10000 + instanceId * 100 + paramId;
     sendParameter(globalId, value);
 };

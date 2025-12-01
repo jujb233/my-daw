@@ -1,11 +1,16 @@
 use crate::audio::core::plugin::{AudioBuffer, Plugin, PluginEvent, PluginInfo, PluginType};
 use crate::audio::plugins::mixer::track::MixerTrack;
+use std::collections::HashMap;
 use uuid::Uuid;
 
 pub struct MixerPlugin {
     id: Uuid,
     tracks: Vec<MixerTrack>,
+    instruments: Vec<Box<dyn Plugin>>,
+    // Map Instrument Index -> Track Index
+    routing: HashMap<usize, usize>,
     scratch_buffer: Vec<f32>,
+    accumulator_buffer: Vec<f32>,
 }
 
 impl MixerPlugin {
@@ -18,7 +23,10 @@ impl MixerPlugin {
         Self {
             id: Uuid::new_v4(),
             tracks,
+            instruments: Vec::new(),
+            routing: HashMap::new(),
             scratch_buffer: Vec::new(),
+            accumulator_buffer: Vec::new(),
         }
     }
 
@@ -27,6 +35,19 @@ impl MixerPlugin {
         let m_id = track.meter_id;
         self.tracks.push(track);
         m_id
+    }
+
+    pub fn add_instrument(&mut self, plugin: Box<dyn Plugin>) -> usize {
+        self.instruments.push(plugin);
+        self.instruments.len() - 1
+    }
+
+    pub fn set_routing(&mut self, instrument_idx: usize, track_idx: usize) {
+        self.routing.insert(instrument_idx, track_idx);
+    }
+
+    pub fn get_instrument_mut(&mut self, index: usize) -> Option<&mut Box<dyn Plugin>> {
+        self.instruments.get_mut(index)
     }
 
     pub fn remove_track(&mut self, index: usize) {
@@ -51,55 +72,107 @@ impl Plugin for MixerPlugin {
     }
 
     fn process(&mut self, buffer: &mut AudioBuffer, events: &[PluginEvent]) {
-        // Resize scratch buffer if needed
-        if self.scratch_buffer.len() != buffer.samples.len() {
-            self.scratch_buffer = vec![0.0; buffer.samples.len()];
-        }
-
-        // Clear main output buffer (we will sum into it)
-        // Wait, if we are the root plugin, the buffer might contain garbage or silence.
-        // Usually we should overwrite it.
-        // But if we are an insert, we process input.
-        // The Mixer usually TAKES inputs from elsewhere.
-        // For now, let's assume the Mixer IS the engine root.
-        // We'll clear the output buffer first.
-        buffer.samples.fill(0.0);
-
-        // For this prototype, we don't have inputs routed TO the tracks yet.
-        // The tracks just process silence (or whatever is in their chain).
-        // If we want Instruments -> Tracks, the Instruments need to be IN the tracks or routed.
-
-        // TEMPORARY: Let's assume the first track contains the SimpleSynth for now?
-        // Or we need to change how we build the graph.
-
-        // If we want to support "Grid" -> "Track", the Grid needs to render to a buffer,
-        // and then we pass that buffer to the Track.
-
-        // Since we don't have the Grid rendering logic yet, let's just process the tracks.
-        // If the tracks have generators (Synths) inside them, they will produce sound.
-
+        let samples_len = buffer.samples.len();
         let channels = buffer.channels;
         let sample_rate = buffer.sample_rate;
 
-        for track in &mut self.tracks {
-            // 1. Prepare input for the track.
-            // Currently silence.
-            self.scratch_buffer.fill(0.0);
+        // Resize buffers
+        if self.scratch_buffer.len() != samples_len {
+            self.scratch_buffer = vec![0.0; samples_len];
+        }
+        if self.accumulator_buffer.len() != samples_len {
+            self.accumulator_buffer = vec![0.0; samples_len];
+        }
 
-            let mut track_buffer = AudioBuffer {
-                samples: &mut self.scratch_buffer,
-                channels,
-                sample_rate,
-            };
+        // Clear Master Output
+        for sample in buffer.samples.iter_mut() {
+            *sample = 0.0;
+        }
 
-            // 2. Process track
-            track.process(&mut track_buffer, events);
+        let num_tracks = self.tracks.len();
+        let num_instruments = self.instruments.len();
 
-            // 3. Mix into main buffer
-            for (out_sample, track_sample) in
-                buffer.samples.iter_mut().zip(self.scratch_buffer.iter())
-            {
-                *out_sample += *track_sample;
+        for track_idx in 0..num_tracks {
+            // 1. Clear Accumulator (Track Input)
+            for x in self.accumulator_buffer.iter_mut() {
+                *x = 0.0;
+            }
+
+            // 2. Sum routed instruments
+            for inst_idx in 0..num_instruments {
+                if let Some(&routed_track) = self.routing.get(&inst_idx) {
+                    if routed_track == track_idx {
+                        // Filter events for this instrument
+                        let inst_events: Vec<PluginEvent> = events
+                            .iter()
+                            .filter_map(|e| match e {
+                                PluginEvent::Midi(m) => Some(PluginEvent::Midi(*m)),
+                                PluginEvent::Parameter { id, value } => {
+                                    if *id >= 10000 {
+                                        let target_inst = ((*id - 10000) / 100) as usize;
+                                        if target_inst == inst_idx {
+                                            return Some(PluginEvent::Parameter {
+                                                id: (*id - 10000) % 100,
+                                                value: *value,
+                                            });
+                                        }
+                                    }
+                                    None
+                                }
+                            })
+                            .collect();
+
+                        let inst = &mut self.instruments[inst_idx];
+
+                        let mut inst_buffer = AudioBuffer {
+                            samples: &mut self.scratch_buffer,
+                            channels,
+                            sample_rate,
+                        };
+
+                        inst.process(&mut inst_buffer, &inst_events);
+
+                        // Sum to accumulator
+                        for (i, sample) in self.scratch_buffer.iter().enumerate() {
+                            self.accumulator_buffer[i] += sample;
+                        }
+                    }
+                }
+            }
+
+            // 3. Process Track Effects
+            let track_events: Vec<PluginEvent> = events
+                .iter()
+                .filter_map(|e| match e {
+                    PluginEvent::Midi(_) => None,
+                    PluginEvent::Parameter { id, value } => {
+                        if *id < 10000 {
+                            let target_track = (*id / 100) as usize;
+                            if target_track == track_idx {
+                                return Some(PluginEvent::Parameter {
+                                    id: *id % 100,
+                                    value: *value,
+                                });
+                            }
+                        }
+                        None
+                    }
+                })
+                .collect();
+
+            if let Some(track) = self.tracks.get_mut(track_idx) {
+                let mut track_buffer = AudioBuffer {
+                    samples: &mut self.accumulator_buffer,
+                    channels,
+                    sample_rate,
+                };
+
+                track.container.process(&mut track_buffer, &track_events);
+            }
+
+            // 4. Sum Track Output to Master
+            for (i, sample) in self.accumulator_buffer.iter().enumerate() {
+                buffer.samples[i] += sample;
             }
         }
     }
@@ -107,6 +180,18 @@ impl Plugin for MixerPlugin {
     fn get_param(&self, id: u32) -> f32 {
         // Map global mixer params to track params?
         // ID scheme: TrackIndex * 100 + ParamID
+        // What about Instrument Params?
+        // Let's say Instrument Params are 10000 + InstIndex * 100 + ParamID
+
+        if id >= 10000 {
+            let inst_idx = ((id - 10000) / 100) as usize;
+            let param_id = (id - 10000) % 100;
+            if let Some(inst) = self.instruments.get(inst_idx) {
+                return inst.get_param(param_id);
+            }
+            return 0.0;
+        }
+
         let track_idx = (id / 100) as usize;
         let param_id = id % 100;
 
@@ -117,6 +202,15 @@ impl Plugin for MixerPlugin {
     }
 
     fn set_param(&mut self, id: u32, value: f32) {
+        if id >= 10000 {
+            let inst_idx = ((id - 10000) / 100) as usize;
+            let param_id = (id - 10000) % 100;
+            if let Some(inst) = self.instruments.get_mut(inst_idx) {
+                inst.set_param(param_id, value);
+            }
+            return;
+        }
+
         let track_idx = (id / 100) as usize;
         let param_id = id % 100;
 

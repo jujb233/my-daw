@@ -1,6 +1,7 @@
 import { Component, For, createSignal } from "solid-js";
 import { GridClip } from "./GridClip";
 import { IconButton } from "../../lib/IconButton";
+import { instances } from "../../../store/audio";
 
 interface TrackRowProps {
     name: string;
@@ -8,6 +9,7 @@ interface TrackRowProps {
 }
 
 const TrackRow: Component<TrackRowProps> = (props) => {
+    const [selectedInstId, setSelectedInstId] = createSignal<number | null>(null);
     const [clips, setClips] = createSignal([
         { id: 1, name: "Bass Line", start: 50, length: 200, color: "#8b5cf6" },
         { id: 2, name: "Melody A", start: 300, length: 150, color: "#ec4899" }
@@ -32,6 +34,18 @@ const TrackRow: Component<TrackRowProps> = (props) => {
             {/* Track Header */}
             <div class="w-48 border-r border-outline-variant p-2 flex flex-col justify-between bg-surface-container">
                 <span class="font-medium text-on-surface">{props.name}</span>
+
+                <select
+                    class="w-full bg-surface-container-highest text-xs text-on-surface px-1 py-0.5 rounded border-none outline-none my-1"
+                    value={selectedInstId() ?? ""}
+                    onChange={(e) => setSelectedInstId(e.currentTarget.value ? parseInt(e.currentTarget.value) : null)}
+                >
+                    <option value="">No Instrument</option>
+                    <For each={instances()}>
+                        {(inst) => <option value={inst.id}>{inst.label}</option>}
+                    </For>
+                </select>
+
                 <div class="flex gap-1">
                     <IconButton variant="standard" class="w-6 h-6" onClick={addClip}>
                         <svg xmlns="http://www.w3.org/2000/svg" height="16" viewBox="0 -960 960 960" width="16" fill="currentColor"><path d="M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z" /></svg>

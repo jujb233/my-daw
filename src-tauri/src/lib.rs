@@ -13,6 +13,7 @@ use uuid::Uuid;
 struct PluginInstanceData {
     name: String,
     label: String,
+    routing_track_index: usize,
 }
 
 #[derive(Clone, serde::Serialize)]
@@ -76,20 +77,19 @@ fn create_audio_graph(state: &State<'_, AppState>) -> Result<Box<dyn Plugin>, St
     // Let's stick to the plan: Update `MixerTrackData` to have `meter_id`.
     // And update it when we rebuild.
 
-    if !tracks.is_empty() {
-        for (i, p_data) in plugins.iter().enumerate() {
-            if p_data.name == "SimpleSynth" {
-                let synth = create_simple_synth();
+    // Add Instruments to Mixer (Rack)
+    for (i, p_data) in plugins.iter().enumerate() {
+        if p_data.name == "SimpleSynth" {
+            let synth = create_simple_synth();
+            let inst_idx = mixer.add_instrument(synth);
 
-                // Insert into Track 0
-                if let Some(track) = mixer.get_track_mut(0) {
-                    track.container.insert_plugin(0, synth);
+            // Routing
+            mixer.set_routing(inst_idx, p_data.routing_track_index);
 
-                    // Map params
-                    track.container.map_param((10 + i * 2) as u32, 0, 0);
-                    track.container.map_param((11 + i * 2) as u32, 0, 1);
-                }
-            }
+            // Map params?
+            // We need to map params on the MixerPlugin to the Instrument.
+            // MixerPlugin needs `map_param`? It doesn't have it yet.
+            // For now, let's skip param mapping or implement it in MixerPlugin.
         }
     }
 
@@ -168,6 +168,7 @@ fn add_plugin_instance(state: State<'_, AppState>, name: String) -> Result<(), S
         plugins.push(PluginInstanceData {
             name,
             label: "New Instrument".to_string(),
+            routing_track_index: 0,
         });
     } // Unlock plugins
 
@@ -253,6 +254,26 @@ fn update_parameter(state: State<'_, AppState>, param_id: u32, value: f32) -> Re
     Ok(())
 }
 
+#[tauri::command]
+fn set_instrument_routing(
+    state: State<'_, AppState>,
+    inst_index: usize,
+    track_index: usize,
+) -> Result<(), String> {
+    {
+        let mut plugins = state
+            .active_plugins
+            .lock()
+            .map_err(|_| "Failed to lock plugins list")?;
+
+        if let Some(inst) = plugins.get_mut(inst_index) {
+            inst.routing_track_index = track_index;
+        }
+    }
+    rebuild_engine(&state)?;
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Initialize with 5 default tracks
@@ -283,7 +304,8 @@ pub fn run() {
             get_meter_levels_cmd,
             add_mixer_track,
             remove_mixer_track,
-            get_mixer_tracks
+            get_mixer_tracks,
+            set_instrument_routing
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
