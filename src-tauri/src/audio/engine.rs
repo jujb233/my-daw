@@ -1,7 +1,7 @@
-use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use crate::audio::core::plugin::{AudioBuffer, Plugin, PluginEvent};
 use anyhow::Result;
-use crossbeam_channel::{unbounded, Sender, Receiver};
-use crate::audio::plugin::{Plugin, AudioBuffer, PluginEvent};
+use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use crossbeam_channel::{unbounded, Receiver, Sender};
 
 pub struct AudioEngine {
     stream: Option<cpal::Stream>,
@@ -10,7 +10,7 @@ pub struct AudioEngine {
 
 impl AudioEngine {
     pub fn new() -> Self {
-        Self { 
+        Self {
             stream: None,
             command_sender: None,
         }
@@ -18,8 +18,10 @@ impl AudioEngine {
 
     pub fn start(&mut self, mut plugin: Box<dyn Plugin>) -> Result<()> {
         let host = cpal::default_host();
-        let device = host.default_output_device().ok_or(anyhow::anyhow!("No output device available"))?;
-        
+        let device = host
+            .default_output_device()
+            .ok_or(anyhow::anyhow!("No output device available"))?;
+
         let config = device.default_output_config()?;
         let sample_format = config.sample_format();
         let config: cpal::StreamConfig = config.into();
@@ -55,15 +57,20 @@ impl AudioEngine {
                 err_fn,
                 None,
             )?,
-            _ => return Err(anyhow::anyhow!("Unsupported sample format: {:?}", sample_format)),
+            _ => {
+                return Err(anyhow::anyhow!(
+                    "Unsupported sample format: {:?}",
+                    sample_format
+                ))
+            }
         };
 
         stream.play()?;
         self.stream = Some(stream);
-        
+
         Ok(())
     }
-    
+
     pub fn stop(&mut self) {
         self.stream = None;
         self.command_sender = None;

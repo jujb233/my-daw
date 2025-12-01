@@ -1,4 +1,6 @@
-use crate::audio::plugin::{AudioBuffer, NoteEvent, Plugin, PluginEvent};
+use crate::audio::core::plugin::{
+    AudioBuffer, NoteEvent, Plugin, PluginEvent, PluginInfo, PluginType,
+};
 use std::f32::consts::PI;
 use uuid::Uuid;
 
@@ -43,12 +45,13 @@ impl WaveGenerator {
 }
 
 impl Plugin for WaveGenerator {
-    fn id(&self) -> Uuid {
-        self.id
-    }
-
-    fn name(&self) -> &str {
-        "Wave Generator"
+    fn info(&self) -> PluginInfo {
+        PluginInfo {
+            name: "Wave Generator".to_string(),
+            vendor: "My DAW".to_string(),
+            url: "".to_string(),
+            plugin_type: PluginType::Native,
+        }
     }
 
     fn process(&mut self, buffer: &mut AudioBuffer, events: &[PluginEvent]) {
