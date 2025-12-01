@@ -1,9 +1,16 @@
-import { Component, createSignal } from "solid-js";
+import { Component } from "solid-js";
 import { Surface } from "../lib/Surface";
 import { Button } from "../lib/Button";
 import { IconButton } from "../lib/IconButton";
+import { Slider } from "../lib/Slider";
+import { masterVolume, updateMasterVolume } from "../../store/audio";
 
 export const TimbreSidebar: Component<{ isOpen: boolean; onClose: () => void }> = (props) => {
+    const handleVolumeChange = (e: Event) => {
+        const val = parseFloat((e.target as HTMLInputElement).value);
+        updateMasterVolume(val);
+    };
+
     return (
         <div
             class={`transition-all duration-300 ease-in-out overflow-hidden flex flex-col border-l border-outline-variant bg-surface-container-low ${props.isOpen ? "w-80 opacity-100" : "w-0 opacity-0"
@@ -17,6 +24,19 @@ export const TimbreSidebar: Component<{ isOpen: boolean; onClose: () => void }> 
             </div>
 
             <div class="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
+                <Surface level={1} class="p-4 flex flex-col gap-3">
+                    <span class="text-sm font-medium text-on-surface">Master Volume</span>
+                    <Slider
+                        label="Gain"
+                        min="0"
+                        max="1"
+                        step="0.01"
+                        value={masterVolume()}
+                        onInput={handleVolumeChange}
+                        valueDisplay={`${Math.round(masterVolume() * 100)}%`}
+                    />
+                </Surface>
+
                 <Surface level={1} class="p-3 flex items-center gap-3 cursor-pointer hover:bg-surface-container-high transition-colors">
                     <div class="w-10 h-10 rounded bg-primary/20 flex items-center justify-center text-primary">
                         🎹

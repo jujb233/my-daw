@@ -1,18 +1,22 @@
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use anyhow::Result;
-use crate::audio::processor::{AudioProcessor, ProcessContext};
+use crossbeam_channel::{unbounded, Sender, Receiver};
+use crate::audio::plugin::{Plugin, AudioBuffer, PluginEvent};
 
 pub struct AudioEngine {
-    // The stream is kept alive here. Dropping it stops audio.
     stream: Option<cpal::Stream>,
+    command_sender: Option<Sender<PluginEvent>>,
 }
 
 impl AudioEngine {
     pub fn new() -> Self {
-        Self { stream: None }
+        Self { 
+            stream: None,
+            command_sender: None,
+        }
     }
 
-    pub fn start(&mut self, mut processor: Box<dyn AudioProcessor>) -> Result<()> {
+    pub fn start(&mut self, mut plugin: Box<dyn Plugin>) -> Result<()> {
         let host = cpal::default_host();
         let device = host.default_output_device().ok_or(anyhow::anyhow!("No output device available"))?;
         
@@ -25,7 +29,8 @@ impl AudioEngine {
         println!("Audio Device: {:?}", device.name());
         println!("Sample Rate: {}, Channels: {}", sample_rate, channels);
 
-        let context = ProcessContext { sample_rate };
+        let (tx, rx): (Sender<PluginEvent>, Receiver<PluginEvent>) = unbounded();
+        self.command_sender = Some(tx);
 
         let err_fn = |err| eprintln!("an error occurred on stream: {}", err);
 
@@ -33,15 +38,23 @@ impl AudioEngine {
             cpal::SampleFormat::F32 => device.build_output_stream(
                 &config,
                 move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
-                    // Zero out buffer first (optional, but good practice if processor adds to it)
-                    // But our processor overwrites, so it's fine.
-                    // Actually, let's make sure processor overwrites.
-                    processor.process(data, channels, &context);
+                    // Collect events from the queue
+                    let mut events = Vec::new();
+                    while let Ok(event) = rx.try_recv() {
+                        events.push(event);
+                    }
+
+                    let mut buffer = AudioBuffer {
+                        samples: data,
+                        channels,
+                        sample_rate,
+                    };
+
+                    plugin.process(&mut buffer, &events);
                 },
                 err_fn,
                 None,
             )?,
-            // TODO: Handle other formats by converting
             _ => return Err(anyhow::anyhow!("Unsupported sample format: {:?}", sample_format)),
         };
 
@@ -53,9 +66,16 @@ impl AudioEngine {
     
     pub fn stop(&mut self) {
         self.stream = None;
+        self.command_sender = None;
     }
 
     pub fn is_running(&self) -> bool {
         self.stream.is_some()
+    }
+
+    pub fn send_event(&self, event: PluginEvent) {
+        if let Some(sender) = &self.command_sender {
+            let _ = sender.send(event);
+        }
     }
 }
