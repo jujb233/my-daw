@@ -2,6 +2,7 @@ mod audio;
 mod daw;
 
 use crate::audio::engine::AudioEngine;
+use daw::clip_commands::*;
 use daw::commands::*;
 use daw::state::{AppState, MixerTrackData};
 use std::sync::Mutex;
@@ -25,6 +26,7 @@ pub fn run() {
             audio_engine: Mutex::new(AudioEngine::new()),
             active_plugins: Mutex::new(Vec::new()),
             mixer_tracks: Mutex::new(tracks),
+            clips: Mutex::new(Vec::new()),
         })
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
@@ -38,7 +40,8 @@ pub fn run() {
             add_mixer_track,
             remove_mixer_track,
             get_mixer_tracks,
-            set_instrument_routing
+            set_instrument_routing,
+            add_clip
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

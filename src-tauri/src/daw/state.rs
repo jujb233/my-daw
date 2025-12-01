@@ -1,4 +1,5 @@
 use crate::audio::engine::AudioEngine;
+use crate::daw::sequencer::Clip;
 use serde::Serialize;
 use std::sync::Mutex;
 use uuid::Uuid;
@@ -21,4 +22,5 @@ pub struct AppState {
     pub audio_engine: Mutex<AudioEngine>,
     pub active_plugins: Mutex<Vec<PluginInstanceData>>,
     pub mixer_tracks: Mutex<Vec<MixerTrackData>>,
+    pub clips: Mutex<Vec<Clip>>,
 }

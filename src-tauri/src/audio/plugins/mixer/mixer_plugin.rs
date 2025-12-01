@@ -1,5 +1,6 @@
 use crate::audio::core::plugin::{AudioBuffer, Plugin, PluginEvent, PluginInfo, PluginType};
 use crate::audio::plugins::mixer::track::MixerTrack;
+use crate::daw::sequencer::Sequencer;
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -7,8 +8,7 @@ pub struct MixerPlugin {
     id: Uuid,
     tracks: Vec<MixerTrack>,
     instruments: Vec<Box<dyn Plugin>>,
-    // Map Instrument Index -> Track Index
-    routing: HashMap<usize, usize>,
+    sequencer: Sequencer,
     scratch_buffer: Vec<f32>,
     accumulator_buffer: Vec<f32>,
 }
@@ -24,10 +24,14 @@ impl MixerPlugin {
             id: Uuid::new_v4(),
             tracks,
             instruments: Vec::new(),
-            routing: HashMap::new(),
+            sequencer: Sequencer::new(),
             scratch_buffer: Vec::new(),
             accumulator_buffer: Vec::new(),
         }
+    }
+
+    pub fn get_sequencer_mut(&mut self) -> &mut Sequencer {
+        &mut self.sequencer
     }
 
     pub fn add_track(&mut self, meter_id: Option<Uuid>) -> Uuid {
@@ -42,9 +46,7 @@ impl MixerPlugin {
         self.instruments.len() - 1
     }
 
-    pub fn set_routing(&mut self, instrument_idx: usize, track_idx: usize) {
-        self.routing.insert(instrument_idx, track_idx);
-    }
+    // Removed set_routing as it is now dynamic via Sequencer
 
     pub fn get_instrument_mut(&mut self, index: usize) -> Option<&mut Box<dyn Plugin>> {
         self.instruments.get_mut(index)
@@ -89,6 +91,9 @@ impl Plugin for MixerPlugin {
             *sample = 0.0;
         }
 
+        // 0. Run Sequencer to get Events and Routing for this block
+        let (seq_events, routing) = self.sequencer.process(samples_len);
+
         let num_tracks = self.tracks.len();
         let num_instruments = self.instruments.len();
 
@@ -100,13 +105,22 @@ impl Plugin for MixerPlugin {
 
             // 2. Sum routed instruments
             for inst_idx in 0..num_instruments {
-                if let Some(&routed_track) = self.routing.get(&inst_idx) {
-                    if routed_track == track_idx {
+                // Check if this instrument is routed to this track in this block
+                if let Some(target_tracks) = routing.get(&inst_idx) {
+                    if target_tracks.contains(&track_idx) {
                         // Filter events for this instrument
-                        let inst_events: Vec<PluginEvent> = events
-                            .iter()
-                            .filter_map(|e| match e {
-                                PluginEvent::Midi(m) => Some(PluginEvent::Midi(*m)),
+                        // Combine Sequencer events + Parameter events
+                        let mut inst_events: Vec<PluginEvent> = Vec::new();
+
+                        // Add Sequencer events (Notes)
+                        if let Some(evts) = seq_events.get(&inst_idx) {
+                            inst_events.extend(evts.clone());
+                        }
+
+                        // Add Parameter events
+                        inst_events.extend(events.iter().filter_map(|e| {
+                            match e {
+                                PluginEvent::Midi(_) => None, // MIDI comes from Sequencer now (mostly)
                                 PluginEvent::Parameter { id, value } => {
                                     if *id >= 10000 {
                                         let target_inst = ((*id - 10000) / 100) as usize;
@@ -119,8 +133,8 @@ impl Plugin for MixerPlugin {
                                     }
                                     None
                                 }
-                            })
-                            .collect();
+                            }
+                        }));
 
                         let inst = &mut self.instruments[inst_idx];
 

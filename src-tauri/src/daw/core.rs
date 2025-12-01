@@ -28,9 +28,15 @@ pub fn create_audio_graph(state: &State<'_, AppState>) -> Result<Box<dyn Plugin>
             let synth = create_simple_synth();
             let inst_idx = mixer.add_instrument(synth);
 
-            // Routing
-            mixer.set_routing(inst_idx, p_data.routing_track_index);
+            // Routing is now handled by Sequencer/Clips
         }
+    }
+    
+    // Load Clips into Sequencer
+    let clips = state.clips.lock().map_err(|_| "Failed to lock clips")?;
+    let sequencer = mixer.get_sequencer_mut();
+    for clip in clips.iter() {
+        sequencer.add_clip(clip.clone());
     }
 
     Ok(Box::new(mixer))
