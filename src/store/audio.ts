@@ -4,7 +4,9 @@ import { invoke } from "@tauri-apps/api/core";
 export interface PluginInstance {
     id: number; // Index in the backend list
     name: string;
+    label: string;
     params: { [key: number]: number }; // Local param ID -> Value
+    isExpanded?: boolean;
 }
 
 export const [instances, setInstances] = createSignal<PluginInstance[]>([]);
@@ -17,12 +19,40 @@ export const addInstance = async (name: string) => {
             {
                 id: prev.length,
                 name,
-                params: { 0: 0.5, 1: 0 } // Default params for SimpleSynth
+                label: "New Instrument",
+                params: { 0: 0.5, 1: 0 }, // Default params for SimpleSynth
+                isExpanded: true
             }
         ]);
     } catch (e) {
         console.error("Failed to add plugin instance:", e);
     }
+};
+
+export const removeInstance = async (index: number) => {
+    try {
+        await invoke("remove_plugin_instance", { index });
+        // Re-index remaining instances
+        setInstances(prev => {
+            const filtered = prev.filter(inst => inst.id !== index);
+            return filtered.map((inst, i) => ({ ...inst, id: i }));
+        });
+    } catch (e) {
+        console.error("Failed to remove plugin instance:", e);
+    }
+};
+
+export const updateInstanceLabel = async (index: number, label: string) => {
+    try {
+        await invoke("update_plugin_label", { index, label });
+        setInstances(prev => prev.map(inst => inst.id === index ? { ...inst, label } : inst));
+    } catch (e) {
+        console.error("Failed to update plugin label:", e);
+    }
+};
+
+export const toggleInstanceExpanded = (index: number) => {
+    setInstances(prev => prev.map(inst => inst.id === index ? { ...inst, isExpanded: !inst.isExpanded } : inst));
 };
 
 export const sendParameter = async (paramId: number, value: number) => {

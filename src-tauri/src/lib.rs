@@ -6,9 +6,14 @@ use audio::plugins::simple_synth::create_simple_synth;
 use std::sync::Mutex;
 use tauri::State;
 
+struct PluginInstanceData {
+    name: String,
+    label: String,
+}
+
 struct AppState {
     audio_engine: Mutex<AudioEngine>,
-    active_plugins: Mutex<Vec<String>>,
+    active_plugins: Mutex<Vec<PluginInstanceData>>,
 }
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
@@ -17,19 +22,7 @@ fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
-#[tauri::command]
-fn add_plugin_instance(state: State<'_, AppState>, name: String) -> Result<(), String> {
-    let mut plugins = state
-        .active_plugins
-        .lock()
-        .map_err(|_| "Failed to lock plugins list")?;
-
-    plugins.push(name);
-
-    // If engine is running, we should ideally restart it or update it.
-    // For this prototype, we'll require a toggle off/on to take effect,
-    // OR we can force a restart here.
-    // Let's force a restart if running.
+fn rebuild_engine(state: &State<'_, AppState>) -> Result<(), String> {
     let mut engine = state
         .audio_engine
         .lock()
@@ -38,10 +31,15 @@ fn add_plugin_instance(state: State<'_, AppState>, name: String) -> Result<(), S
     if engine.is_running() {
         engine.stop();
 
+        let plugins = state
+            .active_plugins
+            .lock()
+            .map_err(|_| "Failed to lock plugins list")?;
+
         // Rebuild
         let mut container = PluginContainer::new();
-        for (i, p_name) in plugins.iter().enumerate() {
-            if p_name == "SimpleSynth" {
+        for (i, p_data) in plugins.iter().enumerate() {
+            if p_data.name == "SimpleSynth" {
                 let synth = create_simple_synth();
                 let idx = container.add_plugin(synth);
                 // Map params: 2 params per synth
@@ -55,7 +53,60 @@ fn add_plugin_instance(state: State<'_, AppState>, name: String) -> Result<(), S
             .start(Box::new(container))
             .map_err(|e| e.to_string())?;
     }
+    Ok(())
+}
 
+#[tauri::command]
+fn add_plugin_instance(state: State<'_, AppState>, name: String) -> Result<(), String> {
+    {
+        let mut plugins = state
+            .active_plugins
+            .lock()
+            .map_err(|_| "Failed to lock plugins list")?;
+
+        plugins.push(PluginInstanceData {
+            name,
+            label: "New Instrument".to_string(),
+        });
+    } // Unlock plugins
+
+    rebuild_engine(&state)?;
+
+    Ok(())
+}
+
+#[tauri::command]
+fn remove_plugin_instance(state: State<'_, AppState>, index: usize) -> Result<(), String> {
+    {
+        let mut plugins = state
+            .active_plugins
+            .lock()
+            .map_err(|_| "Failed to lock plugins list")?;
+
+        if index < plugins.len() {
+            plugins.remove(index);
+        }
+    } // Unlock plugins
+
+    rebuild_engine(&state)?;
+
+    Ok(())
+}
+
+#[tauri::command]
+fn update_plugin_label(
+    state: State<'_, AppState>,
+    index: usize,
+    label: String,
+) -> Result<(), String> {
+    let mut plugins = state
+        .active_plugins
+        .lock()
+        .map_err(|_| "Failed to lock plugins list")?;
+
+    if let Some(plugin) = plugins.get_mut(index) {
+        plugin.label = label;
+    }
     Ok(())
 }
 
@@ -78,12 +129,8 @@ fn toggle_audio(state: State<'_, AppState>) -> Result<bool, String> {
         // Build the plugin chain
         let mut container = PluginContainer::new();
 
-        if plugins.is_empty() {
-            // Default fallback if empty? Or just silence.
-        }
-
-        for (i, p_name) in plugins.iter().enumerate() {
-            if p_name == "SimpleSynth" {
+        for (i, p_data) in plugins.iter().enumerate() {
+            if p_data.name == "SimpleSynth" {
                 let synth = create_simple_synth();
                 let idx = container.add_plugin(synth);
                 // Map params: 2 params per synth
@@ -136,7 +183,9 @@ pub fn run() {
             greet,
             toggle_audio,
             update_parameter,
-            add_plugin_instance
+            add_plugin_instance,
+            remove_plugin_instance,
+            update_plugin_label
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
