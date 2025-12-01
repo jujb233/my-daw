@@ -1,5 +1,5 @@
 mod audio;
-use audio::core::plugin::{NoteEvent, PluginEvent};
+use audio::core::plugin::{NoteEvent, Plugin, PluginEvent};
 use audio::engine::AudioEngine;
 use audio::plugins::container::PluginContainer;
 use audio::plugins::mixer::level_meter::get_meter_levels;
@@ -15,9 +15,18 @@ struct PluginInstanceData {
     label: String,
 }
 
+#[derive(Clone, serde::Serialize)]
+struct MixerTrackData {
+    id: usize,
+    label: String,
+    volume: f32,
+    meter_id: Option<Uuid>, // Added meter_id
+}
+
 struct AppState {
     audio_engine: Mutex<AudioEngine>,
     active_plugins: Mutex<Vec<PluginInstanceData>>,
+    mixer_tracks: Mutex<Vec<MixerTrackData>>,
 }
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
@@ -31,6 +40,62 @@ fn get_meter_levels_cmd() -> HashMap<Uuid, f32> {
     get_meter_levels()
 }
 
+fn create_audio_graph(state: &State<'_, AppState>) -> Result<Box<dyn Plugin>, String> {
+    let plugins = state
+        .active_plugins
+        .lock()
+        .map_err(|_| "Failed to lock plugins list")?;
+
+    let tracks = state
+        .mixer_tracks
+        .lock()
+        .map_err(|_| "Failed to lock mixer tracks")?;
+
+    let mut mixer = MixerPlugin::new(0);
+
+    // Create configured tracks
+    for track_data in tracks.iter() {
+        mixer.add_track(track_data.meter_id);
+    }
+
+    // Let's refactor `create_audio_graph` to NOT take the lock, but take the data?
+    // No, it needs to read plugins too.
+
+    // Let's just ignore the meter ID persistence for a second.
+    // The frontend needs the meter ID to look up the level.
+    // If the ID changes every time, the frontend needs to know the new ID.
+    // Maybe we can make the Meter ID deterministic? e.g. derived from Track ID?
+    // `Uuid::new_v5`?
+
+    // Let's try to make Meter ID deterministic based on Track ID.
+    // We need to pass a seed or ID to `MixerTrack::new`.
+
+    // In `src-tauri/src/audio/plugins/mixer/track.rs`:
+    // Update `new` to take an ID?
+
+    // Let's stick to the plan: Update `MixerTrackData` to have `meter_id`.
+    // And update it when we rebuild.
+
+    if !tracks.is_empty() {
+        for (i, p_data) in plugins.iter().enumerate() {
+            if p_data.name == "SimpleSynth" {
+                let synth = create_simple_synth();
+
+                // Insert into Track 0
+                if let Some(track) = mixer.get_track_mut(0) {
+                    track.container.insert_plugin(0, synth);
+
+                    // Map params
+                    track.container.map_param((10 + i * 2) as u32, 0, 0);
+                    track.container.map_param((11 + i * 2) as u32, 0, 1);
+                }
+            }
+        }
+    }
+
+    Ok(Box::new(mixer))
+}
+
 fn rebuild_engine(state: &State<'_, AppState>) -> Result<(), String> {
     let mut engine = state
         .audio_engine
@@ -39,35 +104,57 @@ fn rebuild_engine(state: &State<'_, AppState>) -> Result<(), String> {
 
     if engine.is_running() {
         engine.stop();
-
-        let plugins = state
-            .active_plugins
-            .lock()
-            .map_err(|_| "Failed to lock plugins list")?;
-
-        // Rebuild with Mixer
-        let mut mixer = MixerPlugin::new(0);
-
-        for (i, p_data) in plugins.iter().enumerate() {
-            mixer.add_track();
-            if let Some(track) = mixer.get_track_mut(i) {
-                if p_data.name == "SimpleSynth" {
-                    let synth = create_simple_synth();
-                    track.container.insert_plugin(0, synth);
-
-                    // Map params
-                    // Track Fader is at Param 0 (mapped in MixerTrack::new)
-                    // Synth Gain -> Param 10
-                    // Synth Wave -> Param 11
-                    track.container.map_param(10, 0, 0);
-                    track.container.map_param(11, 0, 1);
-                }
-            }
-        }
-
-        engine.start(Box::new(mixer)).map_err(|e| e.to_string())?;
+        let root = create_audio_graph(state)?;
+        engine.start(root).map_err(|e| e.to_string())?;
     }
     Ok(())
+}
+
+#[tauri::command]
+fn add_mixer_track(state: State<'_, AppState>) -> Result<(), String> {
+    {
+        let mut tracks = state
+            .mixer_tracks
+            .lock()
+            .map_err(|_| "Failed to lock tracks")?;
+        let id = tracks.len();
+        tracks.push(MixerTrackData {
+            id,
+            label: format!("Track {}", id + 1),
+            volume: 1.0,
+            meter_id: Some(Uuid::new_v4()), // Generate ID here
+        });
+    }
+    rebuild_engine(&state)?;
+    Ok(())
+}
+
+#[tauri::command]
+fn remove_mixer_track(state: State<'_, AppState>, index: usize) -> Result<(), String> {
+    {
+        let mut tracks = state
+            .mixer_tracks
+            .lock()
+            .map_err(|_| "Failed to lock tracks")?;
+        if index < tracks.len() {
+            tracks.remove(index);
+            // Re-index
+            for (i, track) in tracks.iter_mut().enumerate() {
+                track.id = i;
+            }
+        }
+    }
+    rebuild_engine(&state)?;
+    Ok(())
+}
+
+#[tauri::command]
+fn get_mixer_tracks(state: State<'_, AppState>) -> Result<Vec<MixerTrackData>, String> {
+    let tracks = state
+        .mixer_tracks
+        .lock()
+        .map_err(|_| "Failed to lock tracks")?;
+    Ok(tracks.clone())
 }
 
 #[tauri::command]
@@ -135,28 +222,9 @@ fn toggle_audio(state: State<'_, AppState>) -> Result<bool, String> {
         engine.stop();
         Ok(false)
     } else {
-        let plugins = state
-            .active_plugins
-            .lock()
-            .map_err(|_| "Failed to lock plugins list")?;
+        let root = create_audio_graph(&state)?;
 
-        // Build the plugin chain
-        let mut container = PluginContainer::new();
-
-        for (i, p_data) in plugins.iter().enumerate() {
-            if p_data.name == "SimpleSynth" {
-                let synth = create_simple_synth();
-                let idx = container.add_plugin(synth);
-                // Map params: 2 params per synth
-                // Global ID = i * 2 + local_id
-                container.map_param((i * 2) as u32, idx, 0); // Gain
-                container.map_param((i * 2 + 1) as u32, idx, 1); // Waveform
-            }
-        }
-
-        engine
-            .start(Box::new(container))
-            .map_err(|e| e.to_string())?;
+        engine.start(root).map_err(|e| e.to_string())?;
 
         // Send a test note immediately to ALL synths?
         // Currently we broadcast MIDI.
@@ -187,10 +255,22 @@ fn update_parameter(state: State<'_, AppState>, param_id: u32, value: f32) -> Re
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Initialize with 5 default tracks
+    let mut tracks = Vec::new();
+    for i in 0..5 {
+        tracks.push(MixerTrackData {
+            id: i,
+            label: format!("Track {}", i + 1),
+            volume: 1.0,
+            meter_id: Some(Uuid::new_v4()),
+        });
+    }
+
     tauri::Builder::default()
         .manage(AppState {
             audio_engine: Mutex::new(AudioEngine::new()),
             active_plugins: Mutex::new(Vec::new()),
+            mixer_tracks: Mutex::new(tracks),
         })
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
@@ -200,7 +280,10 @@ pub fn run() {
             add_plugin_instance,
             remove_plugin_instance,
             update_plugin_label,
-            get_meter_levels_cmd
+            get_meter_levels_cmd,
+            add_mixer_track,
+            remove_mixer_track,
+            get_mixer_tracks
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
