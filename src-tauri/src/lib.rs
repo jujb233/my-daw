@@ -18,7 +18,11 @@ fn greet(name: &str) -> String {
 }
 
 #[tauri::command]
-fn toggle_audio(state: State<'_, AppState>, initial_gain: f32) -> Result<bool, String> {
+fn toggle_audio(
+    state: State<'_, AppState>,
+    initial_gain: f32,
+    initial_waveform: u32,
+) -> Result<bool, String> {
     let mut engine = state
         .audio_engine
         .lock()
@@ -47,6 +51,11 @@ fn toggle_audio(state: State<'_, AppState>, initial_gain: f32) -> Result<bool, S
         engine.send_event(PluginEvent::Parameter {
             id: 0,
             value: initial_gain,
+        });
+        // Send initial waveform
+        engine.send_event(PluginEvent::Parameter {
+            id: 1,
+            value: initial_waveform as f32,
         });
 
         // Send a test note immediately

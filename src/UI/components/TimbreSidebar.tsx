@@ -3,7 +3,7 @@ import { Surface } from "../lib/Surface";
 import { Button } from "../lib/Button";
 import { IconButton } from "../lib/IconButton";
 import { Slider } from "../lib/Slider";
-import { masterVolume, updateMasterVolume } from "../../store/audio";
+import { masterVolume, updateMasterVolume, waveform, updateWaveform } from "../../store/audio";
 
 export const TimbreSidebar: Component<{ isOpen: boolean; onClose: () => void }> = (props) => {
     const handleVolumeChange = (e: Event) => {
@@ -35,6 +35,28 @@ export const TimbreSidebar: Component<{ isOpen: boolean; onClose: () => void }> 
                         onInput={handleVolumeChange}
                         valueDisplay={`${Math.round(masterVolume() * 100)}%`}
                     />
+
+                    <div class="flex flex-col gap-2 pt-2 border-t border-outline-variant">
+                        <span class="text-sm font-medium text-on-surface">Waveform</span>
+                        <div class="grid grid-cols-4 gap-1">
+                            {[
+                                { label: "Sine", value: 0 },
+                                { label: "Sqr", value: 1 },
+                                { label: "Saw", value: 2 },
+                                { label: "Tri", value: 3 },
+                            ].map((w) => (
+                                <button
+                                    class={`px-1 py-1.5 text-xs font-medium rounded transition-colors ${waveform() === w.value
+                                            ? "bg-primary text-on-primary"
+                                            : "bg-surface-container-highest text-on-surface-variant hover:bg-surface-container-high"
+                                        }`}
+                                    onClick={() => updateWaveform(w.value)}
+                                >
+                                    {w.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
                 </Surface>
 
                 <Surface level={1} class="p-3 flex items-center gap-3 cursor-pointer hover:bg-surface-container-high transition-colors">

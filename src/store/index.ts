@@ -1,7 +1,7 @@
 import { createStore, produce } from "solid-js/store";
 import { invoke } from "@tauri-apps/api/core";
 import { ProjectStore, ClipContent, ClipInstance, Track } from "./types";
-import { masterVolume } from "./audio";
+import { masterVolume, waveform } from "./audio";
 
 const DEFAULT_PROJECT: ProjectStore = {
     info: {
@@ -35,7 +35,10 @@ export const selectTrack = (id: string) => {
 
 export const togglePlayback = async () => {
     try {
-        const isPlaying = await invoke<boolean>("toggle_audio", { initialGain: masterVolume() });
+        const isPlaying = await invoke<boolean>("toggle_audio", {
+            initialGain: masterVolume(),
+            initialWaveform: waveform(),
+        });
         setStore("playback", "isPlaying", isPlaying);
     } catch (e) {
         console.error("Failed to toggle audio:", e);
