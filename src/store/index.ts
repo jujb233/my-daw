@@ -22,11 +22,16 @@ const DEFAULT_PROJECT: ProjectStore = {
     clips: [],
     clipLibrary: {},
     selectedTrackId: null,
+    selectedClipId: null,
 };
 
 export const [store, setStore] = createStore<ProjectStore>(DEFAULT_PROJECT);
 
 // --- Actions ---
+
+export const selectClip = (id: number | null) => {
+    setStore("selectedClipId", id);
+};
 
 export const selectTrack = (id: string) => {
     setStore("selectedTrackId", id);

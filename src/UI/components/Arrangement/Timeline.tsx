@@ -3,6 +3,7 @@ import { GridClip } from "./GridClip";
 import { IconButton } from "../../lib/IconButton";
 import { instances } from "../../../store/audio";
 import { invoke } from "@tauri-apps/api/core";
+import { selectClip } from "../../../store";
 
 interface TrackRowProps {
     name: string;
@@ -107,6 +108,7 @@ const TrackRow: Component<TrackRowProps> = (props) => {
                             instrumentId={(clip as any).instrumentId ?? 0}
                             targetTrackId={(clip as any).targetTrackId ?? 0}
                             onUpdate={(updates) => updateClip(clip.id, updates)}
+                            onClick={() => selectClip(clip.id)}
                         />
                     )}
                 </For>

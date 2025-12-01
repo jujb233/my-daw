@@ -1,15 +1,24 @@
-use std::collections::HashMap;
 use crate::audio::core::plugin::{NoteEvent, PluginEvent};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Note {
+    pub relative_start: f64, // Seconds relative to clip start
+    pub duration: f64,       // Seconds
+    pub note: u8,            // MIDI note number
+    pub velocity: f32,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Clip {
     pub id: usize,
     pub name: String,
-    pub start_time: f64, // In seconds (or beats? Let's use seconds for engine simplicity for now, or samples)
+    pub start_time: f64, // In seconds
     pub duration: f64,
     pub instrument_id: usize,
     pub target_track_ids: Vec<usize>,
-    pub notes: Vec<NoteEvent>, // Simplified for now, usually needs timestamp relative to clip start
+    pub notes: Vec<Note>,
 }
 
 pub struct Sequencer {
@@ -48,10 +57,13 @@ impl Sequencer {
     // Returns:
     // 1. Events for Instruments: HashMap<InstrumentID, Vec<PluginEvent>>
     // 2. Routing for this block: HashMap<InstrumentID, Vec<TrackID>>
-    pub fn process(&mut self, samples: usize) -> (HashMap<usize, Vec<PluginEvent>>, HashMap<usize, Vec<usize>>) {
+    pub fn process(
+        &mut self,
+        samples: usize,
+    ) -> (HashMap<usize, Vec<PluginEvent>>, HashMap<usize, Vec<usize>>) {
         let mut events = HashMap::new();
         let mut routing = HashMap::new();
-        
+
         let duration = samples as f64 / self.sample_rate as f64;
         let end_time = if self.playing {
             self.current_time + duration
@@ -65,7 +77,8 @@ impl Sequencer {
             let is_active = if self.playing {
                 clip.start_time < end_time && (clip.start_time + clip.duration) > self.current_time
             } else {
-                self.current_time >= clip.start_time && self.current_time < (clip.start_time + clip.duration)
+                self.current_time >= clip.start_time
+                    && self.current_time < (clip.start_time + clip.duration)
             };
 
             if is_active {
@@ -80,16 +93,25 @@ impl Sequencer {
 
                 // 2. Collect Events (Only if playing)
                 if self.playing {
-                    // Placeholder: If we just entered the clip, send NoteOn.
-                    if clip.start_time >= self.current_time && clip.start_time < end_time {
-                         let inst_events = events.entry(clip.instrument_id).or_insert(Vec::new());
-                         inst_events.push(PluginEvent::Midi(NoteEvent::NoteOn { note: 60, velocity: 0.8 }));
-                    }
-                    
-                    // If we are exiting the clip, send NoteOff?
-                    if (clip.start_time + clip.duration) >= self.current_time && (clip.start_time + clip.duration) < end_time {
-                         let inst_events = events.entry(clip.instrument_id).or_insert(Vec::new());
-                         inst_events.push(PluginEvent::Midi(NoteEvent::NoteOff { note: 60 }));
+                    let inst_events = events.entry(clip.instrument_id).or_insert(Vec::new());
+
+                    for note in &clip.notes {
+                        let note_start_abs = clip.start_time + note.relative_start;
+                        let note_end_abs = note_start_abs + note.duration;
+
+                        // Check Note On
+                        if note_start_abs >= self.current_time && note_start_abs < end_time {
+                            inst_events.push(PluginEvent::Midi(NoteEvent::NoteOn {
+                                note: note.note,
+                                velocity: note.velocity,
+                            }));
+                        }
+
+                        // Check Note Off
+                        if note_end_abs >= self.current_time && note_end_abs < end_time {
+                            inst_events
+                                .push(PluginEvent::Midi(NoteEvent::NoteOff { note: note.note }));
+                        }
                     }
                 }
             }

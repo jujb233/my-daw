@@ -12,6 +12,7 @@ interface GridClipProps {
     instrumentId?: number;
     targetTrackId?: number;
     onUpdate?: (updates: any) => void;
+    onClick?: () => void;
 }
 
 export const GridClip: Component<GridClipProps> = (props) => {
@@ -22,6 +23,10 @@ export const GridClip: Component<GridClipProps> = (props) => {
                 width: `${props.width}px`,
                 left: `${props.left}px`,
                 "background-color": props.color || "#3b82f6"
+            }}
+            onClick={(e) => {
+                e.stopPropagation();
+                props.onClick?.();
             }}
         >
             <div class="px-2 py-1 text-xs font-medium text-white truncate select-none flex justify-between items-center">

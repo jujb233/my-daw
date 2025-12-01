@@ -43,6 +43,7 @@ pub fn run() {
             set_instrument_routing,
             add_clip,
             update_clip,
+            get_clip,
             play,
             pause,
             stop

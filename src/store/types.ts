@@ -49,4 +49,5 @@ export interface ProjectStore {
     clips: ClipInstance[];
     clipLibrary: Record<string, ClipContent>; // id -> Content
     selectedTrackId: string | null;
+    selectedClipId: number | null; // Backend ID (usize)
 }
