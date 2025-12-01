@@ -20,7 +20,7 @@ export const addInstance = async (name: string) => {
                 id: prev.length,
                 name,
                 label: "New Instrument",
-                params: { 0: 0.5, 1: 0 }, // Default params for SimpleSynth
+                params: { 10: 0.5, 11: 0 }, // Default params for SimpleSynth (10=Gain, 11=Wave)
                 isExpanded: true
             }
         ]);
@@ -72,9 +72,8 @@ export const updateInstanceParam = (instanceId: number, paramId: number, value: 
         return inst;
     }));
 
-    // Calculate global param ID: instanceId * 2 + paramId
-    // NOTE: This assumes all plugins have exactly 2 params. 
-    // In a real app, we'd query the plugin for its param count or offset.
-    const globalId = instanceId * 2 + paramId;
+    // Calculate global param ID: instanceId * 100 + paramId
+    // Mixer Plugin maps Track Ids to 100-blocks.
+    const globalId = instanceId * 100 + paramId;
     sendParameter(globalId, value);
 };

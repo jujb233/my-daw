@@ -2,9 +2,13 @@ mod audio;
 use audio::core::plugin::{NoteEvent, PluginEvent};
 use audio::engine::AudioEngine;
 use audio::plugins::container::PluginContainer;
+use audio::plugins::mixer::level_meter::get_meter_levels;
+use audio::plugins::mixer::mixer_plugin::MixerPlugin;
 use audio::plugins::simple_synth::create_simple_synth;
+use std::collections::HashMap;
 use std::sync::Mutex;
 use tauri::State;
+use uuid::Uuid;
 
 struct PluginInstanceData {
     name: String,
@@ -22,6 +26,11 @@ fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
+#[tauri::command]
+fn get_meter_levels_cmd() -> HashMap<Uuid, f32> {
+    get_meter_levels()
+}
+
 fn rebuild_engine(state: &State<'_, AppState>) -> Result<(), String> {
     let mut engine = state
         .audio_engine
@@ -36,22 +45,27 @@ fn rebuild_engine(state: &State<'_, AppState>) -> Result<(), String> {
             .lock()
             .map_err(|_| "Failed to lock plugins list")?;
 
-        // Rebuild
-        let mut container = PluginContainer::new();
+        // Rebuild with Mixer
+        let mut mixer = MixerPlugin::new(0);
+
         for (i, p_data) in plugins.iter().enumerate() {
-            if p_data.name == "SimpleSynth" {
-                let synth = create_simple_synth();
-                let idx = container.add_plugin(synth);
-                // Map params: 2 params per synth
-                // Global ID = i * 2 + local_id
-                container.map_param((i * 2) as u32, idx, 0); // Gain
-                container.map_param((i * 2 + 1) as u32, idx, 1); // Waveform
+            mixer.add_track();
+            if let Some(track) = mixer.get_track_mut(i) {
+                if p_data.name == "SimpleSynth" {
+                    let synth = create_simple_synth();
+                    track.container.insert_plugin(0, synth);
+
+                    // Map params
+                    // Track Fader is at Param 0 (mapped in MixerTrack::new)
+                    // Synth Gain -> Param 10
+                    // Synth Wave -> Param 11
+                    track.container.map_param(10, 0, 0);
+                    track.container.map_param(11, 0, 1);
+                }
             }
         }
 
-        engine
-            .start(Box::new(container))
-            .map_err(|e| e.to_string())?;
+        engine.start(Box::new(mixer)).map_err(|e| e.to_string())?;
     }
     Ok(())
 }
@@ -185,7 +199,8 @@ pub fn run() {
             update_parameter,
             add_plugin_instance,
             remove_plugin_instance,
-            update_plugin_label
+            update_plugin_label,
+            get_meter_levels_cmd
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

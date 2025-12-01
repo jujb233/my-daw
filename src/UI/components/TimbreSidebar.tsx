@@ -62,9 +62,9 @@ export const TimbreSidebar: Component<{ isOpen: boolean; onClose: () => void }> 
                                         min="0"
                                         max="1"
                                         step="0.01"
-                                        value={inst.params[0]}
-                                        onInput={(e) => updateInstanceParam(inst.id, 0, parseFloat((e.target as HTMLInputElement).value))}
-                                        valueDisplay={`${Math.round(inst.params[0] * 100)}%`}
+                                        value={inst.params[10]}
+                                        onInput={(e) => updateInstanceParam(inst.id, 10, parseFloat((e.target as HTMLInputElement).value))}
+                                        valueDisplay={`${Math.round((inst.params[10] || 0) * 100)}%`}
                                     />
 
                                     <div class="flex flex-col gap-2">
@@ -77,11 +77,11 @@ export const TimbreSidebar: Component<{ isOpen: boolean; onClose: () => void }> 
                                                 { label: "Tri", value: 3 },
                                             ].map((w) => (
                                                 <button
-                                                    class={`px-1 py-1.5 text-xs font-medium rounded transition-colors ${inst.params[1] === w.value
+                                                    class={`px-1 py-1.5 text-xs font-medium rounded transition-colors ${inst.params[11] === w.value
                                                         ? "bg-primary text-on-primary"
                                                         : "bg-surface-container-highest text-on-surface-variant hover:bg-surface-container-high"
                                                         }`}
-                                                    onClick={() => updateInstanceParam(inst.id, 1, w.value)}
+                                                    onClick={() => updateInstanceParam(inst.id, 11, w.value)}
                                                 >
                                                     {w.label}
                                                 </button>
