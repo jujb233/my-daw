@@ -91,6 +91,18 @@ impl Plugin for MixerPlugin {
             *sample = 0.0;
         }
 
+        // Handle Transport Events
+        for event in events {
+            if let PluginEvent::Transport {
+                playing,
+                position,
+                tempo,
+            } = event
+            {
+                self.sequencer.set_transport(*playing, *position, *tempo);
+            }
+        }
+
         // 0. Run Sequencer to get Events and Routing for this block
         let (seq_events, routing) = self.sequencer.process(samples_len);
 
@@ -121,6 +133,7 @@ impl Plugin for MixerPlugin {
                         inst_events.extend(events.iter().filter_map(|e| {
                             match e {
                                 PluginEvent::Midi(_) => None, // MIDI comes from Sequencer now (mostly)
+                                PluginEvent::Transport { .. } => None,
                                 PluginEvent::Parameter { id, value } => {
                                     if *id >= 10000 {
                                         let target_inst = ((*id - 10000) / 100) as usize;
@@ -159,6 +172,7 @@ impl Plugin for MixerPlugin {
                 .iter()
                 .filter_map(|e| match e {
                     PluginEvent::Midi(_) => None,
+                    PluginEvent::Transport { .. } => None,
                     PluginEvent::Parameter { id, value } => {
                         if *id < 10000 {
                             let target_track = (*id / 100) as usize;

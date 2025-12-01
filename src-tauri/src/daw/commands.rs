@@ -179,3 +179,58 @@ pub fn set_instrument_routing(
     rebuild_engine(&state)?;
     Ok(())
 }
+
+#[tauri::command]
+pub fn play(state: State<'_, AppState>) -> Result<(), String> {
+    let mut engine = state
+        .audio_engine
+        .lock()
+        .map_err(|_| "Failed to lock audio engine")?;
+
+    if !engine.is_running() {
+        drop(engine); // Release lock
+        rebuild_engine(&state)?; // Start engine
+        engine = state.audio_engine.lock().map_err(|_| "Failed to lock audio engine")?;
+    }
+
+    engine.send_event(PluginEvent::Transport {
+        playing: true,
+        position: None,
+        tempo: None,
+    });
+    Ok(())
+}
+
+#[tauri::command]
+pub fn pause(state: State<'_, AppState>) -> Result<(), String> {
+    let engine = state
+        .audio_engine
+        .lock()
+        .map_err(|_| "Failed to lock audio engine")?;
+
+    if engine.is_running() {
+        engine.send_event(PluginEvent::Transport {
+            playing: false,
+            position: None,
+            tempo: None,
+        });
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn stop(state: State<'_, AppState>) -> Result<(), String> {
+    let engine = state
+        .audio_engine
+        .lock()
+        .map_err(|_| "Failed to lock audio engine")?;
+
+    if engine.is_running() {
+        engine.send_event(PluginEvent::Transport {
+            playing: false,
+            position: Some(0.0),
+            tempo: None,
+        });
+    }
+    Ok(())
+}

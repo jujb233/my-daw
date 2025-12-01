@@ -41,7 +41,11 @@ pub fn run() {
             remove_mixer_track,
             get_mixer_tracks,
             set_instrument_routing,
-            add_clip
+            add_clip,
+            update_clip,
+            play,
+            pause,
+            stop
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

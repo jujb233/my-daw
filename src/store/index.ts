@@ -34,10 +34,15 @@ export const selectTrack = (id: string) => {
 
 export const togglePlayback = async () => {
     try {
-        const isPlaying = await invoke<boolean>("toggle_audio");
-        setStore("playback", "isPlaying", isPlaying);
+        if (store.playback.isPlaying) {
+            await invoke("pause");
+            setStore("playback", "isPlaying", false);
+        } else {
+            await invoke("play");
+            setStore("playback", "isPlaying", true);
+        }
     } catch (e) {
-        console.error("Failed to toggle audio:", e);
+        console.error("Failed to toggle playback:", e);
     }
 };
 

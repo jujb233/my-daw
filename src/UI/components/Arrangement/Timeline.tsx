@@ -2,6 +2,7 @@ import { Component, For, createSignal } from "solid-js";
 import { GridClip } from "./GridClip";
 import { IconButton } from "../../lib/IconButton";
 import { instances } from "../../../store/audio";
+import { invoke } from "@tauri-apps/api/core";
 
 interface TrackRowProps {
     name: string;
@@ -9,24 +10,66 @@ interface TrackRowProps {
 }
 
 const TrackRow: Component<TrackRowProps> = (props) => {
-    const [selectedInstId, setSelectedInstId] = createSignal<number | null>(null);
     const [clips, setClips] = createSignal([
         { id: 1, name: "Bass Line", start: 50, length: 200, color: "#8b5cf6" },
         { id: 2, name: "Melody A", start: 300, length: 150, color: "#ec4899" }
     ]);
 
-    const addClip = () => {
-        setClips(prev => [...prev, {
-            id: Date.now(),
-            name: "New Clip",
-            start: 100,
-            length: 100,
-            color: "#10b981"
-        }]);
+    const addClip = async () => {
+        // Default values for new clip
+        const name = "New Clip";
+        const start = 100;
+        const length = 100;
+        const instrumentId = 0; // Default to first instrument
+        const targetTrackIds = [0]; // Default to first track
+
+        try {
+            // Call backend to add clip
+            // Note: start_time and duration in backend are in seconds. 
+            // Frontend pixels need conversion. Let's assume 100px = 1 second for now.
+            const id = await invoke("add_clip", {
+                name,
+                startTime: start / 100.0,
+                duration: length / 100.0,
+                instrumentId,
+                targetTrackIds
+            }) as number;
+
+            setClips(prev => [...prev, {
+                id, // Use backend ID
+                name,
+                start,
+                length,
+                color: "#10b981"
+            }]);
+        } catch (e) {
+            console.error("Failed to add clip:", e);
+        }
     };
 
     const removeClip = (id: number) => {
         setClips(prev => prev.filter(c => c.id !== id));
+    };
+
+    const updateClip = async (id: number, updates: any) => {
+        try {
+            // Prepare backend updates
+            const backendUpdates: any = { id };
+            if (updates.instrumentId !== undefined) backendUpdates.instrumentId = updates.instrumentId;
+            if (updates.targetTrackId !== undefined) backendUpdates.targetTrackIds = [updates.targetTrackId];
+
+            await invoke("update_clip", backendUpdates);
+
+            // Update local state
+            setClips(prev => prev.map(c => {
+                if (c.id === id) {
+                    return { ...c, ...updates };
+                }
+                return c;
+            }));
+        } catch (e) {
+            console.error("Failed to update clip:", e);
+        }
     };
 
     return (
@@ -34,17 +77,6 @@ const TrackRow: Component<TrackRowProps> = (props) => {
             {/* Track Header */}
             <div class="w-48 border-r border-outline-variant p-2 flex flex-col justify-between bg-surface-container">
                 <span class="font-medium text-on-surface">{props.name}</span>
-
-                <select
-                    class="w-full bg-surface-container-highest text-xs text-on-surface px-1 py-0.5 rounded border-none outline-none my-1"
-                    value={selectedInstId() ?? ""}
-                    onChange={(e) => setSelectedInstId(e.currentTarget.value ? parseInt(e.currentTarget.value) : null)}
-                >
-                    <option value="">No Instrument</option>
-                    <For each={instances()}>
-                        {(inst) => <option value={inst.id}>{inst.label}</option>}
-                    </For>
-                </select>
 
                 <div class="flex gap-1">
                     <IconButton variant="standard" class="w-6 h-6" onClick={addClip}>
@@ -71,15 +103,17 @@ const TrackRow: Component<TrackRowProps> = (props) => {
                             width={clip.length}
                             color={clip.color}
                             onRemove={() => removeClip(clip.id)}
+                            // Pass default or stored values
+                            instrumentId={(clip as any).instrumentId ?? 0}
+                            targetTrackId={(clip as any).targetTrackId ?? 0}
+                            onUpdate={(updates) => updateClip(clip.id, updates)}
                         />
                     )}
                 </For>
             </div>
         </div>
     );
-};
-
-export const Timeline: Component = () => {
+}; export const Timeline: Component = () => {
     return (
         <div class="flex-1 flex flex-col overflow-hidden bg-surface">
             {/* Ruler */}

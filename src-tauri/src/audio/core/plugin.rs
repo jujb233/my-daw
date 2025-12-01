@@ -9,7 +9,15 @@ pub enum NoteEvent {
 #[derive(Debug, Clone)]
 pub enum PluginEvent {
     Midi(NoteEvent),
-    Parameter { id: u32, value: f32 },
+    Parameter {
+        id: u32,
+        value: f32,
+    },
+    Transport {
+        playing: bool,
+        position: Option<f64>,
+        tempo: Option<f64>,
+    },
 }
 
 pub struct AudioBuffer<'a> {
