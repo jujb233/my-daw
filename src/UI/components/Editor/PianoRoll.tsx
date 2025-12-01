@@ -1,5 +1,6 @@
-import { Component, createEffect, createSignal, For } from "solid-js";
+import { Component, createEffect, createSignal, For, onMount } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
+import { Ruler } from "../Ruler";
 
 interface Note {
     relative_start: number;
@@ -25,6 +26,8 @@ interface PianoRollProps {
 export const PianoRoll: Component<PianoRollProps> = (props) => {
     const [clip, setClip] = createSignal<Clip | null>(null);
     const [zoom, setZoom] = createSignal(100); // pixels per second
+    let keysContainer: HTMLDivElement | undefined;
+    let gridContainer: HTMLDivElement | undefined;
 
     const fetchClip = async () => {
         try {
@@ -86,6 +89,13 @@ export const PianoRoll: Component<PianoRollProps> = (props) => {
         }
     };
 
+    // Sync scroll
+    const handleScroll = (e: Event) => {
+        if (keysContainer && gridContainer) {
+            keysContainer.scrollTop = gridContainer.scrollTop;
+        }
+    };
+
     // Grid rendering helpers
     const NOTE_HEIGHT = 20;
     const KEYS = Array.from({ length: 128 }, (_, i) => 127 - i); // Top to bottom
@@ -93,7 +103,10 @@ export const PianoRoll: Component<PianoRollProps> = (props) => {
     return (
         <div class="flex h-full w-full bg-surface-container-low overflow-hidden">
             {/* Piano Keys (Left) */}
-            <div class="w-16 flex-shrink-0 overflow-y-hidden border-r border-outline-variant bg-surface">
+            <div
+                ref={keysContainer}
+                class="w-16 flex-shrink-0 overflow-hidden border-r border-outline-variant bg-surface mt-8" // mt-8 to offset ruler
+            >
                 <div class="relative" style={{ height: `${KEYS.length * NOTE_HEIGHT}px` }}>
                     <For each={KEYS}>
                         {(note) => {
@@ -111,7 +124,16 @@ export const PianoRoll: Component<PianoRollProps> = (props) => {
             </div>
 
             {/* Grid Area */}
-            <div class="flex-1 overflow-auto relative bg-surface-container-lowest">
+            <div
+                ref={gridContainer}
+                class="flex-1 overflow-auto relative bg-surface-container-lowest"
+                onScroll={handleScroll}
+            >
+                {/* Ruler (Sticky) */}
+                <div class="sticky top-0 z-20 bg-surface-container-high">
+                    <Ruler zoom={zoom()} length={clip()?.duration || 10} height={32} />
+                </div>
+
                 <div
                     class="relative min-w-full"
                     style={{
@@ -119,9 +141,10 @@ export const PianoRoll: Component<PianoRollProps> = (props) => {
                         width: clip() ? `${clip()!.duration * zoom()}px` : '100%'
                     }}
                     onClick={(e) => {
+                        // Adjust click coordinates for ruler height
                         const rect = e.currentTarget.getBoundingClientRect();
                         const x = e.clientX - rect.left;
-                        const y = e.clientY - rect.top;
+                        const y = e.clientY - rect.top; // This is relative to the grid container content
 
                         const time = x / zoom();
                         const noteIndex = Math.floor(y / NOTE_HEIGHT);
