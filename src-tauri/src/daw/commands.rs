@@ -1,0 +1,181 @@
+use tauri::State;
+use std::collections::HashMap;
+use uuid::Uuid;
+use crate::audio::core::plugin::{NoteEvent, PluginEvent};
+use crate::audio::plugins::mixer::level_meter::get_meter_levels;
+use super::state::{AppState, MixerTrackData, PluginInstanceData};
+use super::core::{create_audio_graph, rebuild_engine};
+
+#[tauri::command]
+pub fn greet(name: &str) -> String {
+    format!("Hello, {}! You've been greeted from Rust!", name)
+}
+
+#[tauri::command]
+pub fn get_meter_levels_cmd() -> HashMap<Uuid, f32> {
+    get_meter_levels()
+}
+
+#[tauri::command]
+pub fn add_mixer_track(state: State<'_, AppState>) -> Result<(), String> {
+    {
+        let mut tracks = state
+            .mixer_tracks
+            .lock()
+            .map_err(|_| "Failed to lock tracks")?;
+        let id = tracks.len();
+        tracks.push(MixerTrackData {
+            id,
+            label: format!("Track {}", id + 1),
+            volume: 1.0,
+            meter_id: Some(Uuid::new_v4()), // Generate ID here
+        });
+    }
+    rebuild_engine(&state)?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn remove_mixer_track(state: State<'_, AppState>, index: usize) -> Result<(), String> {
+    {
+        let mut tracks = state
+            .mixer_tracks
+            .lock()
+            .map_err(|_| "Failed to lock tracks")?;
+        if index < tracks.len() {
+            tracks.remove(index);
+            // Re-index
+            for (i, track) in tracks.iter_mut().enumerate() {
+                track.id = i;
+            }
+        }
+    }
+    rebuild_engine(&state)?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn get_mixer_tracks(state: State<'_, AppState>) -> Result<Vec<MixerTrackData>, String> {
+    let tracks = state
+        .mixer_tracks
+        .lock()
+        .map_err(|_| "Failed to lock tracks")?;
+    Ok(tracks.clone())
+}
+
+#[tauri::command]
+pub fn add_plugin_instance(state: State<'_, AppState>, name: String) -> Result<(), String> {
+    {
+        let mut plugins = state
+            .active_plugins
+            .lock()
+            .map_err(|_| "Failed to lock plugins list")?;
+
+        plugins.push(PluginInstanceData {
+            name,
+            label: "New Instrument".to_string(),
+            routing_track_index: 0,
+        });
+    } // Unlock plugins
+
+    rebuild_engine(&state)?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn remove_plugin_instance(state: State<'_, AppState>, index: usize) -> Result<(), String> {
+    {
+        let mut plugins = state
+            .active_plugins
+            .lock()
+            .map_err(|_| "Failed to lock plugins list")?;
+
+        if index < plugins.len() {
+            plugins.remove(index);
+        }
+    } // Unlock plugins
+
+    rebuild_engine(&state)?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn update_plugin_label(
+    state: State<'_, AppState>,
+    index: usize,
+    label: String,
+) -> Result<(), String> {
+    let mut plugins = state
+        .active_plugins
+        .lock()
+        .map_err(|_| "Failed to lock plugins list")?;
+
+    if let Some(plugin) = plugins.get_mut(index) {
+        plugin.label = label;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn toggle_audio(state: State<'_, AppState>) -> Result<bool, String> {
+    let mut engine = state
+        .audio_engine
+        .lock()
+        .map_err(|_| "Failed to lock audio engine")?;
+
+    if engine.is_running() {
+        engine.stop();
+        Ok(false)
+    } else {
+        let root = create_audio_graph(&state)?;
+
+        engine.start(root).map_err(|e| e.to_string())?;
+
+        // Send a test note immediately to ALL synths?
+        // Currently we broadcast MIDI.
+        engine.send_event(PluginEvent::Midi(NoteEvent::NoteOn {
+            note: 69,
+            velocity: 1.0,
+        })); // A4
+
+        Ok(true)
+    }
+}
+
+#[tauri::command]
+pub fn update_parameter(state: State<'_, AppState>, param_id: u32, value: f32) -> Result<(), String> {
+    let engine = state
+        .audio_engine
+        .lock()
+        .map_err(|_| "Failed to lock audio engine")?;
+
+    if engine.is_running() {
+        engine.send_event(PluginEvent::Parameter {
+            id: param_id,
+            value,
+        });
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn set_instrument_routing(
+    state: State<'_, AppState>,
+    inst_index: usize,
+    track_index: usize,
+) -> Result<(), String> {
+    {
+        let mut plugins = state
+            .active_plugins
+            .lock()
+            .map_err(|_| "Failed to lock plugins list")?;
+
+        if let Some(inst) = plugins.get_mut(inst_index) {
+            inst.routing_track_index = track_index;
+        }
+    }
+    rebuild_engine(&state)?;
+    Ok(())
+}
