@@ -6,11 +6,11 @@
   "scripts": {
     "start": "vite",
     "dev": "vite",
-    "build": "vite build",
+    "build": "tsc --noEmit && vite build",
     "serve": "vite preview",
     "tauri": "WEBKIT_DISABLE_DMABUF_RENDERER=1 tauri"
   },
-  "license": "GPL-3.0-or-later",
+  "license": "GPL-3.0",
   "dependencies": {
     "@tailwindcss/vite": "^4.1.17",
     "@tauri-apps/api": "^2",

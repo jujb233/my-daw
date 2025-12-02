@@ -1,103 +1,46 @@
-import { Component, For, createSignal } from "solid-js";
+import { Component, For } from "solid-js";
 import { GridClip } from "./GridClip";
 import { IconButton } from "../../UI/lib/IconButton";
-import { instances } from "../../store/audio";
-import { invoke } from "@tauri-apps/api/core";
-import { selectClip } from "../../store";
+import { selectClip, store } from "../../store";
+
+const PX_PER_BAR = 120; // Adjust as needed
+const TOTAL_BARS = 100; // Fixed size for now
 
 interface TrackRowProps {
     name: string;
-    height?: number;
+    trackId: number;
+    scrollLeft: number;
 }
 
 const TrackRow: Component<TrackRowProps> = (props) => {
-    const [clips, setClips] = createSignal<any[]>([]);
+    // Load clips from store
+    const trackClips = () => store.clips.filter(c => c.trackId === props.trackId);
 
     const addClip = async () => {
-        // Default values for new clip
-        const name = "新片段";
-        const start = 100;
-        const length = 100;
-        const instrumentIds = [0]; // Default to first instrument
-        // Default routing handled by backend now
+        const name = "New Clip";
+        const startBar = 1;
+
+        // Calculate time in seconds for backend (assuming 120bpm 4/4 for now)
+        // TODO: Use actual BPM/Sig conversion
 
         try {
-            // Call backend to add clip
-            // Note: start_time and duration in backend are in seconds. 
-            // Frontend pixels need conversion. Let's assume 100px = 1 second for now.
-            const id = await invoke("add_clip", {
-                name,
-                startTime: start / 100.0,
-                duration: length / 100.0,
-                instrumentIds,
-            }) as number;
-
-            setClips(prev => [...prev, {
-                id, // Use backend ID
-                name,
-                start,
-                length,
-                color: "#10b981"
-            }]);
+            // We use the store action which handles backend + frontend state
+            // But we need to import addClip from store/index.ts or use the one we defined?
+            // The user's previous code used invoke directly in TrackRow. 
+            // Let's switch to using the store's addClip if possible, or keep it simple.
+            // The store has `addClip`. Let's use it.
+            const { addClip } = await import("../../store");
+            await addClip(props.trackId, startBar, name, "#10b981");
         } catch (e) {
             console.error("Failed to add clip:", e);
         }
     };
 
-    const removeClip = (id: number) => {
-        setClips(prev => prev.filter(c => c.id !== id));
-    };
-
-    const updateClip = async (id: number, updates: any) => {
-        try {
-            // Prepare backend updates
-            const backendUpdates: any = { id };
-            // Note: instrument/routing updates are now handled in ClipDetails
-            // This function mainly handles position/length/name from the timeline
-
-            // Handle renaming all clips with same name
-            if (updates.name) {
-                const oldName = clips().find(c => c.id === id)?.name;
-                if (oldName) {
-                    // Find all clips with this name
-                    const clipsToRename = clips().filter(c => c.name === oldName);
-
-                    // Update all of them in backend
-                    await Promise.all(clipsToRename.map(c =>
-                        invoke("update_clip", { id: c.id, name: updates.name })
-                    ));
-
-                    // Update local state for all
-                    setClips(prev => prev.map(c => {
-                        if (c.name === oldName) {
-                            return { ...c, name: updates.name };
-                        }
-                        return c;
-                    }));
-                    return; // Done
-                }
-            }
-
-            await invoke("update_clip", backendUpdates);
-
-            // Update local state
-            setClips(prev => prev.map(c => {
-                if (c.id === id) {
-                    return { ...c, ...updates };
-                }
-                return c;
-            }));
-        } catch (e) {
-            console.error("Failed to update clip:", e);
-        }
-    };
-
     return (
-        <div class="flex h-24 border-b border-outline-variant bg-surface-container-low">
+        <div class="flex h-24 border-b border-outline-variant bg-surface-container-low shrink-0">
             {/* Track Header */}
-            <div class="w-48 border-r border-outline-variant p-2 flex flex-col justify-between bg-surface-container">
+            <div class="w-48 border-r border-outline-variant p-2 flex flex-col justify-between bg-surface-container shrink-0 sticky left-0 z-10">
                 <span class="font-medium text-on-surface">{props.name}</span>
-
                 <div class="flex gap-1">
                     <IconButton variant="standard" class="w-6 h-6" onClick={addClip}>
                         <svg xmlns="http://www.w3.org/2000/svg" height="16" viewBox="0 -960 960 960" width="16" fill="currentColor"><path d="M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z" /></svg>
@@ -106,30 +49,45 @@ const TrackRow: Component<TrackRowProps> = (props) => {
             </div>
 
             {/* Timeline Area */}
-            <div class="flex-1 relative bg-surface-container-lowest overflow-hidden">
-                {/* Grid Lines (Visual only for now) */}
+            <div class="relative bg-surface-container-lowest overflow-hidden" style={{ width: `${TOTAL_BARS * PX_PER_BAR}px` }}>
+                {/* Grid Lines */}
                 <div class="absolute inset-0 pointer-events-none opacity-10"
                     style={{
-                        "background-image": "linear-gradient(to right, #888 1px, transparent 1px)",
-                        "background-size": "50px 100%"
+                        "background-image": `linear-gradient(to right, #888 1px, transparent 1px)`,
+                        "background-size": `${PX_PER_BAR / 4}px 100%` // Quarter notes
+                    }}
+                />
+                <div class="absolute inset-0 pointer-events-none opacity-20"
+                    style={{
+                        "background-image": `linear-gradient(to right, #888 1px, transparent 1px)`,
+                        "background-size": `${PX_PER_BAR}px 100%` // Bars
                     }}
                 />
 
-                <For each={clips()}>
-                    {(clip) => (
-                        <GridClip
-                            name={clip.name}
-                            left={clip.start}
-                            width={clip.length}
-                            color={clip.color}
-                            onRemove={() => removeClip(clip.id)}
-                            // Pass default or stored values
-                            instrumentId={(clip as any).instrumentId ?? 0}
-                            targetTrackId={(clip as any).targetTrackId ?? 0}
-                            onUpdate={(updates) => updateClip(clip.id, updates)}
-                            onClick={() => selectClip(clip.id)}
-                        />
-                    )}
+                <For each={trackClips()}>
+                    {(clip) => {
+                        const clipData = () => store.clipLibrary[clip.clipContentId];
+                        return (
+                            <GridClip
+                                name={clipData()?.name || "Clip"}
+                                left={(clip.startBar - 1) * PX_PER_BAR}
+                                width={clip.lengthBars * PX_PER_BAR}
+                                color={clipData()?.color || "#666"}
+                                onRemove={() => {
+                                    import("../../store").then(m => m.deleteClip(clip.id));
+                                }}
+                                instrumentId={0} // TODO
+                                targetTrackId={0} // TODO
+                                onUpdate={(updates) => {
+                                    if (updates.left !== undefined) {
+                                        const newStartBar = Math.round(updates.left / PX_PER_BAR) + 1;
+                                        import("../../store").then(m => m.updateClipPosition(clip.id, newStartBar));
+                                    }
+                                }}
+                                onClick={() => selectClip(clip.id)}
+                            />
+                        );
+                    }}
                 </For>
             </div>
         </div>
@@ -137,29 +95,77 @@ const TrackRow: Component<TrackRowProps> = (props) => {
 };
 
 export const Timeline: Component = () => {
+    let scrollContainer: HTMLDivElement | undefined;
+    let rulerContainer: HTMLDivElement | undefined;
+
+    const handleScroll = (e: Event) => {
+        const target = e.target as HTMLDivElement;
+        if (rulerContainer) rulerContainer.scrollLeft = target.scrollLeft;
+        // If we had a separate header container for vertical scroll, we'd sync it here too
+    };
+
     return (
         <div class="flex-1 flex flex-col overflow-hidden bg-surface">
-            {/* Ruler */}
-            <div class="h-8 bg-surface-container-high border-b border-outline-variant flex items-end pl-48">
-                {/* Simple ruler markers */}
-                <div class="flex-1 h-1/2 flex justify-between px-2">
-                    <For each={Array(20).fill(0)}>
-                        {(_, i) => (
-                            <div class="h-full border-l border-on-surface-variant/50 text-[10px] pl-1 text-on-surface-variant">
-                                {i() + 1}
-                            </div>
-                        )}
-                    </For>
+            {/* Top Row: Header Placeholder + Ruler */}
+            <div class="flex h-8 bg-surface-container-high border-b border-outline-variant shrink-0">
+                {/* Corner */}
+                <div class="w-48 border-r border-outline-variant shrink-0 bg-surface-container-high"></div>
+
+                {/* Ruler */}
+                <div
+                    ref={rulerContainer}
+                    class="flex-1 overflow-hidden whitespace-nowrap relative"
+                >
+                    <div class="h-full relative" style={{ width: `${TOTAL_BARS * PX_PER_BAR}px` }}>
+                        <For each={Array(TOTAL_BARS).fill(0)}>
+                            {(_, i) => (
+                                <div
+                                    class="absolute top-0 bottom-0 border-l border-on-surface-variant/50 text-[10px] pl-1 text-on-surface-variant flex items-end pb-1"
+                                    style={{ left: `${i() * PX_PER_BAR}px` }}
+                                >
+                                    {i() + 1}
+                                </div>
+                            )}
+                        </For>
+
+                        {/* Playhead in Ruler */}
+                        <div
+                            class="absolute top-0 bottom-0 w-[1px] bg-primary z-20"
+                            style={{ left: `${(store.playback.currentBar - 1) * PX_PER_BAR}px` }}
+                        >
+                            <div class="absolute -top-0 -left-[5px] w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-t-[8px] border-t-primary"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            {/* Tracks Area */}
-            <div class="flex-1 overflow-y-auto">
-                <TrackRow name="轨道 1" />
-                <TrackRow name="轨道 2" />
-                <TrackRow name="轨道 3" />
-                <TrackRow name="轨道 4" />
+            {/* Main Content: Tracks */}
+            <div
+                ref={scrollContainer}
+                onScroll={handleScroll}
+                class="flex-1 overflow-auto relative"
+            >
+                <div class="min-w-fit">
+                    <For each={store.tracks}>
+                        {(track) => (
+                            <TrackRow
+                                name={track.name}
+                                trackId={track.id}
+                                scrollLeft={0}
+                            />
+                        )}
+                    </For>
+
+                    {/* Playhead Line Overlay */}
+                    <div
+                        class="absolute top-0 bottom-0 w-[2px] bg-primary pointer-events-none z-20"
+                        style={{
+                            left: `${(store.playback.currentBar - 1) * PX_PER_BAR + 192}px` // 192 is w-48
+                        }}
+                    />
+                </div>
             </div>
         </div>
     );
 };
+

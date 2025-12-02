@@ -1,7 +1,7 @@
 import { createSignal } from "solid-js";
 import { TopInfoPanel } from "./parts/TopInfoPanel";
 import { BottomEditor } from "./parts/BottomEditor/BottomEditor";
-import { Timeline } from "./parts/Arrangement/Timeline";
+import { TrackEditor } from "./parts/Arrangement/TrackEditor";
 import { RightPanel } from "./parts/RightPanel/RightPanel";
 import { MixerPanel } from "./parts/Mixer/MixerPanel";
 import { IconButton } from "./UI/lib/IconButton";
@@ -35,7 +35,7 @@ export default function App() {
 
         {/* Timeline (Center) */}
         <div class="flex-1 flex flex-col min-w-0 ml-12"> {/* ml-12 to account for collapsed mixer */}
-          <Timeline />
+          <TrackEditor />
         </div>
 
         {/* Right Panel (Collapsible) */}

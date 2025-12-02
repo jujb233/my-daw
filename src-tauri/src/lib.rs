@@ -17,6 +17,9 @@ pub fn run() {
             id: i,
             label: format!("Track {}", i + 1),
             volume: 1.0,
+            pan: 0.0,
+            mute: false,
+            solo: false,
             meter_id: Some(Uuid::new_v4()),
         });
     }
@@ -44,11 +47,12 @@ pub fn run() {
             add_clip,
             update_clip,
             get_clip,
+            remove_clip,
             play,
+            get_playback_state,
             pause,
             stop,
-            seek,
-            get_playback_state
+            seek
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

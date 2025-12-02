@@ -1,6 +1,6 @@
 export interface Note {
-    pitch: number;
-    start: number;
+    note: number;
+    relative_start: number;
     duration: number;
     velocity: number;
 }
@@ -13,15 +13,15 @@ export interface ClipContent {
 }
 
 export interface ClipInstance {
-    id: string;
-    trackId: string;
+    id: number;
+    trackId: number;
     clipContentId: string;
     startBar: number;
     lengthBars: number;
 }
 
 export interface Track {
-    id: string;
+    id: number;
     name: string;
     color: string;
     timbreId?: string;
@@ -48,6 +48,6 @@ export interface ProjectStore {
     tracks: Track[];
     clips: ClipInstance[];
     clipLibrary: Record<string, ClipContent>; // id -> Content
-    selectedTrackId: string | null;
-    selectedClipId: number | null; // Backend ID (usize)
+    selectedTrackId: number | null;
+    selectedClipId: number | null;
 }

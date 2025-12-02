@@ -1,10 +1,13 @@
-import { createSignal, onCleanup } from "solid-js";
+import { createSignal } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 
 export interface MixerTrackData {
     id: number;
     label: string;
     volume: number;
+    pan: number;
+    mute: boolean;
+    solo: boolean;
     meter_id?: string;
 }
 
@@ -50,6 +53,16 @@ export const setTrackVolume = async (trackId: number, volume: number) => {
     } catch (e) {
         console.error("Failed to update track volume:", e);
     }
+};
+
+export const toggleMute = async (trackId: number) => {
+    setMixerTracks(prev => prev.map(t => t.id === trackId ? { ...t, mute: !t.mute } : t));
+    // TODO: Send to backend
+};
+
+export const toggleSolo = async (trackId: number) => {
+    setMixerTracks(prev => prev.map(t => t.id === trackId ? { ...t, solo: !t.solo } : t));
+    // TODO: Send to backend
 };
 
 // Polling for meter levels

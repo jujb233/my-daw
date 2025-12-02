@@ -100,3 +100,17 @@ pub fn get_clip(state: State<'_, AppState>, id: usize) -> Result<Clip, String> {
         Err("Clip not found".to_string())
     }
 }
+
+#[tauri::command]
+pub fn remove_clip(state: State<'_, AppState>, id: usize) -> Result<(), String> {
+    {
+        let mut clips = state.clips.lock().map_err(|_| "Failed to lock clips")?;
+        if let Some(index) = clips.iter().position(|c| c.id == id) {
+            clips.remove(index);
+        } else {
+            return Err("Clip not found".to_string());
+        }
+    }
+    rebuild_engine(&state)?;
+    Ok(())
+}

@@ -13,11 +13,11 @@ export const SimpleSynth: Component<SimpleSynthProps> = (props) => {
         <>
             <Slider
                 label={t('sidebar.gain')}
-                min="0"
-                max="1"
-                step="0.01"
+                min={0}
+                max={1}
+                step={0.01}
                 value={props.params[10]}
-                onInput={(e) => updateInstanceParam(props.instId, 10, parseFloat((e.target as HTMLInputElement).value))}
+                onChange={(val) => updateInstanceParam(props.instId, 10, val)}
                 valueDisplay={`${Math.round((props.params[10] || 0) * 100)}%`}
             />
 

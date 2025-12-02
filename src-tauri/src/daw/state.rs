@@ -15,6 +15,9 @@ pub struct MixerTrackData {
     pub id: usize,
     pub label: String,
     pub volume: f32,
+    pub pan: f32,
+    pub mute: bool,
+    pub solo: bool,
     pub meter_id: Option<Uuid>,
 }
 

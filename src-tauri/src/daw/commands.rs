@@ -34,6 +34,9 @@ pub fn add_mixer_track(state: State<'_, AppState>) -> Result<(), String> {
             id,
             label: format!("Track {}", id + 1),
             volume: 1.0,
+            pan: 0.0,
+            mute: false,
+            solo: false,
             meter_id: Some(Uuid::new_v4()), // Generate ID here
         });
     }

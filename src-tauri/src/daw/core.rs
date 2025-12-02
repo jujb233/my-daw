@@ -1,8 +1,9 @@
-use tauri::State;
+use super::state::AppState;
 use crate::audio::core::plugin::Plugin;
 use crate::audio::plugins::mixer::mixer_plugin::MixerPlugin;
 use crate::audio::plugins::simple_synth::create_simple_synth;
-use super::state::AppState;
+use crate::daw::sequencer::{get_is_playing, get_playback_position};
+use tauri::State;
 
 pub fn create_audio_graph(state: &State<'_, AppState>) -> Result<Box<dyn Plugin>, String> {
     let plugins = state
@@ -31,7 +32,7 @@ pub fn create_audio_graph(state: &State<'_, AppState>) -> Result<Box<dyn Plugin>
             // Routing is now handled by Sequencer/Clips
         }
     }
-    
+
     // Load Clips into Sequencer
     let clips = state.clips.lock().map_err(|_| "Failed to lock clips")?;
     let sequencer = mixer.get_sequencer_mut();
@@ -48,10 +49,33 @@ pub fn rebuild_engine(state: &State<'_, AppState>) -> Result<(), String> {
         .lock()
         .map_err(|_| "Failed to lock audio engine")?;
 
-    if engine.is_running() {
+    // Capture current state
+    let was_running = engine.is_running();
+    let is_playing = get_is_playing();
+    let position = get_playback_position();
+
+    if was_running {
         engine.stop();
-        let root = create_audio_graph(state)?;
-        engine.start(root).map_err(|e| e.to_string())?;
     }
+
+    // Always rebuild graph
+    let root = create_audio_graph(state)?;
+
+    // Restore state if it was running or if we want to persist state across rebuilds
+    // We need to cast root back to MixerPlugin to set transport, or send an event immediately after start
+    // Sending event is safer/cleaner.
+
+    if was_running {
+        engine.start(root).map_err(|e| e.to_string())?;
+
+        // Restore transport
+        use crate::audio::core::plugin::PluginEvent;
+        engine.send_event(PluginEvent::Transport {
+            playing: is_playing,
+            position: Some(position),
+            tempo: None, // TODO: Get from state
+        });
+    }
+
     Ok(())
 }

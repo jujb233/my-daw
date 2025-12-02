@@ -1,10 +1,12 @@
 import { Component, createResource, createSignal, For, Show, createEffect } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
-import { store, selectClip } from "../../store";
+import { store, selectClip, renameClipContent, deleteClip, duplicateClip } from "../../store";
 import { instances } from "../../store/audio";
 import { mixerTracks } from "../../store/mixer";
 import { t } from "../../i18n";
 import { InstrumentCard } from "../../UI/components/InstrumentCard";
+import { Input } from "../../UI/lib/Input";
+import { Button } from "../../UI/lib/Button";
 
 interface ClipData {
     id: number;
@@ -26,6 +28,38 @@ const fetchClip = async (id: number): Promise<ClipData> => {
 export const ClipDetails: Component = () => {
     const [clip, { mutate, refetch }] = createResource(() => store.selectedClipId, fetchClip);
     const [expandedInstId, setExpandedInstId] = createSignal<number | null>(null);
+    const [nameError, setNameError] = createSignal<string | null>(null);
+
+    const handleRename = async (newName: string) => {
+        if (!clip()) return;
+        const instance = store.clips.find(c => c.id === clip()!.id);
+        if (!instance) return;
+
+        try {
+            await renameClipContent(instance.clipContentId, newName);
+            setNameError(null);
+            refetch();
+        } catch (e: any) {
+            setNameError(e.message || "Failed to rename");
+        }
+    };
+
+    const handleDelete = async () => {
+        if (!clip()) return;
+        if (confirm(t('clip.deleteConfirm') || "Delete clip?")) {
+            await deleteClip(clip()!.id);
+            selectClip(null);
+        }
+    };
+
+    const handleDuplicate = async () => {
+        if (!clip()) return;
+        try {
+            await duplicateClip(clip()!.id);
+        } catch (e) {
+            console.error("Failed to duplicate", e);
+        }
+    };
 
     // Handle error by clearing selection
     createEffect(() => {
@@ -102,9 +136,17 @@ export const ClipDetails: Component = () => {
             <Show when={!clip.loading} fallback={<div class="text-center text-on-surface-variant p-4">Loading...</div>}>
                 <Show when={!clip.error} fallback={<div class="text-center text-error p-4">Error loading clip</div>}>
                     <Show when={clip()}>
-                        <div class="flex flex-col gap-1 pb-2 border-b border-outline-variant">
-                            <span class="text-lg font-medium text-on-surface">{clip()!.name}</span>
-                            <span class="text-xs text-on-surface-variant">ID: {clip()!.id}</span>
+                        <div class="flex flex-col gap-2 pb-4 border-b border-outline-variant">
+                            <Input
+                                label={t('clip.name')}
+                                value={clip()!.name}
+                                onInput={(e) => handleRename(e.currentTarget.value)}
+                                error={nameError() || undefined}
+                            />
+                            <div class="flex gap-2 mt-2">
+                                <Button variant="tonal" class="flex-1" onClick={handleDuplicate}>{t('clip.duplicate')}</Button>
+                                <Button variant="filled" class="flex-1 bg-error text-on-error hover:bg-error/80" onClick={handleDelete}>{t('clip.delete')}</Button>
+                            </div>
                         </div>
 
                         {/* Active Instruments List */}

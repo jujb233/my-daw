@@ -28,6 +28,7 @@ const translations: Record<Locale, Record<string, string>> = {
         'sidebar.addTimbre': 'Add Timbre',
         'sidebar.availablePlugins': 'Available Plugins',
         'sidebar.simpleSynth': 'Simple Synth',
+        'sidebar.instruments': 'Instruments',
 
         'mixer.label': 'MIXER',
         'mixer.console': 'Mixer Console',
@@ -37,6 +38,10 @@ const translations: Record<Locale, Record<string, string>> = {
         'grid.inst': 'Inst...',
         'grid.out': 'Out...',
         'clip.title': 'Clip',
+        'clip.name': 'Clip Name',
+        'clip.duplicate': 'Duplicate',
+        'clip.delete': 'Delete',
+        'clip.deleteConfirm': 'Are you sure you want to delete this clip?',
         'icons.mute': 'M',
         'icons.solo': 'S',
         'icons.removeTrack': 'Remove Track',
@@ -56,12 +61,12 @@ const translations: Record<Locale, Record<string, string>> = {
         'bottom.export': '导出',
         'bottom.midiEditor': 'MIDI 编辑器',
 
-        'sidebar.title': '音色',
+        'sidebar.title': '音色库',
         'sidebar.label': '标签',
         'sidebar.outputRouting': '输出路由',
         'sidebar.gain': '增益',
         'sidebar.waveform': '波形',
-        'sidebar.waveform.sine': '正弦',
+        'sidebar.waveform.sine': '正弦波',
         'sidebar.waveform.sqr': '方波',
         'sidebar.waveform.saw': '锯齿波',
         'sidebar.waveform.tri': '三角波',
@@ -69,19 +74,24 @@ const translations: Record<Locale, Record<string, string>> = {
         'sidebar.addTimbre': '添加音色',
         'sidebar.availablePlugins': '可用插件',
         'sidebar.simpleSynth': '简单合成器',
+        'sidebar.instruments': '乐器',
 
-        'mixer.label': '混音器',
-        'mixer.console': '混音台',
+        'mixer.label': '调音台',
+        'mixer.console': '调音台控制台',
 
         'tracks.header': '轨道',
         'tracks.addTrack': '+ 添加轨道',
         'grid.inst': '乐器...',
         'grid.out': '输出...',
         'clip.title': '片段',
-        'icons.mute': '静音',
-        'icons.solo': '独奏',
-        'icons.removeTrack': '删除轨道',
-        'app.toggleTimbre': '切换音色侧栏'
+        'clip.name': '片段名称',
+        'clip.duplicate': '复制',
+        'clip.delete': '删除',
+        'clip.deleteConfirm': '确定要删除这个片段吗？',
+        'icons.mute': 'M',
+        'icons.solo': 'S',
+        'icons.removeTrack': '移除轨道',
+        'app.toggleTimbre': '切换音色侧边栏'
     }
 };
 

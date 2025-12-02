@@ -1,14 +1,10 @@
 import { Component, createEffect, createSignal, For, Show } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
+import { DawService } from "../../services/daw";
 import { Ruler } from "./Ruler";
-import { store, setStore } from "../../store";
-
-interface Note {
-    relative_start: number;
-    duration: number;
-    note: number;
-    velocity: number;
-}
+import { store, setStore, updateClipNotes } from "../../store";
+import { IconButton } from "../../UI/lib/IconButton";
+import { Note } from "../../store/types";
 
 interface Clip {
     id: number;
@@ -26,13 +22,29 @@ interface PianoRollProps {
 
 export const PianoRoll: Component<PianoRollProps> = (props) => {
     const [clip, setClip] = createSignal<Clip | null>(null);
-    const [zoom] = createSignal(100); // pixels per second
+    const [zoom, setZoom] = createSignal(100); // pixels per beat (quarter note)
     let keysContainer: HTMLDivElement | undefined;
     let gridContainer: HTMLDivElement | undefined;
 
     const fetchClip = async () => {
         try {
-            const c = await invoke<Clip>("get_clip", { id: props.clipId });
+            // Fetch from backend to get duration etc, but notes should come from store for consistency?
+            // Actually, store.clipLibrary has the authoritative notes for "shared content".
+            // But let's fetch the backend clip to get the instance-specific data (start time, duration).
+            const c = await DawService.getClip(props.clipId);
+
+            // Merge notes from store if available (Flyweight pattern)
+            const instance = store.clips.find(cl => cl.id === props.clipId);
+            if (instance) {
+                const content = store.clipLibrary[instance.clipContentId];
+                if (content) {
+                    // Use content notes instead of backend notes (they should be synced, but store is source of truth for UI)
+                    // Actually, let's trust the store for editing.
+                    setClip({ ...c, notes: content.notes });
+                    return;
+                }
+            }
+
             setClip(c);
         } catch (e) {
             console.error("Failed to fetch clip:", e);
@@ -61,10 +73,10 @@ export const PianoRoll: Component<PianoRollProps> = (props) => {
         setClip({ ...clip()!, notes: updatedNotes });
 
         try {
-            await invoke("update_clip", {
-                id: clip()!.id,
-                notes: updatedNotes
-            });
+            const instance = store.clips.find(c => c.id === props.clipId);
+            if (instance) {
+                await updateClipNotes(instance.clipContentId, updatedNotes);
+            }
         } catch (e) {
             console.error("Failed to update clip notes:", e);
             fetchClip(); // Revert on error
@@ -80,10 +92,10 @@ export const PianoRoll: Component<PianoRollProps> = (props) => {
         setClip({ ...clip()!, notes: updatedNotes });
 
         try {
-            await invoke("update_clip", {
-                id: clip()!.id,
-                notes: updatedNotes
-            });
+            const instance = store.clips.find(c => c.id === props.clipId);
+            if (instance) {
+                await updateClipNotes(instance.clipContentId, updatedNotes);
+            }
         } catch (e) {
             console.error("Failed to update clip notes:", e);
             fetchClip();
@@ -102,7 +114,17 @@ export const PianoRoll: Component<PianoRollProps> = (props) => {
     const KEYS = Array.from({ length: 128 }, (_, i) => 127 - i); // Top to bottom
 
     return (
-        <div class="flex h-full w-full bg-surface-container-low overflow-hidden">
+        <div class="flex h-full w-full bg-surface-container-low overflow-hidden relative">
+            {/* Zoom Controls */}
+            <div class="absolute bottom-4 right-4 z-30 flex gap-2 bg-surface-container-high p-1 rounded-full shadow-md border border-outline-variant">
+                <IconButton onClick={() => setZoom(z => Math.max(10, z * 0.8))} variant="standard" class="w-8 h-8">
+                    <svg xmlns="http://www.w3.org/2000/svg" height="20" viewBox="0 -960 960 960" width="20" fill="currentColor"><path d="M200-440v-80h560v80H200Z" /></svg>
+                </IconButton>
+                <IconButton onClick={() => setZoom(z => Math.min(500, z * 1.25))} variant="standard" class="w-8 h-8">
+                    <svg xmlns="http://www.w3.org/2000/svg" height="20" viewBox="0 -960 960 960" width="20" fill="currentColor"><path d="M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z" /></svg>
+                </IconButton>
+            </div>
+
             {/* Piano Keys (Left) */}
             <div
                 ref={keysContainer}
@@ -191,9 +213,7 @@ export const PianoRoll: Component<PianoRollProps> = (props) => {
                                 }}
                             />
                         )}
-                    </For>
-
-                    {/* Playhead */}
+                    </For>                    {/* Playhead */}
                     <Show when={store.playback.startTime !== null && clip()}>
                         <div
                             class="absolute top-0 bottom-0 w-0.5 bg-tertiary z-10 pointer-events-none"
