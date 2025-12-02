@@ -72,11 +72,42 @@ jobs:
       - name: 安装 Android NDK
         run: |
           sdkmanager "ndk;27.0.12077973"
-          # 移除可能存在的 NDK 29，防止 Tauri 错误识别
-          if [ -d "$ANDROID_HOME/ndk/29.0.14206865" ]; then
-            echo "Removing NDK 29..."
-            rm -rf "$ANDROID_HOME/ndk/29.0.14206865"
-          fi
+          
+          NDK_PATH="$ANDROID_HOME/ndk/27.0.12077973"
+          echo "NDK_HOME=$NDK_PATH" >> $GITHUB_ENV
+          echo "ANDROID_NDK_HOME=$NDK_PATH" >> $GITHUB_ENV
+          
+          # 1. 清理除 27 以外的所有 NDK 版本，防止 Tauri/Gradle 自动选择错误的最新版 (如 28/29)
+          echo "Cleaning up other NDK versions..."
+          cd "$ANDROID_HOME/ndk"
+          ls -d */ | grep -v "27.0.12077973" | xargs rm -rf || true
+          ls -l
+          
+          # 2. Hack: 解决 API 24 缺少 libaaudio.so 的问题
+          # cpal 依赖 libaaudio (API 26+)，但 Rust 默认 target 可能链接到 API 24
+          # 我们将 API 26 的 libaaudio.so 软链接到 API 24 的库目录中，欺骗链接器
+          echo "Applying libaaudio symlink hack..."
+          SYSROOT="$NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib"
+          
+          link_lib() {
+            ARCH=$1
+            SRC="$SYSROOT/$ARCH/26/libaaudio.so"
+            DST_DIR="$SYSROOT/$ARCH/24"
+            DST="$DST_DIR/libaaudio.so"
+            
+            if [ -f "$SRC" ]; then
+              echo "Linking $ARCH: API 26 -> 24"
+              mkdir -p "$DST_DIR"
+              ln -sf "$SRC" "$DST"
+            else
+              echo "Warning: $SRC not found"
+            fi
+          }
+          
+          link_lib "aarch64-linux-android"
+          link_lib "arm-linux-androideabi"
+          link_lib "i686-linux-android"
+          link_lib "x86_64-linux-android"
 
       - name: 安装 Rust
         uses: dtolnay/rust-toolchain@stable
@@ -88,8 +119,7 @@ jobs:
 
       - name: 构建 Android APK
         run: |
-          export NDK_HOME=$ANDROID_HOME/ndk/27.0.12077973
-          export ANDROID_NDK_HOME=$NDK_HOME
+          echo "Using NDK: $NDK_HOME"
           
           export CC_aarch64_linux_android=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android26-clang
           export CXX_aarch64_linux_android=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android26-clang++
