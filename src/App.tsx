@@ -34,7 +34,7 @@ export default function App() {
         <MixerPanel />
 
         {/* Timeline (Center) */}
-        <div class="flex-1 flex flex-col min-w-0 ml-12"> {/* ml-12 to account for collapsed mixer */}
+        <div class="flex-1 flex flex-col min-w-0 relative z-0">
           <TrackEditor />
         </div>
 

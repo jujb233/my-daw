@@ -2,8 +2,6 @@ name: 构建发布
 
 on:
   push:
-    branches:
-      - main
     tags:
       - 'v*'
   workflow_dispatch:
@@ -49,7 +47,7 @@ jobs:
           releaseBody: "请在下方 Assets 中下载安装包。"
           releaseDraft: true
           prerelease: false
-          args: ${{ matrix.platform == 'ubuntu-latest' && '--bundles appimage,rpm,deb' || '' }}
+          args: ${{ matrix.platform == 'ubuntu-latest' && '--bundles appimage,rpm' || '--bundles nsis' }}
 
   build-android:
     name: 构建安卓版
@@ -80,7 +78,7 @@ jobs:
         run: npm install
 
       - name: 构建 Android APK
-        run: npm run tauri android build
+        run: npm run tauri android build -- --apk
 
       - name: 上传 Android 产物
         uses: actions/upload-artifact@v4
