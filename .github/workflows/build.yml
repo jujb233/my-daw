@@ -70,7 +70,13 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: 安装 Android NDK
-        run: sdkmanager "ndk;27.0.12077973"
+        run: |
+          sdkmanager "ndk;27.0.12077973"
+          # 移除可能存在的 NDK 29，防止 Tauri 错误识别
+          if [ -d "$ANDROID_HOME/ndk/29.0.14206865" ]; then
+            echo "Removing NDK 29..."
+            rm -rf "$ANDROID_HOME/ndk/29.0.14206865"
+          fi
 
       - name: 安装 Rust
         uses: dtolnay/rust-toolchain@stable

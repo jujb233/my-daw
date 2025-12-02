@@ -22,6 +22,7 @@ repositories {
 
 android {
     compileSdk = 36
+    ndkVersion = "27.0.12077973"
     namespace = "com.jujb233.my_daw"
     defaultConfig {
         manifestPlaceholders["usesCleartextTraffic"] = "false"
