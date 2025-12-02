@@ -2,7 +2,7 @@ import { Component, For } from "solid-js";
 import { store, addTrack, addClip, selectTrack } from "../../store";
 import { t } from "../../i18n";
 import { ClipInstance } from "../../store/types";
-import { Button } from "../lib/Button";
+import { Button } from "../../UI/lib/Button";
 
 const PIXELS_PER_BAR = 40;
 

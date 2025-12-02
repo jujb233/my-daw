@@ -3,7 +3,7 @@ import { Surface } from "../../UI/lib/Surface";
 import { Input } from "../../UI/lib/Input";
 import { Button } from "../../UI/lib/Button";
 import { store, setStore, setBpm, selectClip } from "../../store";
-import { PianoRoll } from "./PianoRoll";
+import { PianoRoll } from "../MidiEditor/PianoRoll";
 import { IconButton } from "../../UI/lib/IconButton";
 import { t } from "../../i18n";
 
