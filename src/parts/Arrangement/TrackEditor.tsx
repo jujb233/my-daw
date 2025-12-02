@@ -5,7 +5,7 @@ import { ClipInstance } from "../../store/types";
 import { Button } from "../../UI/lib/Button";
 import { invoke } from "@tauri-apps/api/core";
 
-const PIXELS_PER_BAR = 40;
+const PIXELS_PER_BAR = 60;
 
 const Playhead: Component = () => {
     const left = () => (store.playback.currentBar - 1) * PIXELS_PER_BAR;

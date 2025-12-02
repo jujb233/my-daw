@@ -4,7 +4,7 @@ mod daw;
 use crate::audio::engine::AudioEngine;
 use daw::clip_commands::*;
 use daw::commands::*;
-use daw::state::{AppState, MixerTrackData};
+use daw::state::{AppState, MixerTrackData, PluginInstanceData};
 use std::sync::Mutex;
 use uuid::Uuid;
 
@@ -24,10 +24,18 @@ pub fn run() {
         });
     }
 
+    // Initialize with a default SimpleSynth
+    let mut plugins = Vec::new();
+    plugins.push(PluginInstanceData {
+        name: "SimpleSynth".to_string(),
+        label: "Grand Piano".to_string(),
+        routing_track_index: 0,
+    });
+
     tauri::Builder::default()
         .manage(AppState {
             audio_engine: Mutex::new(AudioEngine::new()),
-            active_plugins: Mutex::new(Vec::new()),
+            active_plugins: Mutex::new(plugins),
             mixer_tracks: Mutex::new(tracks),
             clips: Mutex::new(Vec::new()),
         })

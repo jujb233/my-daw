@@ -157,11 +157,13 @@ export const addClip = async (trackId: number, startBar: number, name: string = 
     const secondsPerBar = secondsPerBeat * timeSigNum;
 
     const startTime = (startBar - 1) * secondsPerBar;
-    const duration = 4 * secondsPerBar; // Default 4 bars
+    const duration = 8 * secondsPerBar; // Default 8 bars
 
     try {
         // Call backend to create clip
-        const id = await DawService.addClip(name, startTime, duration);
+        // Use instrument 0 (SimpleSynth) by default for now
+        const instrumentIds = [0];
+        const id = await DawService.addClip(name, startTime, duration, instrumentIds);
 
         // If content has notes (from copy/paste), sync them to backend
         if (content.notes.length > 0) {
@@ -173,10 +175,8 @@ export const addClip = async (trackId: number, startBar: number, name: string = 
             trackId,
             clipContentId: contentId,
             startBar,
-            lengthBars: 4, // Default 4 bars
-        };
-
-        setStore("clips", [...store.clips, newClip]);
+            lengthBars: 8, // Default 8 bars
+        }; setStore("clips", [...store.clips, newClip]);
     } catch (e) {
         console.error("Failed to add clip:", e);
     }

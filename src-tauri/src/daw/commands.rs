@@ -202,11 +202,16 @@ pub fn play(state: State<'_, AppState>) -> Result<(), String> {
 
     if !engine.is_running() {
         drop(engine); // Release lock
-        rebuild_engine(&state)?; // Start engine
+
+        // Start the engine
+        let root = create_audio_graph(&state)?;
+
         engine = state
             .audio_engine
             .lock()
             .map_err(|_| "Failed to lock audio engine")?;
+
+        engine.start(root).map_err(|e| e.to_string())?;
     }
 
     engine.send_event(PluginEvent::Transport {

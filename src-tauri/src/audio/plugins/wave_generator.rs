@@ -61,6 +61,7 @@ impl Plugin for WaveGenerator {
             if let PluginEvent::Midi(midi) = event {
                 match midi {
                     NoteEvent::NoteOn { note, .. } => {
+                        println!("WaveGenerator: NoteOn {}", note);
                         // Simple MIDI to Hz conversion: 440 * 2^((note - 69) / 12)
                         self.frequency = 440.0 * 2.0f32.powf((*note as f32 - 69.0) / 12.0);
                         self.active = true;

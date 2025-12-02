@@ -7,11 +7,12 @@ pub struct MixerPlugin {
     #[allow(dead_code)]
     id: Uuid,
     tracks: Vec<MixerTrack>,
-    instruments: Vec<Box<dyn Plugin>>, 
+    instruments: Vec<Box<dyn Plugin>>,
     sequencer: Sequencer,
     scratch_buffer: Vec<f32>,
     accumulator_buffer: Vec<f32>,
-}impl MixerPlugin {
+}
+impl MixerPlugin {
     pub fn new(num_tracks: usize) -> Self {
         let mut tracks = Vec::new();
         for _ in 0..num_tracks {
@@ -100,6 +101,10 @@ impl Plugin for MixerPlugin {
                 tempo,
             } = event
             {
+                println!(
+                    "MixerPlugin: Transport playing={}, pos={:?}",
+                    playing, position
+                );
                 self.sequencer.set_transport(*playing, *position, *tempo);
             }
         }

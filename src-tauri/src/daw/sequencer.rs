@@ -80,11 +80,35 @@ impl Sequencer {
         let mut routing = HashMap::new();
 
         let duration = samples as f64 / self.sample_rate as f64;
-        let end_time = if self.playing {
+
+        // Calculate Loop Length (Max clip end or 8 bars)
+        let mut max_end = 0.0;
+        for clip in &self.clips {
+            let end = clip.start_time + clip.duration;
+            if end > max_end {
+                max_end = end;
+            }
+        }
+        // Default 8 bars: 8 * 4 * (60/tempo)
+        let min_length = 8.0 * 4.0 * (60.0 / self.tempo);
+        let loop_length = if max_end > min_length {
+            max_end
+        } else {
+            min_length
+        };
+
+        let mut end_time = if self.playing {
             self.current_time + duration
         } else {
             self.current_time
         };
+
+        // Handle Loop Wrapping
+        let mut looped = false;
+        if self.playing && end_time >= loop_length {
+            end_time = loop_length; // Clamp for this block
+            looped = true;
+        }
 
         // Find active clips
         for clip in &self.clips {
@@ -121,6 +145,7 @@ impl Sequencer {
 
                             // Check Note On
                             if note_start_abs >= self.current_time && note_start_abs < end_time {
+                                println!("Sequencer: NoteOn {} at {}", note.note, note_start_abs);
                                 inst_events.push(PluginEvent::Midi(NoteEvent::NoteOn {
                                     note: note.note,
                                     velocity: note.velocity,
@@ -133,6 +158,15 @@ impl Sequencer {
                                     note: note.note,
                                 }));
                             }
+
+                            // Edge case: If we are looping at this block, and a note is still active, kill it?
+                            // Or if note_end_abs > loop_length?
+                            // For now, let's just force NoteOff if we are looping and the note is playing.
+                            if looped && note_start_abs < end_time && note_end_abs >= end_time {
+                                inst_events.push(PluginEvent::Midi(NoteEvent::NoteOff {
+                                    note: note.note,
+                                }));
+                            }
                         }
                     }
                 }
@@ -140,7 +174,11 @@ impl Sequencer {
         }
 
         if self.playing {
-            self.current_time = end_time;
+            if looped {
+                self.current_time = 0.0;
+            } else {
+                self.current_time = end_time;
+            }
         }
 
         // Update global state
