@@ -3,6 +3,8 @@ use crate::daw::sequencer::{Clip, Note};
 use crate::daw::state::AppState;
 use tauri::State;
 
+use std::collections::HashMap;
+
 #[tauri::command]
 pub fn add_clip(
     state: State<'_, AppState>,
@@ -10,18 +12,31 @@ pub fn add_clip(
     start_time: f64,
     duration: f64,
     instrument_ids: Vec<usize>,
-    target_track_ids: Vec<usize>,
+    // Optional initial routing. If not provided, defaults to empty.
+    // Format: Map<InstrumentID, List<TrackID>>
+    instrument_routes: Option<HashMap<usize, Vec<usize>>>,
 ) -> Result<usize, String> {
     let id = {
         let mut clips = state.clips.lock().map_err(|_| "Failed to lock clips")?;
         let id = clips.len();
+
+        // Default routing: if not provided, maybe route all instruments to track 0?
+        // For now, let's just use what's provided or empty.
+        let routes = instrument_routes.unwrap_or_else(|| {
+            let mut map = HashMap::new();
+            for &inst_id in &instrument_ids {
+                map.insert(inst_id, vec![0]); // Default to Master (0)
+            }
+            map
+        });
+
         clips.push(Clip {
             id,
             name,
             start_time,
             duration,
             instrument_ids,
-            target_track_ids,
+            instrument_routes: routes,
             notes: vec![Note {
                 relative_start: 0.0,
                 duration: 1.0,
@@ -44,7 +59,7 @@ pub fn update_clip(
     start_time: Option<f64>,
     duration: Option<f64>,
     instrument_ids: Option<Vec<usize>>,
-    target_track_ids: Option<Vec<usize>>,
+    instrument_routes: Option<HashMap<usize, Vec<usize>>>,
     notes: Option<Vec<Note>>,
 ) -> Result<(), String> {
     {
@@ -62,8 +77,8 @@ pub fn update_clip(
             if let Some(i) = instrument_ids {
                 clip.instrument_ids = i;
             }
-            if let Some(t) = target_track_ids {
-                clip.target_track_ids = t;
+            if let Some(r) = instrument_routes {
+                clip.instrument_routes = r;
             }
             if let Some(n) = notes {
                 clip.notes = n;

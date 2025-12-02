@@ -17,7 +17,8 @@ pub struct Clip {
     pub start_time: f64, // In seconds
     pub duration: f64,
     pub instrument_ids: Vec<usize>,
-    pub target_track_ids: Vec<usize>,
+    // Map InstrumentID -> List of Target TrackIDs
+    pub instrument_routes: HashMap<usize, Vec<usize>>,
     pub notes: Vec<Note>,
 }
 
@@ -85,10 +86,12 @@ impl Sequencer {
                 // 1. Collect Routing
                 // If multiple clips use the same instrument, we merge the target tracks
                 for &inst_id in &clip.instrument_ids {
-                    let tracks = routing.entry(inst_id).or_insert(Vec::new());
-                    for &t_id in &clip.target_track_ids {
-                        if !tracks.contains(&t_id) {
-                            tracks.push(t_id);
+                    if let Some(target_tracks) = clip.instrument_routes.get(&inst_id) {
+                        let tracks = routing.entry(inst_id).or_insert(Vec::new());
+                        for &t_id in target_tracks {
+                            if !tracks.contains(&t_id) {
+                                tracks.push(t_id);
+                            }
                         }
                     }
                 }

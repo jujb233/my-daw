@@ -11,10 +11,7 @@ interface TrackRowProps {
 }
 
 const TrackRow: Component<TrackRowProps> = (props) => {
-    const [clips, setClips] = createSignal([
-        { id: 1, name: "贝斯线", start: 50, length: 200, color: "#8b5cf6" },
-        { id: 2, name: "旋律 A", start: 300, length: 150, color: "#ec4899" }
-    ]);
+    const [clips, setClips] = createSignal<any[]>([]);
 
     const addClip = async () => {
         // Default values for new clip
@@ -22,7 +19,7 @@ const TrackRow: Component<TrackRowProps> = (props) => {
         const start = 100;
         const length = 100;
         const instrumentIds = [0]; // Default to first instrument
-        const targetTrackIds = [0]; // Default to first track
+        // Default routing handled by backend now
 
         try {
             // Call backend to add clip
@@ -33,7 +30,6 @@ const TrackRow: Component<TrackRowProps> = (props) => {
                 startTime: start / 100.0,
                 duration: length / 100.0,
                 instrumentIds,
-                targetTrackIds
             }) as number;
 
             setClips(prev => [...prev, {
@@ -56,8 +52,31 @@ const TrackRow: Component<TrackRowProps> = (props) => {
         try {
             // Prepare backend updates
             const backendUpdates: any = { id };
-            if (updates.instrumentId !== undefined) backendUpdates.instrumentIds = [updates.instrumentId];
-            if (updates.targetTrackId !== undefined) backendUpdates.targetTrackIds = [updates.targetTrackId];
+            // Note: instrument/routing updates are now handled in ClipDetails
+            // This function mainly handles position/length/name from the timeline
+
+            // Handle renaming all clips with same name
+            if (updates.name) {
+                const oldName = clips().find(c => c.id === id)?.name;
+                if (oldName) {
+                    // Find all clips with this name
+                    const clipsToRename = clips().filter(c => c.name === oldName);
+
+                    // Update all of them in backend
+                    await Promise.all(clipsToRename.map(c =>
+                        invoke("update_clip", { id: c.id, name: updates.name })
+                    ));
+
+                    // Update local state for all
+                    setClips(prev => prev.map(c => {
+                        if (c.name === oldName) {
+                            return { ...c, name: updates.name };
+                        }
+                        return c;
+                    }));
+                    return; // Done
+                }
+            }
 
             await invoke("update_clip", backendUpdates);
 

@@ -15,7 +15,7 @@ interface Clip {
     start_time: number;
     duration: number;
     instrument_ids: number[];
-    target_track_ids: number[];
+    instrument_routes: Record<number, number[]>;
     notes: Note[];
 }
 
