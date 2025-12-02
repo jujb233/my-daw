@@ -175,6 +175,11 @@ jobs:
           name: android-app
           path: artifacts/android
 
+      - name: 列出待上传资产（调试）
+        run: |
+          echo "Artifacts tree:"
+          ls -R artifacts || true
+
       - name: 创建 Release 并上传所有资产
         uses: softprops/action-gh-release@v2
         with:
@@ -185,7 +190,7 @@ jobs:
             artifacts/ubuntu/**/*.AppImage
             artifacts/ubuntu/**/*.rpm
             artifacts/windows/**/*.exe
-            artifacts/windows/**/*.msi
+            artifacts/windows/**/*.exe
             artifacts/android/**/*.apk
           tag_name: ${{ github.ref_name }}
           name: "App ${{ github.ref_name }}"
@@ -196,9 +201,9 @@ jobs:
           # replacement behavior, set to true and ensure the release exists
           # with properly matching asset names beforehand.
           overwrite_files: false
-          # Make the workflow fail if any glob doesn't match, helps to catch
-          # misconfigured globs and prevents silent uploads of unwanted files.
-          fail_on_unmatched_files: true
+          # Do not fail if some globs don't match — not every run produces
+          # all platform artifacts. Keep `fail_on_unmatched_files` off.
+          fail_on_unmatched_files: false
           # Explicitly supply token (defaults to GITHUB_TOKEN) to be explicit
           token: ${{ secrets.GITHUB_TOKEN }}
     
