@@ -2,6 +2,7 @@ import { Component, For, createEffect, onCleanup, createSignal } from "solid-js"
 import { mixerTracks, fetchMixerTracks, addMixerTrack, startMetering, stopMetering, meterLevels } from "../../../store/mixer";
 import { MixerStrip } from "./MixerStrip";
 import { IconButton } from "../../lib/IconButton";
+import { t } from "../../../i18n";
 
 export const MixerPanel: Component = () => {
     const [isOpen, setIsOpen] = createSignal(false);
@@ -36,7 +37,7 @@ export const MixerPanel: Component = () => {
 
             {/* Collapsed View: Just a vertical label or icon */}
             <div class={`h-full w-12 flex flex-col items-center pt-4 gap-4 ${isOpen() ? "hidden" : "flex"}`}>
-                <span class="writing-vertical-rl text-on-surface font-medium tracking-widest rotate-180">MIXER</span>
+                <span class="writing-vertical-rl text-on-surface font-medium tracking-widest rotate-180">{t('mixer.label')}</span>
                 <IconButton onClick={() => setIsOpen(true)} variant="standard">
                     <svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 -960 960 960" width="24" fill="currentColor"><path d="M120-320v-80h280v80H120Zm0-160v-80h440v80H120Zm0-160v-80h440v80H120Zm520 480v-160H480v-80h160v-160h80v160h160v80H720v160h-80Z" /></svg>
                 </IconButton>
@@ -45,7 +46,7 @@ export const MixerPanel: Component = () => {
             {/* Expanded View */}
             <div class={`flex-1 flex flex-col overflow-hidden ${isOpen() ? "flex" : "hidden"}`}>
                 <div class="h-10 border-b border-outline-variant flex items-center justify-between px-4 bg-surface-container">
-                    <span class="font-bold text-on-surface">Mixer Console</span>
+                    <span class="font-bold text-on-surface">{t('mixer.console')}</span>
                     <IconButton onClick={addMixerTrack} variant="filled" class="w-8 h-8">
                         <svg xmlns="http://www.w3.org/2000/svg" height="20" viewBox="0 -960 960 960" width="20" fill="currentColor"><path d="M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z" /></svg>
                     </IconButton>

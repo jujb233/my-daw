@@ -12,13 +12,13 @@ interface TrackRowProps {
 
 const TrackRow: Component<TrackRowProps> = (props) => {
     const [clips, setClips] = createSignal([
-        { id: 1, name: "Bass Line", start: 50, length: 200, color: "#8b5cf6" },
-        { id: 2, name: "Melody A", start: 300, length: 150, color: "#ec4899" }
+        { id: 1, name: "贝斯线", start: 50, length: 200, color: "#8b5cf6" },
+        { id: 2, name: "旋律 A", start: 300, length: 150, color: "#ec4899" }
     ]);
 
     const addClip = async () => {
         // Default values for new clip
-        const name = "New Clip";
+        const name = "新片段";
         const start = 100;
         const length = 100;
         const instrumentId = 0; // Default to first instrument
@@ -134,10 +134,10 @@ const TrackRow: Component<TrackRowProps> = (props) => {
 
             {/* Tracks Area */}
             <div class="flex-1 overflow-y-auto">
-                <TrackRow name="Track 1" />
-                <TrackRow name="Track 2" />
-                <TrackRow name="Track 3" />
-                <TrackRow name="Track 4" />
+                <TrackRow name="轨道 1" />
+                <TrackRow name="轨道 2" />
+                <TrackRow name="轨道 3" />
+                <TrackRow name="轨道 4" />
             </div>
         </div>
     );

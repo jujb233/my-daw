@@ -1,5 +1,6 @@
 import { Component, Show } from "solid-js";
 import { instances } from "../../../store/audio";
+import { t } from "../../../i18n";
 import { mixerTracks } from "../../../store/mixer";
 
 interface GridClipProps {
@@ -45,7 +46,7 @@ export const GridClip: Component<GridClipProps> = (props) => {
                         props.onUpdate?.({ instrumentId: val ? parseInt(val) : 0 });
                     }}
                 >
-                    <option value="">Inst...</option>
+                    <option value="">{t('grid.inst')}</option>
                     {instances().map(i => <option value={i.id}>{i.label}</option>)}
                 </select>
 
@@ -59,7 +60,7 @@ export const GridClip: Component<GridClipProps> = (props) => {
                         props.onUpdate?.({ targetTrackId: val ? parseInt(val) : 0 });
                     }}
                 >
-                    <option value="">Out...</option>
+                    <option value="">{t('grid.out')}</option>
                     {mixerTracks().map(t => <option value={t.id}>{t.label}</option>)}
                 </select>
             </div>            {/* Remove Button (visible on hover) */}
@@ -70,6 +71,7 @@ export const GridClip: Component<GridClipProps> = (props) => {
                         e.stopPropagation();
                         props.onRemove?.();
                     }}
+                    title={t('sidebar.remove')}
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" height="12" viewBox="0 -960 960 960" width="12" fill="white"><path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z" /></svg>
                 </div>

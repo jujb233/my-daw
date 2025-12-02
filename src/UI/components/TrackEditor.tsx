@@ -1,5 +1,6 @@
 import { Component, For } from "solid-js";
 import { store, addTrack, addClip, selectTrack } from "../../store";
+import { t } from "../../i18n";
 import { ClipInstance } from "../../store/types";
 import { Button } from "../lib/Button";
 
@@ -9,7 +10,7 @@ const Ruler: Component = () => {
     return (
         <div class="h-8 bg-surface-container-high border-b border-outline-variant flex items-end sticky top-0 z-10">
             <div class="w-[200px] shrink-0 border-r border-outline-variant bg-surface-container-high flex items-center justify-center text-xs text-on-surface-variant">
-                TRACKS
+                {t('tracks.header')}
             </div>
             <div class="flex-1 relative overflow-hidden min-w-[1000px]">
                 <div class="absolute bottom-0 left-0 w-full h-full flex text-xs text-on-surface-variant font-mono">
@@ -42,8 +43,8 @@ const TrackHeader: Component<{ track: any }> = (props) => {
             <div class="flex justify-between items-center pl-2">
                 <span class="font-medium text-sm truncate text-on-surface">{props.track.name}</span>
                 <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <div class={`w-4 h-4 rounded text-[10px] flex items-center justify-center cursor-pointer ${props.track.muted ? 'bg-primary text-on-primary' : 'bg-on-surface-variant/20 hover:bg-primary hover:text-on-primary'}`}>M</div>
-                    <div class={`w-4 h-4 rounded text-[10px] flex items-center justify-center cursor-pointer ${props.track.soloed ? 'bg-tertiary text-on-tertiary' : 'bg-on-surface-variant/20 hover:bg-tertiary hover:text-on-tertiary'}`}>S</div>
+                    <div title={t('icons.mute')} class={`w-4 h-4 rounded text-[10px] flex items-center justify-center cursor-pointer ${props.track.muted ? 'bg-primary text-on-primary' : 'bg-on-surface-variant/20 hover:bg-primary hover:text-on-primary'}`}>M</div>
+                    <div title={t('icons.solo')} class={`w-4 h-4 rounded text-[10px] flex items-center justify-center cursor-pointer ${props.track.soloed ? 'bg-tertiary text-on-tertiary' : 'bg-on-surface-variant/20 hover:bg-tertiary hover:text-on-tertiary'}`}>S</div>
                 </div>
             </div>
             <div class="flex-1 bg-surface-container-highest rounded opacity-50">
@@ -66,7 +67,7 @@ const ClipView: Component<{ clip: ClipInstance }> = (props) => {
                 "border-color": content()?.color || "#aec6ff",
                 "color": "#e3e2e6"
             }}
-            title={`Clip: ${content()?.name}`}
+            title={`${t('clip.title')}: ${content()?.name}`}
         >
             {content()?.name}
         </div>
@@ -133,7 +134,7 @@ export const TrackEditor: Component = () => {
                     </For>
 
                     <div class="p-4">
-                        <Button variant="tonal" onClick={addTrack}>+ Add Track</Button>
+                        <Button variant="tonal" onClick={addTrack}>{t('tracks.addTrack')}</Button>
                     </div>
                 </div>
             </div>

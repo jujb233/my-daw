@@ -5,6 +5,7 @@ import { IconButton } from "../lib/IconButton";
 import { Slider } from "../lib/Slider";
 import { instances, addInstance, updateInstanceParam, removeInstance, updateInstanceLabel, toggleInstanceExpanded, updateInstanceRouting } from "../../store/audio";
 import { mixerTracks } from "../../store/mixer";
+import { t } from "../../i18n";
 
 export const TimbreSidebar: Component<{ isOpen: boolean; onClose: () => void }> = (props) => {
     const [showAddMenu, setShowAddMenu] = createSignal(false);
@@ -15,7 +16,7 @@ export const TimbreSidebar: Component<{ isOpen: boolean; onClose: () => void }> 
                 }`}
         >
             <div class="h-14 flex items-center justify-between px-4 border-b border-outline-variant shrink-0">
-                <span class="font-medium text-on-surface">Timbres</span>
+                <span class="font-medium text-on-surface">{t('sidebar.title')}</span>
                 <IconButton onClick={props.onClose} variant="standard">
                     <svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 -960 960 960" width="24" fill="currentColor"><path d="m256-200-56-56 224-224-224-224 56-56 224 224 224-224 56 56-224 224 224 224-56 56-224-224-224 224Z" /></svg>
                 </IconButton>
@@ -49,7 +50,7 @@ export const TimbreSidebar: Component<{ isOpen: boolean; onClose: () => void }> 
                                 <div class="px-4 pb-4 pt-0 flex flex-col gap-3 border-t border-outline-variant/50 mt-1">
                                     {/* Label Editor */}
                                     <div class="pt-3">
-                                        <label class="text-xs text-on-surface-variant block mb-1">Label</label>
+                                        <label class="text-xs text-on-surface-variant block mb-1">{t('sidebar.label')}</label>
                                         <input
                                             type="text"
                                             value={inst.label}
@@ -59,7 +60,7 @@ export const TimbreSidebar: Component<{ isOpen: boolean; onClose: () => void }> 
                                     </div>
 
                                     <div class="pt-2">
-                                        <label class="text-xs text-on-surface-variant block mb-1">Output Routing</label>
+                                        <label class="text-xs text-on-surface-variant block mb-1">{t('sidebar.outputRouting')}</label>
                                         <select
                                             class="w-full bg-surface-container-highest text-on-surface text-sm px-2 py-1 rounded border-none focus:ring-1 focus:ring-primary outline-none"
                                             value={inst.routingTrackId}
@@ -74,7 +75,7 @@ export const TimbreSidebar: Component<{ isOpen: boolean; onClose: () => void }> 
                                     </div>
 
                                     <Slider
-                                        label="Gain"
+                                        label={t('sidebar.gain')}
                                         min="0"
                                         max="1"
                                         step="0.01"
@@ -84,13 +85,13 @@ export const TimbreSidebar: Component<{ isOpen: boolean; onClose: () => void }> 
                                     />
 
                                     <div class="flex flex-col gap-2">
-                                        <span class="text-xs text-on-surface-variant">Waveform</span>
+                                        <span class="text-xs text-on-surface-variant">{t('sidebar.waveform')}</span>
                                         <div class="grid grid-cols-4 gap-1">
                                             {[
-                                                { label: "Sine", value: 0 },
-                                                { label: "Sqr", value: 1 },
-                                                { label: "Saw", value: 2 },
-                                                { label: "Tri", value: 3 },
+                                                { label: t('sidebar.waveform.sine'), value: 0 },
+                                                { label: t('sidebar.waveform.sqr'), value: 1 },
+                                                { label: t('sidebar.waveform.saw'), value: 2 },
+                                                { label: t('sidebar.waveform.tri'), value: 3 },
                                             ].map((w) => (
                                                 <button
                                                     class={`px-1 py-1.5 text-xs font-medium rounded transition-colors ${inst.params[11] === w.value
@@ -111,7 +112,7 @@ export const TimbreSidebar: Component<{ isOpen: boolean; onClose: () => void }> 
                                             class="text-error hover:bg-error/10"
                                             onClick={() => removeInstance(inst.id)}
                                         >
-                                            Remove
+                                            {t('sidebar.remove')}
                                         </Button>
                                     </div>
                                 </div>
@@ -126,13 +127,13 @@ export const TimbreSidebar: Component<{ isOpen: boolean; onClose: () => void }> 
                         class="w-full"
                         onClick={() => setShowAddMenu(!showAddMenu())}
                     >
-                        Add Timbre
+                        {t('sidebar.addTimbre')}
                     </Button>
 
                     <Show when={showAddMenu()}>
                         <div class="absolute bottom-full left-0 w-full mb-2 bg-surface-container-high rounded-lg shadow-lg border border-outline-variant overflow-hidden z-10">
                             <div class="p-2">
-                                <span class="text-xs font-medium text-on-surface-variant px-2">Available Plugins</span>
+                                <span class="text-xs font-medium text-on-surface-variant px-2">{t('sidebar.availablePlugins')}</span>
                             </div>
                             <button
                                 class="w-full text-left px-4 py-2 text-sm text-on-surface hover:bg-surface-container-highest transition-colors flex items-center gap-2"
@@ -142,7 +143,7 @@ export const TimbreSidebar: Component<{ isOpen: boolean; onClose: () => void }> 
                                 }}
                             >
                                 <span>🎹</span>
-                                <span>Simple Synth</span>
+                                <span>{t('sidebar.simpleSynth')}</span>
                             </button>
                             {/* Future plugins here */}
                         </div>
