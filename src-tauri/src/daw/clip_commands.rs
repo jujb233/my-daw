@@ -1,5 +1,6 @@
+use crate::audio::core::clip::{Clip, Note};
+use crate::audio::core::plugin::PluginEvent;
 use crate::daw::core::rebuild_engine;
-use crate::daw::sequencer::{Clip, Note};
 use crate::daw::state::AppState;
 use tauri::State;
 
@@ -62,7 +63,7 @@ pub fn update_clip(
     instrument_routes: Option<HashMap<usize, Vec<usize>>>,
     notes: Option<Vec<Note>>,
 ) -> Result<(), String> {
-    {
+    let updated_clip = {
         let mut clips = state.clips.lock().map_err(|_| "Failed to lock clips")?;
         if let Some(clip) = clips.iter_mut().find(|c| c.id == id) {
             if let Some(n) = name {
@@ -83,11 +84,21 @@ pub fn update_clip(
             if let Some(n) = notes {
                 clip.notes = n;
             }
+            Some(clip.clone())
         } else {
             return Err("Clip not found".to_string());
         }
+    };
+
+    if let Some(clip) = updated_clip {
+        let engine = state
+            .audio_engine
+            .lock()
+            .map_err(|_| "Failed to lock audio engine")?;
+        if engine.is_running() {
+            engine.send_event(PluginEvent::UpdateClip(clip));
+        }
     }
-    rebuild_engine(&state)?;
     Ok(())
 }
 

@@ -1,5 +1,5 @@
 use crate::audio::engine::AudioEngine;
-use crate::daw::sequencer::Clip;
+use crate::audio::core::clip::Clip;
 use serde::Serialize;
 use std::sync::Mutex;
 use uuid::Uuid;

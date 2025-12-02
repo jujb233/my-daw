@@ -1,5 +1,5 @@
+use crate::audio::core::clip::Clip;
 use crate::audio::core::plugin::{NoteEvent, PluginEvent};
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -16,32 +16,16 @@ pub fn get_is_playing() -> bool {
     IS_PLAYING.load(Ordering::Relaxed) == 1
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Note {
-    pub relative_start: f64, // Seconds relative to clip start
-    pub duration: f64,       // Seconds
-    pub note: u8,            // MIDI note number
-    pub velocity: f32,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Clip {
-    pub id: usize,
-    pub name: String,
-    pub start_time: f64, // In seconds
-    pub duration: f64,
-    pub instrument_ids: Vec<usize>,
-    // Map InstrumentID -> List of Target TrackIDs
-    pub instrument_routes: HashMap<usize, Vec<usize>>,
-    pub notes: Vec<Note>,
-}
-
 pub struct Sequencer {
     pub clips: Vec<Clip>,
     pub sample_rate: f32,
     pub current_time: f64,
     pub tempo: f64, // BPM
     pub playing: bool,
+    // Track active notes: InstrumentID -> Map<Note, Velocity>
+    // We use a Map to handle multiple instances of same note if needed, but Set is usually enough.
+    // Let's just store active notes to send NoteOff when stopping.
+    pub active_notes: HashMap<usize, Vec<u8>>,
 }
 
 impl Sequencer {
@@ -52,6 +36,7 @@ impl Sequencer {
             current_time: 0.0,
             tempo: 120.0,
             playing: false,
+            active_notes: HashMap::new(),
         }
     }
 
@@ -67,6 +52,14 @@ impl Sequencer {
 
     pub fn add_clip(&mut self, clip: Clip) {
         self.clips.push(clip);
+    }
+
+    pub fn update_clip(&mut self, clip: Clip) {
+        if let Some(c) = self.clips.iter_mut().find(|c| c.id == clip.id) {
+            *c = clip;
+        } else {
+            self.clips.push(clip);
+        }
     }
 
     // Returns:
@@ -110,6 +103,16 @@ impl Sequencer {
             looped = true;
         }
 
+        // Handle Stop / Pause: Kill all active notes
+        if !self.playing {
+            for (inst_id, notes) in self.active_notes.drain() {
+                let inst_events = events.entry(inst_id).or_insert(Vec::new());
+                for note in notes {
+                    inst_events.push(PluginEvent::Midi(NoteEvent::NoteOff { note }));
+                }
+            }
+        }
+
         // Find active clips
         for clip in &self.clips {
             // Check overlap
@@ -138,6 +141,7 @@ impl Sequencer {
                 if self.playing {
                     for &inst_id in &clip.instrument_ids {
                         let inst_events = events.entry(inst_id).or_insert(Vec::new());
+                        let active_list = self.active_notes.entry(inst_id).or_insert(Vec::new());
 
                         for note in &clip.notes {
                             let note_start_abs = clip.start_time + note.relative_start;
@@ -145,11 +149,11 @@ impl Sequencer {
 
                             // Check Note On
                             if note_start_abs >= self.current_time && note_start_abs < end_time {
-                                println!("Sequencer: NoteOn {} at {}", note.note, note_start_abs);
                                 inst_events.push(PluginEvent::Midi(NoteEvent::NoteOn {
                                     note: note.note,
                                     velocity: note.velocity,
                                 }));
+                                active_list.push(note.note);
                             }
 
                             // Check Note Off
@@ -157,6 +161,10 @@ impl Sequencer {
                                 inst_events.push(PluginEvent::Midi(NoteEvent::NoteOff {
                                     note: note.note,
                                 }));
+                                if let Some(pos) = active_list.iter().position(|&n| n == note.note)
+                                {
+                                    active_list.remove(pos);
+                                }
                             }
 
                             // Edge case: If we are looping at this block, and a note is still active, kill it?
@@ -166,6 +174,10 @@ impl Sequencer {
                                 inst_events.push(PluginEvent::Midi(NoteEvent::NoteOff {
                                     note: note.note,
                                 }));
+                                if let Some(pos) = active_list.iter().position(|&n| n == note.note)
+                                {
+                                    active_list.remove(pos);
+                                }
                             }
                         }
                     }

@@ -159,6 +159,7 @@ pub fn update_parameter(
     param_id: u32,
     value: f32,
 ) -> Result<(), String> {
+    // println!("Command: update_parameter {} {}", param_id, value); // Too noisy?
     let engine = state
         .audio_engine
         .lock()
@@ -201,15 +202,8 @@ pub fn play(state: State<'_, AppState>) -> Result<(), String> {
         .map_err(|_| "Failed to lock audio engine")?;
 
     if !engine.is_running() {
-        drop(engine); // Release lock
-
         // Start the engine
         let root = create_audio_graph(&state)?;
-
-        engine = state
-            .audio_engine
-            .lock()
-            .map_err(|_| "Failed to lock audio engine")?;
 
         engine.start(root).map_err(|e| e.to_string())?;
     }
@@ -221,7 +215,6 @@ pub fn play(state: State<'_, AppState>) -> Result<(), String> {
     });
     Ok(())
 }
-
 #[tauri::command]
 pub fn pause(state: State<'_, AppState>) -> Result<(), String> {
     let engine = state

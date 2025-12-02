@@ -55,15 +55,20 @@ const updatePlaybackState = async () => {
         // Actually, let's trust backend for time, but be careful about stopping the loop.
 
         setStore("playback", {
-            // If backend says playing, use it. If backend says stopped, but we expect to be playing,
-            // we might be in a transition. However, usually backend is authoritative.
-            // But to fix the "button doesn't react" issue, we need to ensure the loop doesn't die prematurely.
-            isPlaying: isPlaying || (store.playback.isPlaying && animationFrameId !== null),
+            // Trust backend for isPlaying, UNLESS we are in a transition where we expect to be playing.
+            // But if we just paused, we want to trust local state.
+            // The issue is: if we pause, local is false. Backend might be true.
+            // If we use `isPlaying || ...`, it becomes true.
+            // So we should only use backend isPlaying if we haven't explicitly paused.
+            // But we don't track "explicitly paused".
+            // Let's simplify: Trust backend, but if we are locally playing, keep playing until backend confirms stop?
+            // No, opposite. If we locally stopped, we should stop.
+            isPlaying: isPlaying,
             currentBar,
             startTime: time
         });
 
-        if (isPlaying || store.playback.isPlaying) {
+        if (isPlaying) {
             animationFrameId = requestAnimationFrame(updatePlaybackState);
         } else {
             animationFrameId = null;
@@ -87,8 +92,10 @@ export const togglePlayback = async () => {
 
             await DawService.pause();
 
-            // One last update to ensure state is correct
-            updatePlaybackState();
+            // Do NOT call updatePlaybackState immediately, as backend might still report playing.
+            // We trust our local "false" state.
+            // We might want to fetch time one last time, but safely.
+            // For now, just stop.
         } else {
             // Optimistic update
             setStore("playback", "isPlaying", true);
