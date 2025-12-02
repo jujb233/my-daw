@@ -43,13 +43,28 @@ jobs:
           # omit tagName/releaseName so the action will only build, not create a release
           args: ${{ matrix.platform == 'ubuntu-latest' && '--bundles appimage,rpm' || '--bundles nsis' }}
 
-      - name: 上传 桌面 产物
+      - name: 列出桌面构建产物（调试）
+        run: |
+          echo "Bundle tree:"
+          ls -R src-tauri/target/release/bundle || true
+
+      - name: 上传 Ubuntu 最终包 (AppImage & RPM)
+        if: ${{ always() && matrix.platform == 'ubuntu-latest' }}
         uses: actions/upload-artifact@v4
-        if: always()
         with:
-          name: desktop-${{ matrix.platform }}
+          name: desktop-ubuntu-latest
           path: |
-            src-tauri/target/release/bundle/**/*
+            src-tauri/target/release/bundle/**/*.AppImage
+            src-tauri/target/release/bundle/**/*.appimage
+            src-tauri/target/release/bundle/**/*.rpm
+
+      - name: 上传 Windows 最终包 (EXE)
+        if: ${{ always() && matrix.platform == 'windows-latest' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-windows-latest
+          path: |
+            src-tauri/target/release/bundle/**/*.exe
 
   build-android:
     name: 构建安卓版
@@ -188,8 +203,8 @@ jobs:
           # during overwriting or trigger update requests that lead to 404.
           files: |
             artifacts/ubuntu/**/*.AppImage
+            artifacts/ubuntu/**/*.appimage
             artifacts/ubuntu/**/*.rpm
-            artifacts/windows/**/*.exe
             artifacts/windows/**/*.exe
             artifacts/android/**/*.apk
           tag_name: ${{ github.ref_name }}
