@@ -1,104 +1,75 @@
-import { Component, createEffect, createSignal, For, Show } from "solid-js";
+import { Component, createSignal, For, Show } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
-import { DawService } from "../../services/daw";
 import { Ruler } from "./Ruler";
 import { store, setStore, updateClipNotes } from "../../store";
 import { IconButton } from "../../UI/lib/IconButton";
 import { Note } from "../../store/types";
-
-interface Clip {
-    id: number;
-    name: string;
-    start_time: number;
-    duration: number;
-    instrument_ids: number[];
-    instrument_routes: Record<number, number[]>;
-    notes: Note[];
-}
 
 interface PianoRollProps {
     clipId: number;
 }
 
 export const PianoRoll: Component<PianoRollProps> = (props) => {
-    const [clip, setClip] = createSignal<Clip | null>(null);
     const [zoom, setZoom] = createSignal(100); // pixels per beat (quarter note)
     let keysContainer: HTMLDivElement | undefined;
     let gridContainer: HTMLDivElement | undefined;
 
-    const fetchClip = async () => {
-        try {
-            // Fetch from backend to get duration etc, but notes should come from store for consistency?
-            // Actually, store.clipLibrary has the authoritative notes for "shared content".
-            // But let's fetch the backend clip to get the instance-specific data (start time, duration).
-            const c = await DawService.getClip(props.clipId);
+    // Derived state from store
+    const clipData = () => {
+        const instance = store.clips.find(c => c.id === props.clipId);
+        if (!instance) return null;
+        const content = store.clipLibrary[instance.clipContentId];
+        if (!content) return null;
 
-            // Merge notes from store if available (Flyweight pattern)
-            const instance = store.clips.find(cl => cl.id === props.clipId);
-            if (instance) {
-                const content = store.clipLibrary[instance.clipContentId];
-                if (content) {
-                    // Use content notes instead of backend notes (they should be synced, but store is source of truth for UI)
-                    // Actually, let's trust the store for editing.
-                    setClip({ ...c, notes: content.notes });
-                    return;
-                }
-            }
+        const bpm = store.info.bpm;
+        const timeSig = store.info.timeSignature[0];
 
-            setClip(c);
-        } catch (e) {
-            console.error("Failed to fetch clip:", e);
-        }
+        return {
+            instance,
+            content,
+            startBeats: (instance.startBar - 1) * timeSig,
+            durationBeats: instance.lengthBars * timeSig,
+            bpm
+        };
     };
 
-    createEffect(() => {
-        if (props.clipId !== undefined) {
-            fetchClip();
-        }
-    });
+    const addNote = async (beat: number, pitch: number) => {
+        const data = clipData();
+        if (!data) return;
 
-    const addNote = async (time: number, pitch: number) => {
-        if (!clip()) return;
+        // Constraint: Cannot add note outside clip duration
+        if (beat < 0 || beat > data.durationBeats) return;
 
         const newNote: Note = {
-            relative_start: time,
-            duration: 0.5, // Default 0.5s
+            relative_start: beat,
+            duration: Math.min(1.0, data.durationBeats - beat), // Default 1 beat or remainder
             note: pitch,
             velocity: 0.8
         };
 
-        const updatedNotes = [...clip()!.notes, newNote];
+        const updatedNotes = [...data.content.notes, newNote];
 
-        // Optimistic update
-        setClip({ ...clip()!, notes: updatedNotes });
+        // Update store (which updates UI immediately)
+        setStore("clipLibrary", data.instance.clipContentId, "notes", updatedNotes);
 
         try {
-            const instance = store.clips.find(c => c.id === props.clipId);
-            if (instance) {
-                await updateClipNotes(instance.clipContentId, updatedNotes);
-            }
+            await updateClipNotes(data.instance.clipContentId, updatedNotes);
         } catch (e) {
             console.error("Failed to update clip notes:", e);
-            fetchClip(); // Revert on error
         }
     };
 
     const removeNote = async (index: number) => {
-        if (!clip()) return;
+        const data = clipData();
+        if (!data) return;
 
-        const updatedNotes = clip()!.notes.filter((_, i) => i !== index);
-
-        // Optimistic update
-        setClip({ ...clip()!, notes: updatedNotes });
+        const updatedNotes = data.content.notes.filter((_, i) => i !== index);
+        setStore("clipLibrary", data.instance.clipContentId, "notes", updatedNotes);
 
         try {
-            const instance = store.clips.find(c => c.id === props.clipId);
-            if (instance) {
-                await updateClipNotes(instance.clipContentId, updatedNotes);
-            }
+            await updateClipNotes(data.instance.clipContentId, updatedNotes);
         } catch (e) {
             console.error("Failed to update clip notes:", e);
-            fetchClip();
         }
     };
 
@@ -156,13 +127,14 @@ export const PianoRoll: Component<PianoRollProps> = (props) => {
                 <div class="sticky top-0 z-20 bg-surface-container-high">
                     <Ruler
                         zoom={zoom()}
-                        length={clip()?.duration || 10}
+                        length={clipData()?.durationBeats || 10}
                         height={32}
-                        onClick={(time) => {
-                            if (clip()) {
-                                const globalTime = clip()!.start_time + time;
+                        onClick={(beat) => {
+                            const data = clipData();
+                            if (data) {
+                                const globalBeats = data.startBeats + beat;
+                                const globalTime = globalBeats * (60 / data.bpm);
                                 invoke("seek", { position: globalTime });
-                                // Update local store immediately for responsiveness
                                 setStore("playback", "startTime", globalTime);
                             }
                         }}
@@ -173,7 +145,7 @@ export const PianoRoll: Component<PianoRollProps> = (props) => {
                     class="relative min-w-full"
                     style={{
                         height: `${KEYS.length * NOTE_HEIGHT}px`,
-                        width: clip() ? `${clip()!.duration * zoom()}px` : '100%'
+                        width: clipData() ? `${clipData()!.durationBeats * zoom()}px` : '100%'
                     }}
                     onClick={(e) => {
                         // Adjust click coordinates for ruler height
@@ -197,7 +169,7 @@ export const PianoRoll: Component<PianoRollProps> = (props) => {
                     />
 
                     {/* Notes */}
-                    <For each={clip()?.notes}>
+                    <For each={clipData()?.content.notes}>
                         {(note, i) => (
                             <div
                                 class="absolute bg-primary rounded-sm border border-primary-container cursor-pointer hover:brightness-110"
@@ -213,12 +185,23 @@ export const PianoRoll: Component<PianoRollProps> = (props) => {
                                 }}
                             />
                         )}
-                    </For>                    {/* Playhead */}
-                    <Show when={store.playback.startTime !== null && clip()}>
+                    </For>                    {/* Playhead - Only visible if within clip range */}
+                    <Show when={(() => {
+                        const data = clipData();
+                        if (!data || store.playback.startTime === null) return false;
+                        const currentBeats = store.playback.startTime * (data.bpm / 60);
+                        const localBeats = currentBeats - data.startBeats;
+                        return localBeats >= 0 && localBeats <= data.durationBeats;
+                    })()}>
                         <div
                             class="absolute top-0 bottom-0 w-0.5 bg-tertiary z-10 pointer-events-none"
                             style={{
-                                left: `${((store.playback.startTime || 0) - (clip()?.start_time || 0)) * zoom()}px`
+                                left: `${(() => {
+                                    const data = clipData();
+                                    if (!data) return 0;
+                                    const currentBeats = (store.playback.startTime || 0) * (data.bpm / 60);
+                                    return (currentBeats - data.startBeats) * zoom();
+                                })()}px`
                             }}
                         >
                             <div class="w-3 h-3 -ml-1.5 bg-tertiary transform rotate-45 -mt-1.5"></div>

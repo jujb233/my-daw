@@ -8,7 +8,8 @@ import { invoke } from "@tauri-apps/api/core";
 const PIXELS_PER_BAR = 60;
 
 const Playhead: Component = () => {
-    const left = () => (store.playback.currentBar - 1) * PIXELS_PER_BAR;
+    // Offset by 200px (Header width)
+    const left = () => (store.playback.currentBar - 1) * PIXELS_PER_BAR + 200;
 
     return (
         <div
@@ -21,24 +22,47 @@ const Playhead: Component = () => {
 };
 
 const Ruler: Component<{ scrollRef: (el: HTMLDivElement) => void }> = (props) => {
+    const handleRulerClick = (e: MouseEvent) => {
+        const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+        const x = e.clientX - rect.left;
+
+        // Calculate bar from pixels
+        const bar = (x / PIXELS_PER_BAR) + 1;
+
+        // Convert to time (assuming 120bpm 4/4 for now, should use store.info)
+        const bpm = store.info.bpm;
+        const timeSig = store.info.timeSignature[0];
+        const secondsPerBeat = 60 / bpm;
+        const secondsPerBar = secondsPerBeat * timeSig;
+
+        const time = (bar - 1) * secondsPerBar;
+
+        invoke("seek", { position: time });
+        // Optimistic update
+        setStore("playback", { currentBar: bar, startTime: time });
+    };
+
     return (
-        <div class="h-8 bg-surface-container-high border-b border-outline-variant flex items-end sticky top-0 z-10 shrink-0">
-            <div class="w-[200px] shrink-0 border-r border-outline-variant bg-surface-container-high flex items-center justify-center text-xs text-on-surface-variant">
+        <div class="h-8 bg-surface-container-highest border-b border-outline-variant flex items-end z-20 shrink-0">
+            <div class="w-[200px] shrink-0 border-r border-outline-variant bg-surface-container-highest flex items-center justify-center text-xs text-on-surface font-bold">
                 {t('tracks.header')}
             </div>
             <div
                 ref={props.scrollRef}
-                class="flex-1 relative overflow-hidden whitespace-nowrap"
+                class="flex-1 relative overflow-hidden whitespace-nowrap cursor-pointer h-full"
             >
                 {/* Container for ruler content that matches track width */}
-                <div class="h-full relative min-w-[4000px]">
-                    <div class="absolute bottom-0 left-0 w-full h-full flex text-xs text-on-surface-variant font-mono">
+                <div
+                    class="h-full relative min-w-[4000px]"
+                    onClick={handleRulerClick}
+                >
+                    <div class="absolute bottom-0 left-0 w-full h-full flex text-xs text-on-surface-variant font-mono pointer-events-none">
                         <For each={Array.from({ length: 100 })}>
                             {(_, i) => {
                                 const barNum = i() + 1;
                                 return (
                                     <div
-                                        class="absolute bottom-0 border-l border-outline-variant/50 pl-1 h-4 flex items-center"
+                                        class="absolute bottom-0 border-l border-outline-variant pl-1 h-4 flex items-center select-none"
                                         style={{ left: `${(barNum - 1) * PIXELS_PER_BAR}px` }}
                                     >
                                         {barNum}
@@ -49,10 +73,10 @@ const Ruler: Component<{ scrollRef: (el: HTMLDivElement) => void }> = (props) =>
                     </div>
                     {/* Playhead Marker in Ruler */}
                     <div
-                        class="absolute bottom-0 h-4 w-[1px] bg-red-500 z-50 pointer-events-none"
+                        class="absolute bottom-0 h-full w-[1px] bg-red-500 z-50 pointer-events-none"
                         style={{ left: `${(store.playback.currentBar - 1) * PIXELS_PER_BAR}px` }}
                     >
-                        <div class="absolute -top-1 -left-1.5 w-3 h-3 bg-red-500 rotate-45"></div>
+                        <div class="absolute top-0 -left-1.5 w-3 h-3 bg-red-500 rotate-45"></div>
                     </div>
                 </div>
             </div>

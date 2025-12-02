@@ -38,10 +38,11 @@ export const selectTrack = (id: number) => {
 };
 
 let animationFrameId: number | null = null;
+let lastPlayRequestTime = 0;
 
 const updatePlaybackState = async () => {
     try {
-        const [isPlaying, time] = await DawService.getPlaybackState();
+        const [backendIsPlaying, time] = await DawService.getPlaybackState();
 
         const bpm = store.info.bpm;
         const timeSigNum = store.info.timeSignature[0];
@@ -49,21 +50,16 @@ const updatePlaybackState = async () => {
         const currentBeat = time * (bpm / 60);
         const currentBar = (currentBeat / timeSigNum) + 1;
 
-        // Only update if we are actually playing or if we just stopped
-        // If local state says playing, but backend says not yet, we keep local state as playing
-        // unless backend says not playing for a while? 
-        // Actually, let's trust backend for time, but be careful about stopping the loop.
+        let isPlaying = backendIsPlaying;
+
+        // Fix for race condition where backend hasn't started yet
+        // If we requested play recently (< 500ms), trust local state over backend 'false'
+        if (!isPlaying && store.playback.isPlaying && (Date.now() - lastPlayRequestTime < 500)) {
+            isPlaying = true;
+        }
 
         setStore("playback", {
-            // Trust backend for isPlaying, UNLESS we are in a transition where we expect to be playing.
-            // But if we just paused, we want to trust local state.
-            // The issue is: if we pause, local is false. Backend might be true.
-            // If we use `isPlaying || ...`, it becomes true.
-            // So we should only use backend isPlaying if we haven't explicitly paused.
-            // But we don't track "explicitly paused".
-            // Let's simplify: Trust backend, but if we are locally playing, keep playing until backend confirms stop?
-            // No, opposite. If we locally stopped, we should stop.
-            isPlaying: isPlaying,
+            isPlaying,
             currentBar,
             startTime: time
         });
@@ -91,14 +87,10 @@ export const togglePlayback = async () => {
             }
 
             await DawService.pause();
-
-            // Do NOT call updatePlaybackState immediately, as backend might still report playing.
-            // We trust our local "false" state.
-            // We might want to fetch time one last time, but safely.
-            // For now, just stop.
         } else {
             // Optimistic update
             setStore("playback", "isPlaying", true);
+            lastPlayRequestTime = Date.now();
 
             await DawService.play();
 
