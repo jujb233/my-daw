@@ -13,6 +13,13 @@ val tauriProperties = Properties().apply {
     }
 }
 
+repositories {
+    maven { url = uri("https://maven.aliyun.com/repository/public/") }
+    maven { url = uri("https://maven.aliyun.com/repository/google/") }
+    maven { url = uri("https://maven.aliyun.com/repository/gradle-plugin/") }
+    mavenCentral()
+}
+
 android {
     compileSdk = 36
     namespace = "com.jujb233.my_daw"
@@ -68,3 +75,5 @@ dependencies {
 }
 
 apply(from = "tauri.build.gradle.kts")
+
+
