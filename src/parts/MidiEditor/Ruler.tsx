@@ -5,6 +5,7 @@ interface RulerProps {
     length: number; // total units
     height?: number;
     start?: number; // start unit
+    onClick?: (value: number) => void;
 }
 
 export const Ruler: Component<RulerProps> = (props) => {
@@ -15,8 +16,14 @@ export const Ruler: Component<RulerProps> = (props) => {
 
     return (
         <div
-            class="bg-surface-container-high border-b border-outline-variant relative overflow-hidden select-none"
+            class="bg-surface-container-high border-b border-outline-variant relative overflow-hidden select-none cursor-pointer"
             style={{ height: `${props.height || 32}px`, width: `${props.length * props.zoom}px` }}
+            onClick={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const value = (x / props.zoom) + (props.start || 0);
+                props.onClick?.(value);
+            }}
         >
             <For each={markers()}>
                 {(i) => (

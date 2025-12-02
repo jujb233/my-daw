@@ -1,6 +1,20 @@
 use crate::audio::core::plugin::{NoteEvent, PluginEvent};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
+
+// Global atomic for playback position (in samples, or f64 bits)
+// Using AtomicU64 to store f64 bits for thread safety without Mutex
+pub static PLAYBACK_POSITION_BITS: AtomicU64 = AtomicU64::new(0);
+pub static IS_PLAYING: AtomicU64 = AtomicU64::new(0); // 0 = false, 1 = true
+
+pub fn get_playback_position() -> f64 {
+    f64::from_bits(PLAYBACK_POSITION_BITS.load(Ordering::Relaxed))
+}
+
+pub fn get_is_playing() -> bool {
+    IS_PLAYING.load(Ordering::Relaxed) == 1
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Note {
@@ -128,6 +142,11 @@ impl Sequencer {
         if self.playing {
             self.current_time = end_time;
         }
+
+        // Update global state
+        PLAYBACK_POSITION_BITS.store(self.current_time.to_bits(), Ordering::Relaxed);
+        IS_PLAYING.store(if self.playing { 1 } else { 0 }, Ordering::Relaxed);
+
         (events, routing)
     }
 }

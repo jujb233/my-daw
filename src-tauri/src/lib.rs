@@ -46,7 +46,9 @@ pub fn run() {
             get_clip,
             play,
             pause,
-            stop
+            stop,
+            seek,
+            get_playback_state
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

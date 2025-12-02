@@ -1,6 +1,7 @@
-import { Component, createEffect, createSignal, For, onMount } from "solid-js";
+import { Component, createEffect, createSignal, For, onMount, Show } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import { Ruler } from "./Ruler";
+import { store, setStore } from "../../store";
 
 interface Note {
     relative_start: number;
@@ -131,7 +132,19 @@ export const PianoRoll: Component<PianoRollProps> = (props) => {
             >
                 {/* Ruler (Sticky) */}
                 <div class="sticky top-0 z-20 bg-surface-container-high">
-                    <Ruler zoom={zoom()} length={clip()?.duration || 10} height={32} />
+                    <Ruler
+                        zoom={zoom()}
+                        length={clip()?.duration || 10}
+                        height={32}
+                        onClick={(time) => {
+                            if (clip()) {
+                                const globalTime = clip()!.start_time + time;
+                                invoke("seek", { position: globalTime });
+                                // Update local store immediately for responsiveness
+                                setStore("playback", "startTime", globalTime);
+                            }
+                        }}
+                    />
                 </div>
 
                 <div
@@ -179,6 +192,18 @@ export const PianoRoll: Component<PianoRollProps> = (props) => {
                             />
                         )}
                     </For>
+
+                    {/* Playhead */}
+                    <Show when={store.playback.startTime !== null && clip()}>
+                        <div
+                            class="absolute top-0 bottom-0 w-0.5 bg-tertiary z-10 pointer-events-none"
+                            style={{
+                                left: `${((store.playback.startTime || 0) - (clip()?.start_time || 0)) * zoom()}px`
+                            }}
+                        >
+                            <div class="w-3 h-3 -ml-1.5 bg-tertiary transform rotate-45 -mt-1.5"></div>
+                        </div>
+                    </Show>
                 </div>
             </div>
         </div>

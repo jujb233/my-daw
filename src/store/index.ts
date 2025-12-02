@@ -37,14 +37,50 @@ export const selectTrack = (id: string) => {
     setStore("selectedTrackId", id);
 };
 
+let animationFrameId: number | null = null;
+
+const updatePlaybackState = async () => {
+    try {
+        const [isPlaying, time] = await invoke<[boolean, number]>("get_playback_state");
+
+        const bpm = store.info.bpm;
+        const timeSigNum = store.info.timeSignature[0];
+
+        const currentBeat = time * (bpm / 60);
+        const currentBar = (currentBeat / timeSigNum) + 1;
+
+        setStore("playback", {
+            isPlaying,
+            currentBar,
+            startTime: time
+        });
+
+        if (isPlaying) {
+            animationFrameId = requestAnimationFrame(updatePlaybackState);
+        } else {
+            animationFrameId = null;
+        }
+    } catch (e) {
+        console.error("Failed to get playback state:", e);
+        animationFrameId = null;
+    }
+};
+
 export const togglePlayback = async () => {
     try {
         if (store.playback.isPlaying) {
             await invoke("pause");
-            setStore("playback", "isPlaying", false);
+            if (animationFrameId !== null) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+            // One last update to ensure state is correct
+            updatePlaybackState();
         } else {
             await invoke("play");
-            setStore("playback", "isPlaying", true);
+            if (animationFrameId === null) {
+                updatePlaybackState();
+            }
         }
     } catch (e) {
         console.error("Failed to toggle playback:", e);

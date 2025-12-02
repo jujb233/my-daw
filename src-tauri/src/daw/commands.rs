@@ -1,14 +1,20 @@
-use tauri::State;
-use std::collections::HashMap;
-use uuid::Uuid;
+use super::core::{create_audio_graph, rebuild_engine};
+use super::state::{AppState, MixerTrackData, PluginInstanceData};
 use crate::audio::core::plugin::{NoteEvent, PluginEvent};
 use crate::audio::plugins::mixer::level_meter::get_meter_levels;
-use super::state::{AppState, MixerTrackData, PluginInstanceData};
-use super::core::{create_audio_graph, rebuild_engine};
+use crate::daw::sequencer::{get_is_playing, get_playback_position};
+use std::collections::HashMap;
+use tauri::State;
+use uuid::Uuid;
 
 #[tauri::command]
 pub fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
+}
+
+#[tauri::command]
+pub fn get_playback_state() -> (bool, f64) {
+    (get_is_playing(), get_playback_position())
 }
 
 #[tauri::command]
@@ -145,7 +151,11 @@ pub fn toggle_audio(state: State<'_, AppState>) -> Result<bool, String> {
 }
 
 #[tauri::command]
-pub fn update_parameter(state: State<'_, AppState>, param_id: u32, value: f32) -> Result<(), String> {
+pub fn update_parameter(
+    state: State<'_, AppState>,
+    param_id: u32,
+    value: f32,
+) -> Result<(), String> {
     let engine = state
         .audio_engine
         .lock()
@@ -190,7 +200,10 @@ pub fn play(state: State<'_, AppState>) -> Result<(), String> {
     if !engine.is_running() {
         drop(engine); // Release lock
         rebuild_engine(&state)?; // Start engine
-        engine = state.audio_engine.lock().map_err(|_| "Failed to lock audio engine")?;
+        engine = state
+            .audio_engine
+            .lock()
+            .map_err(|_| "Failed to lock audio engine")?;
     }
 
     engine.send_event(PluginEvent::Transport {
@@ -229,6 +242,25 @@ pub fn stop(state: State<'_, AppState>) -> Result<(), String> {
         engine.send_event(PluginEvent::Transport {
             playing: false,
             position: Some(0.0),
+            tempo: None,
+        });
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn seek(state: State<'_, AppState>, position: f64) -> Result<(), String> {
+    let engine = state
+        .audio_engine
+        .lock()
+        .map_err(|_| "Failed to lock audio engine")?;
+
+    if engine.is_running() {
+        // We preserve the playing state
+        let playing = get_is_playing();
+        engine.send_event(PluginEvent::Transport {
+            playing,
+            position: Some(position),
             tempo: None,
         });
     }
