@@ -39,15 +39,17 @@ jobs:
 
       - name: 构建桌面版应用
         uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: app-v__VERSION__ 
-          releaseName: "App v__VERSION__"
-          releaseBody: "请在下方 Assets 中下载安装包。"
-          releaseDraft: true
-          prerelease: false
+          # omit tagName/releaseName so the action will only build, not create a release
           args: ${{ matrix.platform == 'ubuntu-latest' && '--bundles appimage,rpm' || '--bundles nsis' }}
+
+      - name: 上传 桌面 产物
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: desktop-${{ matrix.platform }}
+          path: |
+            src-tauri/target/release/bundle/**/*
 
   build-android:
     name: 构建安卓版
@@ -144,3 +146,47 @@ jobs:
         with:
           name: android-app
           path: src-tauri/gen/android/app/build/outputs/apk/**/*.apk
+
+  publish-release:
+    name: 发布 Release（汇总并上传所有平台资产）
+    needs: [build-desktop, build-android]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: 下载 Ubuntu 桌面产物
+        uses: actions/download-artifact@v4
+        with:
+          name: desktop-ubuntu-latest
+          path: artifacts/ubuntu
+
+      - name: 下载 Windows 桌面产物
+        uses: actions/download-artifact@v4
+        with:
+          name: desktop-windows-latest
+          path: artifacts/windows
+
+      - name: 下载 Android 产物
+        uses: actions/download-artifact@v4
+        with:
+          name: android-app
+          path: artifacts/android
+
+      - name: 创建 Release 并上传所有资产
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/ubuntu/**
+            artifacts/windows/**
+            artifacts/android/**
+          tag_name: ${{ github.ref_name }}
+          name: "App ${{ github.ref_name }}"
+          body: "请在下方 Assets 中下载安装包。"
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
