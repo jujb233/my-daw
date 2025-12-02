@@ -9,7 +9,7 @@ pub fn add_clip(
     name: String,
     start_time: f64,
     duration: f64,
-    instrument_id: usize,
+    instrument_ids: Vec<usize>,
     target_track_ids: Vec<usize>,
 ) -> Result<usize, String> {
     let id = {
@@ -20,7 +20,7 @@ pub fn add_clip(
             name,
             start_time,
             duration,
-            instrument_id,
+            instrument_ids,
             target_track_ids,
             notes: vec![Note {
                 relative_start: 0.0,
@@ -43,7 +43,7 @@ pub fn update_clip(
     name: Option<String>,
     start_time: Option<f64>,
     duration: Option<f64>,
-    instrument_id: Option<usize>,
+    instrument_ids: Option<Vec<usize>>,
     target_track_ids: Option<Vec<usize>>,
     notes: Option<Vec<Note>>,
 ) -> Result<(), String> {
@@ -59,8 +59,8 @@ pub fn update_clip(
             if let Some(d) = duration {
                 clip.duration = d;
             }
-            if let Some(i) = instrument_id {
-                clip.instrument_id = i;
+            if let Some(i) = instrument_ids {
+                clip.instrument_ids = i;
             }
             if let Some(t) = target_track_ids {
                 clip.target_track_ids = t;

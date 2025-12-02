@@ -14,7 +14,7 @@ interface Clip {
     name: string;
     start_time: number;
     duration: number;
-    instrument_id: number;
+    instrument_ids: number[];
     target_track_ids: number[];
     notes: Note[];
 }

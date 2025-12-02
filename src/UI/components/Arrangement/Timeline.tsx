@@ -21,7 +21,7 @@ const TrackRow: Component<TrackRowProps> = (props) => {
         const name = "新片段";
         const start = 100;
         const length = 100;
-        const instrumentId = 0; // Default to first instrument
+        const instrumentIds = [0]; // Default to first instrument
         const targetTrackIds = [0]; // Default to first track
 
         try {
@@ -32,7 +32,7 @@ const TrackRow: Component<TrackRowProps> = (props) => {
                 name,
                 startTime: start / 100.0,
                 duration: length / 100.0,
-                instrumentId,
+                instrumentIds,
                 targetTrackIds
             }) as number;
 
@@ -56,7 +56,7 @@ const TrackRow: Component<TrackRowProps> = (props) => {
         try {
             // Prepare backend updates
             const backendUpdates: any = { id };
-            if (updates.instrumentId !== undefined) backendUpdates.instrumentId = updates.instrumentId;
+            if (updates.instrumentId !== undefined) backendUpdates.instrumentIds = [updates.instrumentId];
             if (updates.targetTrackId !== undefined) backendUpdates.targetTrackIds = [updates.targetTrackId];
 
             await invoke("update_clip", backendUpdates);

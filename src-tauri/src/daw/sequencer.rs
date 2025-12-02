@@ -16,7 +16,7 @@ pub struct Clip {
     pub name: String,
     pub start_time: f64, // In seconds
     pub duration: f64,
-    pub instrument_id: usize,
+    pub instrument_ids: Vec<usize>,
     pub target_track_ids: Vec<usize>,
     pub notes: Vec<Note>,
 }
@@ -84,33 +84,38 @@ impl Sequencer {
             if is_active {
                 // 1. Collect Routing
                 // If multiple clips use the same instrument, we merge the target tracks
-                let tracks = routing.entry(clip.instrument_id).or_insert(Vec::new());
-                for &t_id in &clip.target_track_ids {
-                    if !tracks.contains(&t_id) {
-                        tracks.push(t_id);
+                for &inst_id in &clip.instrument_ids {
+                    let tracks = routing.entry(inst_id).or_insert(Vec::new());
+                    for &t_id in &clip.target_track_ids {
+                        if !tracks.contains(&t_id) {
+                            tracks.push(t_id);
+                        }
                     }
                 }
 
                 // 2. Collect Events (Only if playing)
                 if self.playing {
-                    let inst_events = events.entry(clip.instrument_id).or_insert(Vec::new());
+                    for &inst_id in &clip.instrument_ids {
+                        let inst_events = events.entry(inst_id).or_insert(Vec::new());
 
-                    for note in &clip.notes {
-                        let note_start_abs = clip.start_time + note.relative_start;
-                        let note_end_abs = note_start_abs + note.duration;
+                        for note in &clip.notes {
+                            let note_start_abs = clip.start_time + note.relative_start;
+                            let note_end_abs = note_start_abs + note.duration;
 
-                        // Check Note On
-                        if note_start_abs >= self.current_time && note_start_abs < end_time {
-                            inst_events.push(PluginEvent::Midi(NoteEvent::NoteOn {
-                                note: note.note,
-                                velocity: note.velocity,
-                            }));
-                        }
+                            // Check Note On
+                            if note_start_abs >= self.current_time && note_start_abs < end_time {
+                                inst_events.push(PluginEvent::Midi(NoteEvent::NoteOn {
+                                    note: note.note,
+                                    velocity: note.velocity,
+                                }));
+                            }
 
-                        // Check Note Off
-                        if note_end_abs >= self.current_time && note_end_abs < end_time {
-                            inst_events
-                                .push(PluginEvent::Midi(NoteEvent::NoteOff { note: note.note }));
+                            // Check Note Off
+                            if note_end_abs >= self.current_time && note_end_abs < end_time {
+                                inst_events.push(PluginEvent::Midi(NoteEvent::NoteOff {
+                                    note: note.note,
+                                }));
+                            }
                         }
                     }
                 }

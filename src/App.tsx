@@ -2,7 +2,7 @@ import { createSignal } from "solid-js";
 import { TopInfoPanel } from "./UI/components/TopInfoPanel";
 import { BottomEditor } from "./UI/components/BottomEditor";
 import { Timeline } from "./UI/components/Arrangement/Timeline";
-import { TimbreSidebar } from "./UI/components/TimbreSidebar";
+import { RightPanel } from "./UI/components/RightPanel/RightPanel";
 import { MixerPanel } from "./UI/components/Mixer/MixerPanel";
 import { IconButton } from "./UI/lib/IconButton";
 import { t } from "./i18n";
@@ -38,8 +38,8 @@ export default function App() {
           <Timeline />
         </div>
 
-        {/* Timbre Sidebar (Right, Collapsible) */}
-        <TimbreSidebar isOpen={isSidebarOpen()} onClose={() => setIsSidebarOpen(false)} />
+        {/* Right Panel (Collapsible) */}
+        <RightPanel isOpen={isSidebarOpen()} onClose={() => setIsSidebarOpen(false)} />
       </div>
 
       {/* Bottom Bar */}
