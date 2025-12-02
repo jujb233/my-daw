@@ -1,7 +1,7 @@
 use crate::audio::core::plugin::{AudioBuffer, Plugin, PluginEvent, PluginInfo, PluginType};
 use std::collections::HashMap;
+use std::sync::Mutex;
 use std::sync::OnceLock;
-use std::sync::{Arc, Mutex};
 use uuid::Uuid;
 
 // Global storage for meter levels

@@ -1,9 +1,15 @@
-use uuid::Uuid;
-
 #[derive(Debug, Clone, Copy)]
 pub enum NoteEvent {
-    NoteOn { note: u8, velocity: f32 },
-    NoteOff { note: u8 },
+    NoteOn {
+        #[allow(dead_code)]
+        note: u8,
+        #[allow(dead_code)]
+        velocity: f32,
+    },
+    NoteOff {
+        #[allow(dead_code)]
+        note: u8,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -27,6 +33,7 @@ pub struct AudioBuffer<'a> {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub enum PluginType {
     Native,
     Clap,
@@ -34,6 +41,7 @@ pub enum PluginType {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct PluginInfo {
     pub name: String,
     pub vendor: String,
@@ -42,6 +50,7 @@ pub struct PluginInfo {
 }
 
 pub trait Plugin: Send + Sync {
+    #[allow(dead_code)]
     fn info(&self) -> PluginInfo;
 
     /// Process audio block.
@@ -50,6 +59,7 @@ pub trait Plugin: Send + Sync {
     fn process(&mut self, buffer: &mut AudioBuffer, events: &[PluginEvent]);
 
     // Parameter handling
+    #[allow(dead_code)]
     fn get_param(&self, id: u32) -> f32;
     fn set_param(&mut self, id: u32, value: f32);
 }

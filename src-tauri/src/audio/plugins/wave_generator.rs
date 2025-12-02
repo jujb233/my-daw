@@ -25,6 +25,7 @@ impl From<f32> for Waveform {
 }
 
 pub struct WaveGenerator {
+    #[allow(dead_code)]
     id: Uuid,
     phase: f32,
     frequency: f32,

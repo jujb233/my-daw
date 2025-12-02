@@ -1,4 +1,4 @@
-import { Component, createEffect, createSignal, For, onMount, Show } from "solid-js";
+import { Component, createEffect, createSignal, For, Show } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import { Ruler } from "./Ruler";
 import { store, setStore } from "../../store";
@@ -26,7 +26,7 @@ interface PianoRollProps {
 
 export const PianoRoll: Component<PianoRollProps> = (props) => {
     const [clip, setClip] = createSignal<Clip | null>(null);
-    const [zoom, setZoom] = createSignal(100); // pixels per second
+    const [zoom] = createSignal(100); // pixels per second
     let keysContainer: HTMLDivElement | undefined;
     let gridContainer: HTMLDivElement | undefined;
 
@@ -91,7 +91,7 @@ export const PianoRoll: Component<PianoRollProps> = (props) => {
     };
 
     // Sync scroll
-    const handleScroll = (e: Event) => {
+    const handleScroll = () => {
         if (keysContainer && gridContainer) {
             keysContainer.scrollTop = gridContainer.scrollTop;
         }

@@ -1,19 +1,17 @@
 use crate::audio::core::plugin::{AudioBuffer, Plugin, PluginEvent, PluginInfo, PluginType};
 use crate::audio::plugins::mixer::track::MixerTrack;
 use crate::daw::sequencer::Sequencer;
-use std::collections::HashMap;
 use uuid::Uuid;
 
 pub struct MixerPlugin {
+    #[allow(dead_code)]
     id: Uuid,
     tracks: Vec<MixerTrack>,
-    instruments: Vec<Box<dyn Plugin>>,
+    instruments: Vec<Box<dyn Plugin>>, 
     sequencer: Sequencer,
     scratch_buffer: Vec<f32>,
     accumulator_buffer: Vec<f32>,
-}
-
-impl MixerPlugin {
+}impl MixerPlugin {
     pub fn new(num_tracks: usize) -> Self {
         let mut tracks = Vec::new();
         for _ in 0..num_tracks {
@@ -48,16 +46,19 @@ impl MixerPlugin {
 
     // Removed set_routing as it is now dynamic via Sequencer
 
+    #[allow(dead_code)]
     pub fn get_instrument_mut(&mut self, index: usize) -> Option<&mut Box<dyn Plugin>> {
         self.instruments.get_mut(index)
     }
 
+    #[allow(dead_code)]
     pub fn remove_track(&mut self, index: usize) {
         if index < self.tracks.len() {
             self.tracks.remove(index);
         }
     }
 
+    #[allow(dead_code)]
     pub fn get_track_mut(&mut self, index: usize) -> Option<&mut MixerTrack> {
         self.tracks.get_mut(index)
     }

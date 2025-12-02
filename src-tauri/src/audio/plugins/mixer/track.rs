@@ -1,13 +1,15 @@
-use crate::audio::core::plugin::{AudioBuffer, Plugin, PluginEvent, PluginInfo, PluginType};
+use crate::audio::core::plugin::{AudioBuffer, Plugin, PluginEvent};
 use crate::audio::plugins::container::PluginContainer;
 use crate::audio::plugins::gain_fader::GainFader;
 use crate::audio::plugins::mixer::level_meter::LevelMeter;
 use uuid::Uuid;
 
 pub struct MixerTrack {
+    #[allow(dead_code)]
     pub id: Uuid,
     pub container: PluginContainer,
     pub meter_id: Uuid,
+    #[allow(dead_code)]
     pub fader_id: Uuid,
 }
 
@@ -50,6 +52,7 @@ impl MixerTrack {
         }
     }
 
+    #[allow(dead_code)]
     pub fn process(&mut self, buffer: &mut AudioBuffer, events: &[PluginEvent]) {
         self.container.process(buffer, events);
     }

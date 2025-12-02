@@ -1,7 +1,8 @@
+use crate::audio::core::plugin::{AudioBuffer, Plugin, PluginEvent, PluginInfo, PluginType};
 use uuid::Uuid;
-use crate::audio::core::plugin::{Plugin, AudioBuffer, PluginEvent, PluginInfo, PluginType};
 
 pub struct GainFader {
+    #[allow(dead_code)]
     id: Uuid,
     gain: f32,
 }
@@ -29,7 +30,8 @@ impl Plugin for GainFader {
         // Handle parameter updates
         for event in events {
             if let PluginEvent::Parameter { id, value } = event {
-                if *id == 0 { // ID 0 = Gain
+                if *id == 0 {
+                    // ID 0 = Gain
                     self.gain = *value;
                 }
             }
@@ -42,7 +44,11 @@ impl Plugin for GainFader {
     }
 
     fn get_param(&self, id: u32) -> f32 {
-        if id == 0 { self.gain } else { 0.0 }
+        if id == 0 {
+            self.gain
+        } else {
+            0.0
+        }
     }
 
     fn set_param(&mut self, id: u32, value: f32) {

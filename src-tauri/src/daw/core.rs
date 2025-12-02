@@ -23,10 +23,10 @@ pub fn create_audio_graph(state: &State<'_, AppState>) -> Result<Box<dyn Plugin>
     }
 
     // Add Instruments to Mixer (Rack)
-    for (i, p_data) in plugins.iter().enumerate() {
+    for (_i, p_data) in plugins.iter().enumerate() {
         if p_data.name == "SimpleSynth" {
             let synth = create_simple_synth();
-            let inst_idx = mixer.add_instrument(synth);
+            let _inst_idx = mixer.add_instrument(synth);
 
             // Routing is now handled by Sequencer/Clips
         }

@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use uuid::Uuid;
 
 pub struct PluginContainer {
+    #[allow(dead_code)]
     id: Uuid,
     plugins: Vec<Box<dyn Plugin>>,
     // Map external_param_id -> (plugin_index, internal_param_id)
@@ -23,6 +24,7 @@ impl PluginContainer {
         self.plugins.len() - 1
     }
 
+    #[allow(dead_code)]
     pub fn insert_plugin(&mut self, index: usize, plugin: Box<dyn Plugin>) {
         if index <= self.plugins.len() {
             self.plugins.insert(index, plugin);

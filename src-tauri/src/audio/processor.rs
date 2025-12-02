@@ -1,8 +1,10 @@
+#[allow(dead_code)]
 pub struct ProcessContext {
     pub sample_rate: f32,
 }
 
 /// A trait for any node in the audio graph that can generate or process audio.
+#[allow(dead_code)]
 pub trait AudioProcessor: Send + Sync {
     /// Process audio and fill the output buffer.
     /// The buffer is interleaved if channels > 1.
