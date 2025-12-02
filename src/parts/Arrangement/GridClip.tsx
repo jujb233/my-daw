@@ -1,7 +1,7 @@
 import { Component, Show } from "solid-js";
-import { instances } from "../../../store/audio";
-import { t } from "../../../i18n";
-import { mixerTracks } from "../../../store/mixer";
+import { instances } from "../../store/audio";
+import { t } from "../../i18n";
+import { mixerTracks } from "../../store/mixer";
 
 interface GridClipProps {
     name: string;

@@ -1,6 +1,6 @@
 import { Component, createEffect, createSignal, For, onMount } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
-import { Ruler } from "../Ruler";
+import { Ruler } from "../../UI/components/Ruler";
 
 interface Note {
     relative_start: number;

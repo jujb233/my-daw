@@ -1,9 +1,9 @@
 import { createSignal } from "solid-js";
-import { TopInfoPanel } from "./UI/components/TopInfoPanel";
-import { BottomEditor } from "./UI/components/BottomEditor";
-import { Timeline } from "./UI/components/Arrangement/Timeline";
-import { RightPanel } from "./UI/components/RightPanel/RightPanel";
-import { MixerPanel } from "./UI/components/Mixer/MixerPanel";
+import { TopInfoPanel } from "./parts/TopInfoPanel";
+import { BottomEditor } from "./parts/BottomEditor/BottomEditor";
+import { Timeline } from "./parts/Arrangement/Timeline";
+import { RightPanel } from "./parts/RightPanel/RightPanel";
+import { MixerPanel } from "./parts/Mixer/MixerPanel";
 import { IconButton } from "./UI/lib/IconButton";
 import { t } from "./i18n";
 

@@ -1,8 +1,8 @@
 import { Component, For, createEffect, onCleanup, createSignal } from "solid-js";
-import { mixerTracks, fetchMixerTracks, addMixerTrack, startMetering, stopMetering, meterLevels } from "../../../store/mixer";
+import { mixerTracks, fetchMixerTracks, addMixerTrack, startMetering, stopMetering, meterLevels } from "../../store/mixer";
 import { MixerStrip } from "./MixerStrip";
-import { IconButton } from "../../lib/IconButton";
-import { t } from "../../../i18n";
+import { IconButton } from "../../UI/lib/IconButton";
+import { t } from "../../i18n";
 
 export const MixerPanel: Component = () => {
     const [isOpen, setIsOpen] = createSignal(false);

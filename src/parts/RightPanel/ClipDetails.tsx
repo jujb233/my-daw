@@ -1,10 +1,10 @@
 import { Component, createResource, createSignal, For, Show, createEffect } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
-import { store, selectClip } from "../../../store";
-import { instances } from "../../../store/audio";
-import { mixerTracks } from "../../../store/mixer";
-import { t } from "../../../i18n";
-import { InstrumentCard } from "../InstrumentCard";
+import { store, selectClip } from "../../store";
+import { instances } from "../../store/audio";
+import { mixerTracks } from "../../store/mixer";
+import { t } from "../../i18n";
+import { InstrumentCard } from "../../UI/components/InstrumentCard";
 
 interface ClipData {
     id: number;

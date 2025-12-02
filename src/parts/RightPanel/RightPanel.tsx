@@ -1,7 +1,7 @@
 import { Component, Show } from "solid-js";
-import { IconButton } from "../../lib/IconButton";
-import { t } from "../../../i18n";
-import { store } from "../../../store";
+import { IconButton } from "../../UI/lib/IconButton";
+import { t } from "../../i18n";
+import { store } from "../../store";
 import { InstrumentList } from "./InstrumentList";
 import { ClipDetails } from "./ClipDetails";
 

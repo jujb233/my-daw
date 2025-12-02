@@ -1,9 +1,9 @@
 import { Component, For, createSignal, Show } from "solid-js";
-import { Button } from "../../lib/Button";
-import { Slider } from "../../lib/Slider";
-import { instances, addInstance, updateInstanceParam, removeInstance, updateInstanceLabel, toggleInstanceExpanded } from "../../../store/audio";
-import { t } from "../../../i18n";
-import { InstrumentCard } from "../InstrumentCard";
+import { Button } from "../../UI/lib/Button";
+import { instances, addInstance, removeInstance, updateInstanceLabel, toggleInstanceExpanded } from "../../store/audio";
+import { t } from "../../i18n";
+import { InstrumentCard } from "../../UI/components/InstrumentCard";
+import { SimpleSynth } from "../../plugins/SimpleSynth";
 
 export const InstrumentList: Component = () => {
     const [showAddMenu, setShowAddMenu] = createSignal(false);
@@ -31,37 +31,10 @@ export const InstrumentList: Component = () => {
                             />
                         </div>
 
-                        <Slider
-                            label={t('sidebar.gain')}
-                            min="0"
-                            max="1"
-                            step="0.01"
-                            value={inst.params[10]}
-                            onInput={(e) => updateInstanceParam(inst.id, 10, parseFloat((e.target as HTMLInputElement).value))}
-                            valueDisplay={`${Math.round((inst.params[10] || 0) * 100)}%`}
-                        />
-
-                        <div class="flex flex-col gap-2">
-                            <span class="text-xs text-on-surface-variant">{t('sidebar.waveform')}</span>
-                            <div class="grid grid-cols-4 gap-1">
-                                {[
-                                    { label: t('sidebar.waveform.sine'), value: 0 },
-                                    { label: t('sidebar.waveform.sqr'), value: 1 },
-                                    { label: t('sidebar.waveform.saw'), value: 2 },
-                                    { label: t('sidebar.waveform.tri'), value: 3 },
-                                ].map((w) => (
-                                    <button
-                                        class={`px-1 py-1.5 text-xs font-medium rounded transition-colors ${inst.params[11] === w.value
-                                            ? "bg-primary text-on-primary"
-                                            : "bg-surface-container-highest text-on-surface-variant hover:bg-surface-container-high"
-                                            }`}
-                                        onClick={() => updateInstanceParam(inst.id, 11, w.value)}
-                                    >
-                                        {w.label}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
+                        {/* Plugin UI */}
+                        <Show when={inst.name === "SimpleSynth"}>
+                            <SimpleSynth instId={inst.id} params={inst.params} />
+                        </Show>
                     </InstrumentCard>
                 )}
             </For>
@@ -90,7 +63,6 @@ export const InstrumentList: Component = () => {
                             <span>🎹</span>
                             <span>{t('sidebar.simpleSynth')}</span>
                         </button>
-                        {/* Future plugins here */}
                     </div>
                 </Show>
             </div>

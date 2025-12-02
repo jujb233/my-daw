@@ -1,9 +1,9 @@
 import { Component, For, createSignal } from "solid-js";
 import { GridClip } from "./GridClip";
-import { IconButton } from "../../lib/IconButton";
-import { instances } from "../../../store/audio";
+import { IconButton } from "../../UI/lib/IconButton";
+import { instances } from "../../store/audio";
 import { invoke } from "@tauri-apps/api/core";
-import { selectClip } from "../../../store";
+import { selectClip } from "../../store";
 
 interface TrackRowProps {
     name: string;
@@ -134,7 +134,9 @@ const TrackRow: Component<TrackRowProps> = (props) => {
             </div>
         </div>
     );
-}; export const Timeline: Component = () => {
+};
+
+export const Timeline: Component = () => {
     return (
         <div class="flex-1 flex flex-col overflow-hidden bg-surface">
             {/* Ruler */}
