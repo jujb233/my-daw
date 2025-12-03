@@ -22,7 +22,8 @@ repositories {
 
 android {
     compileSdk = 36
-    ndkVersion = "27.0.12077973"
+    buildToolsVersion = "36.0.0"
+    ndkVersion = "29.0.14206865"
     namespace = "com.jujb233.my_daw"
     defaultConfig {
         manifestPlaceholders["usesCleartextTraffic"] = "false"
@@ -31,6 +32,14 @@ android {
         targetSdk = 36
         versionCode = tauriProperties.getProperty("tauri.android.versionCode", "1").toInt()
         versionName = tauriProperties.getProperty("tauri.android.versionName", "1.0")
+    }
+    signingConfigs {
+        create("release") {
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+            storeFile = file(System.getProperty("user.home") + "/.android/debug.keystore")
+            storePassword = "android"
+        }
     }
     buildTypes {
         getByName("debug") {
@@ -45,6 +54,7 @@ android {
             }
         }
         getByName("release") {
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             proguardFiles(
                 *fileTree(".") { include("**/*.pro") }
@@ -53,8 +63,12 @@ android {
             )
         }
     }
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
     kotlinOptions {
-        jvmTarget = "1.8"
+        jvmTarget = "17"
     }
     buildFeatures {
         buildConfig = true

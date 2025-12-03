@@ -81,50 +81,16 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '21'
 
       - name: 安装 Android SDK
         uses: android-actions/setup-android@v3
 
       - name: 安装 Android NDK
         run: |
-          sdkmanager "ndk;27.0.12077973"
-          
-          NDK_PATH="$ANDROID_HOME/ndk/27.0.12077973"
-          echo "NDK_HOME=$NDK_PATH" >> $GITHUB_ENV
-          echo "ANDROID_NDK_HOME=$NDK_PATH" >> $GITHUB_ENV
-          
-          # 1. 清理除 27 以外的所有 NDK 版本，防止 Tauri/Gradle 自动选择错误的最新版 (如 28/29)
-          echo "Cleaning up other NDK versions..."
-          cd "$ANDROID_HOME/ndk"
-          ls -d */ | grep -v "27.0.12077973" | xargs rm -rf || true
-          ls -l
-          
-          # 2. Hack: 解决 API 24 缺少 libaaudio.so 的问题
-          # cpal 依赖 libaaudio (API 26+)，但 Rust 默认 target 可能链接到 API 24
-          # 我们将 API 26 的 libaaudio.so 软链接到 API 24 的库目录中，欺骗链接器
-          echo "Applying libaaudio symlink hack..."
-          SYSROOT="$NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib"
-          
-          link_lib() {
-            ARCH=$1
-            SRC="$SYSROOT/$ARCH/26/libaaudio.so"
-            DST_DIR="$SYSROOT/$ARCH/24"
-            DST="$DST_DIR/libaaudio.so"
-            
-            if [ -f "$SRC" ]; then
-              echo "Linking $ARCH: API 26 -> 24"
-              mkdir -p "$DST_DIR"
-              ln -sf "$SRC" "$DST"
-            else
-              echo "Warning: $SRC not found"
-            fi
-          }
-          
-          link_lib "aarch64-linux-android"
-          link_lib "arm-linux-androideabi"
-          link_lib "i686-linux-android"
-          link_lib "x86_64-linux-android"
+          sdkmanager "ndk;29.0.14206865"
+          echo "NDK_HOME=$ANDROID_HOME/ndk/29.0.14206865" >> $GITHUB_ENV
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/29.0.14206865" >> $GITHUB_ENV
 
       - name: 安装 Rust
         uses: dtolnay/rust-toolchain@stable
@@ -134,25 +100,38 @@ jobs:
       - name: 安装前端依赖
         run: npm install
 
+      - name: 生成 Debug Keystore
+        run: |
+          mkdir -p ~/.android
+          if [ ! -f ~/.android/debug.keystore ]; then
+            keytool -genkey -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          fi
+
       - name: 构建 Android APK
         run: |
           echo "Using NDK: $NDK_HOME"
           
-          export CC_aarch64_linux_android=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android26-clang
-          export CXX_aarch64_linux_android=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android26-clang++
-          export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android26-clang
+          # 显式设置编译器和链接器路径，强制使用 API 26 (Android 8.0)
+          # 这是因为 cpal/oboe 依赖的 AAudio 库仅在 API 26+ 可用
+          # 如果不指定，Rust 可能会默认使用较低的 API 版本 (如 24)，导致找不到 -laaudio
           
-          export CC_armv7_linux_androideabi=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi26-clang
-          export CXX_armv7_linux_androideabi=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi26-clang++
-          export CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_LINKER=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi26-clang
+          TOOLCHAIN=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin
           
-          export CC_i686_linux_android=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/i686-linux-android26-clang
-          export CXX_i686_linux_android=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/i686-linux-android26-clang++
-          export CARGO_TARGET_I686_LINUX_ANDROID_LINKER=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/i686-linux-android26-clang
+          export CC_aarch64_linux_android="$TOOLCHAIN/aarch64-linux-android26-clang"
+          export CXX_aarch64_linux_android="$TOOLCHAIN/aarch64-linux-android26-clang++"
+          export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="$TOOLCHAIN/aarch64-linux-android26-clang"
           
-          export CC_x86_64_linux_android=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android26-clang
-          export CXX_x86_64_linux_android=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android26-clang++
-          export CARGO_TARGET_X86_64_LINUX_ANDROID_LINKER=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android26-clang
+          export CC_armv7_linux_androideabi="$TOOLCHAIN/armv7a-linux-androideabi26-clang"
+          export CXX_armv7_linux_androideabi="$TOOLCHAIN/armv7a-linux-androideabi26-clang++"
+          export CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_LINKER="$TOOLCHAIN/armv7a-linux-androideabi26-clang"
+          
+          export CC_i686_linux_android="$TOOLCHAIN/i686-linux-android26-clang"
+          export CXX_i686_linux_android="$TOOLCHAIN/i686-linux-android26-clang++"
+          export CARGO_TARGET_I686_LINUX_ANDROID_LINKER="$TOOLCHAIN/i686-linux-android26-clang"
+          
+          export CC_x86_64_linux_android="$TOOLCHAIN/x86_64-linux-android26-clang"
+          export CXX_x86_64_linux_android="$TOOLCHAIN/x86_64-linux-android26-clang++"
+          export CARGO_TARGET_X86_64_LINUX_ANDROID_LINKER="$TOOLCHAIN/x86_64-linux-android26-clang"
           
           npm run tauri android build -- --apk true
 
