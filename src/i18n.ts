@@ -1,4 +1,4 @@
-export type Locale = 'en' | 'zh';
+export type Locale = 'en' | 'zh'
 
 const translations: Record<Locale, Record<string, string>> = {
     en: {
@@ -93,16 +93,16 @@ const translations: Record<Locale, Record<string, string>> = {
         'icons.removeTrack': '移除轨道',
         'app.toggleTimbre': '切换音色侧边栏'
     }
-};
+}
 
-let current: Locale = 'zh';
+let current: Locale = 'zh'
 
 export const setLocale = (locale: Locale) => {
-    current = locale;
-};
+    current = locale
+}
 
 export const t = (key: string) => {
-    return translations[current][key] ?? key;
-};
+    return translations[current][key] ?? key
+}
 
-export default t;
+export default t

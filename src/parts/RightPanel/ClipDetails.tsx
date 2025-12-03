@@ -1,163 +1,179 @@
-import { Component, createResource, createSignal, For, Show, createEffect } from "solid-js";
-import { invoke } from "@tauri-apps/api/core";
-import { store, selectClip, renameClipContent, deleteClip, duplicateClip } from "../../store";
-import { instances } from "../../store/audio";
-import { mixerTracks } from "../../store/mixer";
-import { t } from "../../i18n";
-import { InstrumentCard } from "../../UI/components/InstrumentCard";
-import { Input } from "../../UI/lib/Input";
-import { Button } from "../../UI/lib/Button";
+import { Component, createResource, createSignal, For, Show, createEffect } from 'solid-js'
+import { invoke } from '@tauri-apps/api/core'
+import { store, selectClip, renameClipContent, deleteClip, duplicateClip } from '../../store'
+import { instances } from '../../store/audio'
+import { mixerTracks } from '../../store/mixer'
+import { t } from '../../i18n'
+import { InstrumentCard } from '../../UI/components/InstrumentCard'
+import { Input } from '../../UI/lib/Input'
+import { Button } from '../../UI/lib/Button'
 
 interface ClipData {
-    id: number;
-    name: string;
-    start_time: number;
-    duration: number;
-    instrument_ids: number[];
-    instrument_routes: Record<number, number[]>;
+    id: number
+    name: string
+    start_time: number
+    duration: number
+    instrument_ids: number[]
+    instrument_routes: Record<number, number[]>
 }
 
 const fetchClip = async (id: number): Promise<ClipData> => {
     try {
-        return await invoke("get_clip", { id });
+        return await invoke('get_clip', { id })
     } catch (e) {
-        throw new Error("Clip not found");
+        throw new Error('Clip not found')
     }
-};
+}
 
 export const ClipDetails: Component = () => {
-    const [clip, { mutate, refetch }] = createResource(() => store.selectedClipId, fetchClip);
-    const [expandedInstId, setExpandedInstId] = createSignal<number | null>(null);
-    const [nameError, setNameError] = createSignal<string | null>(null);
+    const [clip, { mutate, refetch }] = createResource(() => store.selectedClipId, fetchClip)
+    const [expandedInstId, setExpandedInstId] = createSignal<number | null>(null)
+    const [nameError, setNameError] = createSignal<string | null>(null)
 
     const handleRename = async (newName: string) => {
-        if (!clip()) return;
-        const instance = store.clips.find(c => c.id === clip()!.id);
-        if (!instance) return;
+        if (!clip()) return
+        const instance = store.clips.find(c => c.id === clip()!.id)
+        if (!instance) return
 
         try {
-            await renameClipContent(instance.clipContentId, newName);
-            setNameError(null);
-            refetch();
+            await renameClipContent(instance.clipContentId, newName)
+            setNameError(null)
+            refetch()
         } catch (e: any) {
-            setNameError(e.message || "Failed to rename");
+            setNameError(e.message || 'Failed to rename')
         }
-    };
+    }
 
     const handleDelete = async () => {
-        if (!clip()) return;
-        if (confirm(t('clip.deleteConfirm') || "Delete clip?")) {
-            await deleteClip(clip()!.id);
-            selectClip(null);
+        if (!clip()) return
+        if (confirm(t('clip.deleteConfirm') || 'Delete clip?')) {
+            await deleteClip(clip()!.id)
+            selectClip(null)
         }
-    };
+    }
 
     const handleDuplicate = async () => {
-        if (!clip()) return;
+        if (!clip()) return
         try {
-            await duplicateClip(clip()!.id);
+            await duplicateClip(clip()!.id)
         } catch (e) {
-            console.error("Failed to duplicate", e);
+            console.error('Failed to duplicate', e)
         }
-    };
+    }
 
     // Handle error by clearing selection
     createEffect(() => {
         if (clip.error) {
-            console.warn("Clip fetch failed, clearing selection:", clip.error);
-            setTimeout(() => selectClip(null), 0);
+            console.warn('Clip fetch failed, clearing selection:', clip.error)
+            setTimeout(() => selectClip(null), 0)
         }
-    });
+    })
 
     const toggleInstrument = async (instId: number) => {
-        if (!clip()) return;
-        const currentIds = clip()!.instrument_ids;
-        let newIds;
-        let newRoutes = { ...clip()!.instrument_routes };
+        if (!clip()) return
+        const currentIds = clip()!.instrument_ids
+        let newIds
+        let newRoutes = { ...clip()!.instrument_routes }
 
         if (currentIds.includes(instId)) {
-            newIds = currentIds.filter(id => id !== instId);
+            newIds = currentIds.filter(id => id !== instId)
             // Clean up routes
-            delete newRoutes[instId];
+            delete newRoutes[instId]
         } else {
-            newIds = [...currentIds, instId];
+            newIds = [...currentIds, instId]
             // Default route to Master (0)
-            newRoutes[instId] = [0];
+            newRoutes[instId] = [0]
         }
 
         // Optimistic update
-        mutate({ ...clip()!, instrument_ids: newIds, instrument_routes: newRoutes });
+        mutate({ ...clip()!, instrument_ids: newIds, instrument_routes: newRoutes })
 
         try {
-            await invoke("update_clip", {
+            await invoke('update_clip', {
                 id: clip()!.id,
                 instrumentIds: newIds,
                 instrumentRoutes: newRoutes
-            });
+            })
         } catch (e) {
-            console.error("Failed to update clip instruments:", e);
-            refetch();
+            console.error('Failed to update clip instruments:', e)
+            refetch()
         }
-    };
+    }
 
     const updateRouting = async (instId: number, trackId: number, add: boolean) => {
-        if (!clip()) return;
-        const currentRoutes = clip()!.instrument_routes[instId] || [];
-        let newRoutesForInst;
+        if (!clip()) return
+        const currentRoutes = clip()!.instrument_routes[instId] || []
+        let newRoutesForInst
 
         if (add) {
             if (!currentRoutes.includes(trackId)) {
-                newRoutesForInst = [...currentRoutes, trackId];
+                newRoutesForInst = [...currentRoutes, trackId]
             } else {
-                return;
+                return
             }
         } else {
-            newRoutesForInst = currentRoutes.filter(id => id !== trackId);
+            newRoutesForInst = currentRoutes.filter(id => id !== trackId)
         }
 
-        const allRoutes = { ...clip()!.instrument_routes, [instId]: newRoutesForInst };
+        const allRoutes = { ...clip()!.instrument_routes, [instId]: newRoutesForInst }
 
         // Optimistic update
-        mutate({ ...clip()!, instrument_routes: allRoutes });
+        mutate({ ...clip()!, instrument_routes: allRoutes })
 
         try {
-            await invoke("update_clip", {
+            await invoke('update_clip', {
                 id: clip()!.id,
                 instrumentRoutes: allRoutes
-            });
+            })
         } catch (e) {
-            console.error("Failed to update clip routing:", e);
-            refetch();
+            console.error('Failed to update clip routing:', e)
+            refetch()
         }
-    };
+    }
 
     return (
-        <div class="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
-            <Show when={!clip.loading} fallback={<div class="text-center text-on-surface-variant p-4">Loading...</div>}>
-                <Show when={!clip.error} fallback={<div class="text-center text-error p-4">Error loading clip</div>}>
+        <div class='flex-1 overflow-y-auto p-4 flex flex-col gap-4'>
+            <Show
+                when={!clip.loading}
+                fallback={<div class='text-center text-on-surface-variant p-4'>Loading...</div>}
+            >
+                <Show
+                    when={!clip.error}
+                    fallback={<div class='text-center text-error p-4'>Error loading clip</div>}
+                >
                     <Show when={clip()}>
-                        <div class="flex flex-col gap-2 pb-4 border-b border-outline-variant">
+                        <div class='flex flex-col gap-2 pb-4 border-b border-outline-variant'>
                             <Input
                                 label={t('clip.name')}
                                 value={clip()!.name}
-                                onInput={(e) => handleRename(e.currentTarget.value)}
+                                onInput={e => handleRename(e.currentTarget.value)}
                                 error={nameError() || undefined}
                             />
-                            <div class="flex gap-2 mt-2">
-                                <Button variant="tonal" class="flex-1" onClick={handleDuplicate}>{t('clip.duplicate')}</Button>
-                                <Button variant="filled" class="flex-1 bg-error text-on-error hover:bg-error/80" onClick={handleDelete}>{t('clip.delete')}</Button>
+                            <div class='flex gap-2 mt-2'>
+                                <Button variant='tonal' class='flex-1' onClick={handleDuplicate}>
+                                    {t('clip.duplicate')}
+                                </Button>
+                                <Button
+                                    variant='filled'
+                                    class='flex-1 bg-error text-on-error hover:bg-error/80'
+                                    onClick={handleDelete}
+                                >
+                                    {t('clip.delete')}
+                                </Button>
                             </div>
                         </div>
 
                         {/* Active Instruments List */}
-                        <div class="flex flex-col gap-3">
-                            <span class="text-sm font-medium text-on-surface">{t('sidebar.instruments')}</span>
+                        <div class='flex flex-col gap-3'>
+                            <span class='text-sm font-medium text-on-surface'>
+                                {t('sidebar.instruments')}
+                            </span>
 
                             {/* List of selected instruments as Cards */}
                             <For each={clip()!.instrument_ids}>
-                                {(instId) => {
-                                    const inst = instances().find(i => i.id === instId);
-                                    if (!inst) return null;
+                                {instId => {
+                                    const inst = instances().find(i => i.id === instId)
+                                    if (!inst) return null
 
                                     return (
                                         <InstrumentCard
@@ -165,51 +181,79 @@ export const ClipDetails: Component = () => {
                                             name={inst.name}
                                             id={inst.id}
                                             isExpanded={expandedInstId() === inst.id}
-                                            onToggleExpand={() => setExpandedInstId(expandedInstId() === inst.id ? null : inst.id)}
+                                            onToggleExpand={() =>
+                                                setExpandedInstId(
+                                                    expandedInstId() === inst.id ? null : inst.id
+                                                )
+                                            }
                                             onRemove={() => toggleInstrument(inst.id)}
                                         >
-                                            <div class="flex flex-col gap-2">
-                                                <span class="text-xs text-on-surface-variant">{t('sidebar.outputRouting')}</span>
-                                                <div class="flex flex-col gap-1">
+                                            <div class='flex flex-col gap-2'>
+                                                <span class='text-xs text-on-surface-variant'>
+                                                    {t('sidebar.outputRouting')}
+                                                </span>
+                                                <div class='flex flex-col gap-1'>
                                                     <For each={mixerTracks()}>
-                                                        {(track) => (
-                                                            <label class="flex items-center gap-2 p-2 rounded hover:bg-surface-container-high cursor-pointer">
+                                                        {track => (
+                                                            <label class='flex items-center gap-2 p-2 rounded hover:bg-surface-container-high cursor-pointer'>
                                                                 <input
-                                                                    type="checkbox"
-                                                                    checked={(clip()!.instrument_routes[inst.id] || []).includes(track.id)}
-                                                                    onChange={(e) => updateRouting(inst.id, track.id, e.currentTarget.checked)}
-                                                                    class="w-4 h-4 accent-primary"
+                                                                    type='checkbox'
+                                                                    checked={(
+                                                                        clip()!.instrument_routes[
+                                                                            inst.id
+                                                                        ] || []
+                                                                    ).includes(track.id)}
+                                                                    onChange={e =>
+                                                                        updateRouting(
+                                                                            inst.id,
+                                                                            track.id,
+                                                                            e.currentTarget.checked
+                                                                        )
+                                                                    }
+                                                                    class='w-4 h-4 accent-primary'
                                                                 />
-                                                                <span class="text-sm text-on-surface">{track.label}</span>
+                                                                <span class='text-sm text-on-surface'>
+                                                                    {track.label}
+                                                                </span>
                                                             </label>
                                                         )}
                                                     </For>
                                                 </div>
                                             </div>
                                         </InstrumentCard>
-                                    );
+                                    )
                                 }}
                             </For>
 
                             {/* Add Instrument Button */}
-                            <div class="relative mt-2">
-                                <span class="text-xs text-on-surface-variant block mb-2">Add Instrument to Clip:</span>
-                                <div class="flex flex-col gap-1">
-                                    <For each={instances().filter(i => !clip()!.instrument_ids.includes(i.id))}>
-                                        {(inst) => (
+                            <div class='relative mt-2'>
+                                <span class='text-xs text-on-surface-variant block mb-2'>
+                                    Add Instrument to Clip:
+                                </span>
+                                <div class='flex flex-col gap-1'>
+                                    <For
+                                        each={instances().filter(
+                                            i => !clip()!.instrument_ids.includes(i.id)
+                                        )}
+                                    >
+                                        {inst => (
                                             <button
-                                                class="flex items-center gap-2 p-2 rounded hover:bg-surface-container-high text-left transition-colors border border-transparent hover:border-outline-variant"
+                                                class='flex items-center gap-2 p-2 rounded hover:bg-surface-container-high text-left transition-colors border border-transparent hover:border-outline-variant'
                                                 onClick={() => toggleInstrument(inst.id)}
                                             >
-                                                <div class="w-6 h-6 rounded bg-secondary/20 flex items-center justify-center text-secondary text-xs">
+                                                <div class='w-6 h-6 rounded bg-secondary/20 flex items-center justify-center text-secondary text-xs'>
                                                     +
                                                 </div>
-                                                <span class="text-sm text-on-surface">{inst.label}</span>
+                                                <span class='text-sm text-on-surface'>
+                                                    {inst.label}
+                                                </span>
                                             </button>
                                         )}
                                     </For>
                                     <Show when={instances().length === 0}>
-                                        <span class="text-xs text-on-surface-variant italic">No instruments available</span>
+                                        <span class='text-xs text-on-surface-variant italic'>
+                                            No instruments available
+                                        </span>
                                     </Show>
                                 </div>
                             </div>
@@ -218,5 +262,5 @@ export const ClipDetails: Component = () => {
                 </Show>
             </Show>
         </div>
-    );
-};
+    )
+}
