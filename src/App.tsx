@@ -22,6 +22,7 @@ export default function App() {
                         variant={isSidebarOpen() ? 'filled' : 'standard'}
                         onClick={() => setIsSidebarOpen(!isSidebarOpen())}
                         title={t('app.toggleTimbre')}
+                        class='w-12 h-12'
                     >
                         <svg
                             xmlns='http://www.w3.org/2000/svg'

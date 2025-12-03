@@ -60,10 +60,10 @@ export const BottomEditor: Component = () => {
         >
             <Show when={store.selectedClipId !== null}>
                 <div
-                    class='absolute -top-3 left-0 right-0 h-6 cursor-row-resize z-50 flex items-center justify-center group touch-none'
+                    class='absolute -top-5 left-0 right-0 h-10 cursor-row-resize z-50 flex items-center justify-center group touch-none'
                     onPointerDown={handlePointerDown}
                 >
-                    <div class='w-16 h-1.5 rounded-full bg-surface-variant group-hover:bg-primary/50 transition-colors shadow-sm backdrop-blur-sm'></div>
+                    <div class='w-24 h-1.5 rounded-full bg-surface-variant group-hover:bg-primary/50 transition-colors shadow-sm backdrop-blur-sm'></div>
                 </div>
             </Show>
 

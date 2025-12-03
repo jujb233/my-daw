@@ -20,7 +20,11 @@ export const Fader: Component<FaderProps> = props => {
 
         const startY = e.clientY
         const startValue = props.value
-        const sensitivity = 0.005 // Value change per pixel
+
+        // Calculate sensitivity based on track height for 1:1 movement
+        const rect = trackRef?.getBoundingClientRect()
+        const trackHeight = rect?.height || 200
+        const sensitivity = 1 / trackHeight
 
         const onPointerMove = (moveEvent: PointerEvent) => {
             const deltaY = startY - moveEvent.clientY // Up is positive
@@ -52,11 +56,12 @@ export const Fader: Component<FaderProps> = props => {
         <div
             class={`relative flex justify-center touch-none select-none ${props.className || ''}`}
             onDblClick={handleDblClick}
+            onPointerDown={handlePointerDown}
         >
             {/* Track Background */}
             <div
                 ref={trackRef}
-                class='h-full w-2 bg-surface-container-highest rounded-full relative overflow-hidden'
+                class='h-full w-2 bg-surface-container-highest rounded-full relative overflow-hidden pointer-events-none'
             >
                 {/* Fill Level (Optional, maybe for meters, but faders usually just have a handle) */}
                 <div
@@ -66,13 +71,10 @@ export const Fader: Component<FaderProps> = props => {
             </div>
 
             {/* Hit Area & Handle Container */}
-            <div
-                class='absolute inset-0 cursor-ns-resize flex items-end justify-center'
-                onPointerDown={handlePointerDown}
-            >
+            <div class='absolute inset-0 cursor-ns-resize flex items-end justify-center pointer-events-none'>
                 {/* Thumb / Handle */}
                 <div
-                    class={`w-8 h-12 rounded shadow-md border flex items-center justify-center transition-colors duration-75 absolute mb-[-24px]
+                    class={`w-8 h-12 rounded shadow-md border flex items-center justify-center transition-colors duration-75 absolute mb-[-24px] pointer-events-auto
                         ${
                             isDragging()
                                 ? 'bg-primary-container border-primary'
