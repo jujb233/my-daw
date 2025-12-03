@@ -1,7 +1,7 @@
 use super::state::AppState;
 use crate::audio::core::plugin::Plugin;
 use crate::audio::plugins::mixer::mixer_plugin::MixerPlugin;
-use crate::audio::plugins::simple_synth::create_simple_synth;
+
 use crate::daw::sequencer::{get_is_playing, get_playback_position};
 use tauri::State;
 
@@ -24,12 +24,18 @@ pub fn create_audio_graph(state: &State<'_, AppState>) -> Result<Box<dyn Plugin>
     }
 
     // Add Instruments to Mixer (Rack)
+    let manager = state
+        .plugin_manager
+        .lock()
+        .map_err(|_| "Failed to lock plugin manager")?;
     for (_i, p_data) in plugins.iter().enumerate() {
-        if p_data.name == "SimpleSynth" {
-            let synth = create_simple_synth();
-            let _inst_idx = mixer.add_instrument(synth);
-
-            // Routing is now handled by Sequencer/Clips
+        if let Some(plugin) = manager.create_plugin(&p_data.name) {
+            let _inst_idx = mixer.add_instrument(plugin);
+        } else if p_data.name == "SimpleSynth" {
+            // Fallback for legacy
+            if let Some(plugin) = manager.create_plugin("com.mydaw.simplesynth") {
+                let _inst_idx = mixer.add_instrument(plugin);
+            }
         }
     }
 

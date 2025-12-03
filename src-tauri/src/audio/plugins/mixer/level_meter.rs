@@ -1,4 +1,6 @@
-use crate::audio::core::plugin::{AudioBuffer, Plugin, PluginEvent, PluginInfo, PluginType};
+use crate::audio::core::plugin::{
+    AudioBuffer, Plugin, PluginEvent, PluginInfo, PluginParameter, PluginType,
+};
 use std::collections::HashMap;
 use std::sync::Mutex;
 use std::sync::OnceLock;
@@ -47,10 +49,20 @@ impl Plugin for LevelMeter {
             vendor: "My DAW".to_string(),
             url: "".to_string(),
             plugin_type: PluginType::Native,
+            unique_id: "com.mydaw.levelmeter".to_string(),
         }
     }
 
-    fn process(&mut self, buffer: &mut AudioBuffer, _events: &[PluginEvent]) {
+    fn get_parameters(&self) -> Vec<PluginParameter> {
+        Vec::new()
+    }
+
+    fn process(
+        &mut self,
+        buffer: &mut AudioBuffer,
+        _events: &[PluginEvent],
+        _output_events: &mut Vec<PluginEvent>,
+    ) {
         let mut sum_sq = 0.0;
         let len = buffer.samples.len();
 

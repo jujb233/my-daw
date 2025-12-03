@@ -1,5 +1,6 @@
 use crate::audio::core::plugin::{
-    AudioBuffer, NoteEvent, Plugin, PluginEvent, PluginInfo, PluginType,
+    AudioBuffer, IOConfig, NoteEvent, ParameterType, Plugin, PluginEvent, PluginInfo,
+    PluginParameter, PluginType,
 };
 use std::f32::consts::PI;
 use uuid::Uuid;
@@ -52,10 +53,39 @@ impl Plugin for WaveGenerator {
             vendor: "My DAW".to_string(),
             url: "".to_string(),
             plugin_type: PluginType::Native,
+            unique_id: "com.mydaw.wavegenerator".to_string(),
         }
     }
 
-    fn process(&mut self, buffer: &mut AudioBuffer, events: &[PluginEvent]) {
+    fn get_parameters(&self) -> Vec<PluginParameter> {
+        vec![PluginParameter {
+            id: 1,
+            name: "Waveform".to_string(),
+            min_value: 0.0,
+            max_value: 3.0,
+            default_value: 0.0,
+            value_type: ParameterType::Enum(vec![
+                "Sine".to_string(),
+                "Square".to_string(),
+                "Sawtooth".to_string(),
+                "Triangle".to_string(),
+            ]),
+        }]
+    }
+
+    fn get_io_config(&self) -> IOConfig {
+        IOConfig {
+            inputs: 0,
+            outputs: 2,
+        }
+    }
+
+    fn process(
+        &mut self,
+        buffer: &mut AudioBuffer,
+        events: &[PluginEvent],
+        _output_events: &mut Vec<PluginEvent>,
+    ) {
         // Handle events first
         for event in events {
             if let PluginEvent::Midi(midi) = event {

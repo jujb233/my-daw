@@ -1,4 +1,6 @@
-use crate::audio::core::plugin::{AudioBuffer, Plugin, PluginEvent, PluginInfo, PluginType};
+use crate::audio::core::plugin::{
+    AudioBuffer, IOConfig, Plugin, PluginEvent, PluginInfo, PluginParameter, PluginType,
+};
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -8,15 +10,29 @@ pub struct PluginContainer {
     plugins: Vec<Box<dyn Plugin>>,
     // Map external_param_id -> (plugin_index, internal_param_id)
     param_map: HashMap<u32, (usize, u32)>,
+    info: PluginInfo,
+    io_config: IOConfig,
 }
 
 impl PluginContainer {
-    pub fn new() -> Self {
+    pub fn new(name: &str, unique_id: &str) -> Self {
         Self {
             id: Uuid::new_v4(),
             plugins: Vec::new(),
             param_map: HashMap::new(),
+            info: PluginInfo {
+                name: name.to_string(),
+                vendor: "My DAW".to_string(),
+                url: "".to_string(),
+                plugin_type: PluginType::Native,
+                unique_id: unique_id.to_string(),
+            },
+            io_config: IOConfig::default(),
         }
+    }
+
+    pub fn set_io_config(&mut self, inputs: usize, outputs: usize) {
+        self.io_config = IOConfig { inputs, outputs };
     }
 
     pub fn add_plugin(&mut self, plugin: Box<dyn Plugin>) -> usize {
@@ -42,15 +58,35 @@ impl PluginContainer {
 
 impl Plugin for PluginContainer {
     fn info(&self) -> PluginInfo {
-        PluginInfo {
-            name: "Plugin Container".to_string(),
-            vendor: "My DAW".to_string(),
-            url: "".to_string(),
-            plugin_type: PluginType::Native,
-        }
+        self.info.clone()
     }
 
-    fn process(&mut self, buffer: &mut AudioBuffer, events: &[PluginEvent]) {
+    fn get_io_config(&self) -> IOConfig {
+        self.io_config.clone()
+    }
+
+    fn get_parameters(&self) -> Vec<PluginParameter> {
+        let mut params = Vec::new();
+        for (external_id, (plugin_idx, internal_id)) in &self.param_map {
+            if let Some(plugin) = self.plugins.get(*plugin_idx) {
+                let child_params = plugin.get_parameters();
+                if let Some(child_param) = child_params.iter().find(|p| p.id == *internal_id) {
+                    let mut p = child_param.clone();
+                    p.id = *external_id;
+                    params.push(p);
+                }
+            }
+        }
+        params.sort_by_key(|p| p.id);
+        params
+    }
+
+    fn process(
+        &mut self,
+        buffer: &mut AudioBuffer,
+        events: &[PluginEvent],
+        output_events: &mut Vec<PluginEvent>,
+    ) {
         // Split events: Global events (Midi) go to everyone (or specific ones?)
         // Parameter events need to be routed based on param_map.
 
@@ -99,7 +135,7 @@ impl Plugin for PluginContainer {
                 .cloned()
                 .collect(); // Allocation on audio thread! Bad! But acceptable for prototype.
 
-            plugin.process(buffer, &midi_events);
+            plugin.process(buffer, &midi_events, output_events);
         }
     }
 

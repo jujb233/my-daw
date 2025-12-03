@@ -4,7 +4,9 @@
 fn main() {
     // Fix for "Error 71 (Protocol error) dispatching to Wayland display" on Linux
     #[cfg(target_os = "linux")]
-    std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+    unsafe {
+        std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+    }
 
     my_daw_lib::run()
 }

@@ -15,7 +15,7 @@ pub struct MixerTrack {
 
 impl MixerTrack {
     pub fn new(meter_id: Option<Uuid>) -> Self {
-        let mut container = PluginContainer::new();
+        let mut container = PluginContainer::new("Mixer Track", "com.mydaw.mixertrack");
 
         // Add Meter (Pre-fader or Post-fader? Usually Post-fader for channel strip, but let's do Pre-fader for input monitoring?
         // User said: Left is Meter, Right is Fader. Usually Meter shows the signal level.
@@ -53,7 +53,12 @@ impl MixerTrack {
     }
 
     #[allow(dead_code)]
-    pub fn process(&mut self, buffer: &mut AudioBuffer, events: &[PluginEvent]) {
-        self.container.process(buffer, events);
+    pub fn process(
+        &mut self,
+        buffer: &mut AudioBuffer,
+        events: &[PluginEvent],
+        output_events: &mut Vec<PluginEvent>,
+    ) {
+        self.container.process(buffer, events, output_events);
     }
 }

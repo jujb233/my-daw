@@ -1,4 +1,6 @@
-use crate::audio::core::plugin::{AudioBuffer, Plugin, PluginEvent, PluginInfo, PluginType};
+use crate::audio::core::plugin::{
+    AudioBuffer, Plugin, PluginEvent, PluginInfo, PluginParameter, PluginType,
+};
 use crate::audio::plugins::mixer::track::MixerTrack;
 use crate::daw::sequencer::Sequencer;
 use uuid::Uuid;
@@ -72,10 +74,22 @@ impl Plugin for MixerPlugin {
             vendor: "My DAW".to_string(),
             url: "".to_string(),
             plugin_type: PluginType::Native,
+            unique_id: "com.mydaw.mixer".to_string(),
         }
     }
 
-    fn process(&mut self, buffer: &mut AudioBuffer, events: &[PluginEvent]) {
+    fn get_parameters(&self) -> Vec<PluginParameter> {
+        // Mixer parameters could be exposed here (e.g. Master Volume)
+        // For now, empty.
+        Vec::new()
+    }
+
+    fn process(
+        &mut self,
+        buffer: &mut AudioBuffer,
+        events: &[PluginEvent],
+        output_events: &mut Vec<PluginEvent>,
+    ) {
         let samples_len = buffer.samples.len();
         let channels = buffer.channels;
         let sample_rate = buffer.sample_rate;
@@ -142,6 +156,7 @@ impl Plugin for MixerPlugin {
                                 PluginEvent::Midi(_) => None, // MIDI comes from Sequencer now (mostly)
                                 PluginEvent::Transport { .. } => None,
                                 PluginEvent::UpdateClip(_) => None,
+                                PluginEvent::Custom(_) => None,
                                 PluginEvent::Parameter { id, value } => {
                                     if *id >= 10000 {
                                         let target_inst = ((*id - 10000) / 100) as usize;
@@ -165,7 +180,8 @@ impl Plugin for MixerPlugin {
                             sample_rate,
                         };
 
-                        inst.process(&mut inst_buffer, &inst_events);
+                        // Collect output events from instruments and append to main output
+                        inst.process(&mut inst_buffer, &inst_events, output_events);
 
                         // Sum to accumulator
                         for (i, sample) in self.scratch_buffer.iter().enumerate() {
@@ -182,6 +198,7 @@ impl Plugin for MixerPlugin {
                     PluginEvent::Midi(_) => None,
                     PluginEvent::Transport { .. } => None,
                     PluginEvent::UpdateClip(_) => None,
+                    PluginEvent::Custom(_) => None,
                     PluginEvent::Parameter { id, value } => {
                         if *id < 10000 {
                             let target_track = (*id / 100) as usize;
@@ -204,7 +221,7 @@ impl Plugin for MixerPlugin {
                     sample_rate,
                 };
 
-                track.container.process(&mut track_buffer, &track_events);
+                track.process(&mut track_buffer, &track_events, output_events);
             }
 
             // 4. Sum Track Output to Master

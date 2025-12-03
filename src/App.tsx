@@ -1,11 +1,13 @@
-import { createSignal } from 'solid-js'
+import { createSignal, Show } from 'solid-js'
 import { TopInfoPanel } from './parts/TopInfoPanel'
 import { BottomEditor } from './parts/BottomEditor/BottomEditor'
 import { TrackEditor } from './parts/Arrangement/TrackEditor'
 import { RightPanel } from './parts/RightPanel/RightPanel'
 import { MixerPanel } from './parts/Mixer/MixerPanel'
+import { SettingsPanel } from './parts/Settings/SettingsPanel'
 import { IconButton } from './UI/lib/IconButton'
 import { t } from './i18n'
+import { showSettings, setShowSettings } from './store/ui'
 
 export default function App() {
     const [isSidebarOpen, setIsSidebarOpen] = createSignal(true)
@@ -53,6 +55,10 @@ export default function App() {
 
             {/* Bottom Bar */}
             <BottomEditor />
+            {/* Settings Modal */}
+            <Show when={showSettings()}>
+                <SettingsPanel onClose={() => setShowSettings(false)} />
+            </Show>
         </div>
     )
 }

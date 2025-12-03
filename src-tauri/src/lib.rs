@@ -2,11 +2,38 @@ mod audio;
 mod daw;
 
 use crate::audio::engine::AudioEngine;
+use crate::audio::plugins::manager::PluginManager;
 use daw::clip_commands::*;
 use daw::commands::*;
 use daw::state::{AppState, MixerTrackData, PluginInstanceData};
 use std::sync::Mutex;
 use uuid::Uuid;
+
+#[tauri::command]
+fn get_available_plugins(
+    state: tauri::State<AppState>,
+) -> Vec<crate::audio::core::plugin::PluginInfo> {
+    let manager = state.plugin_manager.lock().unwrap();
+    manager.get_available_plugins()
+}
+
+#[tauri::command]
+fn get_plugin_parameters(
+    state: tauri::State<AppState>,
+    unique_id: String,
+) -> Option<Vec<crate::audio::core::plugin::PluginParameter>> {
+    let manager = state.plugin_manager.lock().unwrap();
+    manager.get_plugin_parameters(&unique_id)
+}
+
+#[tauri::command]
+fn import_plugin(
+    state: tauri::State<AppState>,
+    path: String,
+) -> Result<crate::audio::core::plugin::PluginInfo, String> {
+    let mut manager = state.plugin_manager.lock().unwrap();
+    manager.scan_clap_plugin(&path)
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -27,7 +54,7 @@ pub fn run() {
     // Initialize with a default SimpleSynth
     let mut plugins = Vec::new();
     plugins.push(PluginInstanceData {
-        name: "SimpleSynth".to_string(),
+        name: "com.mydaw.simplesynth".to_string(),
         label: "Grand Piano".to_string(),
         routing_track_index: 0,
     });
@@ -35,11 +62,13 @@ pub fn run() {
     tauri::Builder::default()
         .manage(AppState {
             audio_engine: Mutex::new(AudioEngine::new()),
+            plugin_manager: Mutex::new(PluginManager::new()),
             active_plugins: Mutex::new(plugins),
             mixer_tracks: Mutex::new(tracks),
             clips: Mutex::new(Vec::new()),
         })
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             greet,
             toggle_audio,
@@ -60,7 +89,10 @@ pub fn run() {
             get_playback_state,
             pause,
             stop,
-            seek
+            seek,
+            get_available_plugins,
+            get_plugin_parameters,
+            import_plugin
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

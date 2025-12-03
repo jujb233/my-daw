@@ -16,9 +16,9 @@ export const SimpleSynth: Component<SimpleSynthProps> = props => {
                 min={0}
                 max={1}
                 step={0.01}
-                value={props.params[10]}
-                onChange={val => updateInstanceParam(props.instId, 10, val)}
-                valueDisplay={`${Math.round((props.params[10] || 0) * 100)}%`}
+                value={props.params[0]}
+                onChange={val => updateInstanceParam(props.instId, 0, val)}
+                valueDisplay={`${Math.round((props.params[0] || 0) * 100)}%`}
             />
 
             <div class='flex flex-col gap-2'>
@@ -32,11 +32,11 @@ export const SimpleSynth: Component<SimpleSynthProps> = props => {
                     ].map(w => (
                         <button
                             class={`px-1 py-1.5 text-xs font-medium rounded transition-colors ${
-                                props.params[11] === w.value
+                                props.params[1] === w.value
                                     ? 'bg-primary text-on-primary'
                                     : 'bg-surface-container-highest text-on-surface-variant hover:bg-surface-container-high'
                             }`}
-                            onClick={() => updateInstanceParam(props.instId, 11, w.value)}
+                            onClick={() => updateInstanceParam(props.instId, 1, w.value)}
                         >
                             {w.label}
                         </button>

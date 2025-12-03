@@ -1,4 +1,6 @@
-use crate::audio::core::plugin::{AudioBuffer, Plugin, PluginEvent, PluginInfo, PluginType};
+use crate::audio::core::plugin::{
+    AudioBuffer, ParameterType, Plugin, PluginEvent, PluginInfo, PluginParameter, PluginType,
+};
 use uuid::Uuid;
 
 pub struct GainFader {
@@ -23,10 +25,27 @@ impl Plugin for GainFader {
             vendor: "My DAW".to_string(),
             url: "".to_string(),
             plugin_type: PluginType::Native,
+            unique_id: "com.mydaw.gainfader".to_string(),
         }
     }
 
-    fn process(&mut self, buffer: &mut AudioBuffer, events: &[PluginEvent]) {
+    fn get_parameters(&self) -> Vec<PluginParameter> {
+        vec![PluginParameter {
+            id: 0,
+            name: "Gain".to_string(),
+            min_value: 0.0,
+            max_value: 1.0,
+            default_value: 0.5,
+            value_type: ParameterType::Float,
+        }]
+    }
+
+    fn process(
+        &mut self,
+        buffer: &mut AudioBuffer,
+        events: &[PluginEvent],
+        _output_events: &mut Vec<PluginEvent>,
+    ) {
         // Handle parameter updates
         for event in events {
             if let PluginEvent::Parameter { id, value } = event {

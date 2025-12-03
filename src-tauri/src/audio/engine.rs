@@ -52,7 +52,10 @@ impl AudioEngine {
                         sample_rate,
                     };
 
-                    plugin.process(&mut buffer, &events);
+                    let mut output_events = Vec::new();
+                    plugin.process(&mut buffer, &events, &mut output_events);
+
+                    // TODO: Handle output events (e.g. send back to main thread)
                 },
                 err_fn,
                 None,

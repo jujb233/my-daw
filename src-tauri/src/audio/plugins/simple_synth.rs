@@ -4,7 +4,7 @@ use crate::audio::plugins::gain_fader::GainFader;
 use crate::audio::plugins::wave_generator::WaveGenerator;
 
 pub fn create_simple_synth() -> Box<dyn Plugin> {
-    let mut container = PluginContainer::new();
+    let mut container = PluginContainer::new("Simple Synth", "com.mydaw.simplesynth");
 
     let wave = WaveGenerator::new();
     let gain = GainFader::new();
@@ -14,9 +14,11 @@ pub fn create_simple_synth() -> Box<dyn Plugin> {
 
     // Map Container Param 0 -> GainFader Param 0 (Gain)
     container.map_param(0, gain_idx, 0);
-    
+
     // Map Container Param 1 -> WaveGenerator Param 1 (Waveform)
     container.map_param(1, wave_idx, 1);
+
+    container.set_io_config(0, 2); // 0 Inputs, 2 Outputs
 
     Box::new(container)
 }

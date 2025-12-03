@@ -27,6 +27,7 @@ const translations: Record<Locale, Record<string, string>> = {
         'sidebar.remove': 'Remove',
         'sidebar.addTimbre': 'Add Timbre',
         'sidebar.availablePlugins': 'Available Plugins',
+        'sidebar.importPlugin': 'Import Plugin...',
         'sidebar.simpleSynth': 'Simple Synth',
         'sidebar.instruments': 'Instruments',
 
@@ -45,7 +46,14 @@ const translations: Record<Locale, Record<string, string>> = {
         'icons.mute': 'M',
         'icons.solo': 'S',
         'icons.removeTrack': 'Remove Track',
-        'app.toggleTimbre': 'Toggle Timbre Sidebar'
+        'app.toggleTimbre': 'Toggle Timbre Sidebar',
+        'settings.title': 'Settings',
+        'settings.general': 'General',
+        'settings.audio': 'Audio',
+        'settings.language': 'Language',
+        'settings.theme': 'Theme',
+        'settings.audioDevice': 'Audio Device',
+        'settings.plugins': 'Plugins'
     },
     zh: {
         'top.duration': '时长',
@@ -73,6 +81,7 @@ const translations: Record<Locale, Record<string, string>> = {
         'sidebar.remove': '移除',
         'sidebar.addTimbre': '添加音色',
         'sidebar.availablePlugins': '可用插件',
+        'sidebar.importPlugin': '导入插件...',
         'sidebar.simpleSynth': '简单合成器',
         'sidebar.instruments': '乐器',
 
@@ -91,14 +100,22 @@ const translations: Record<Locale, Record<string, string>> = {
         'icons.mute': 'M',
         'icons.solo': 'S',
         'icons.removeTrack': '移除轨道',
-        'app.toggleTimbre': '切换音色侧边栏'
+        'app.toggleTimbre': '切换音色侧边栏',
+        'settings.title': '设置',
+        'settings.general': '常规',
+        'settings.audio': '音频',
+        'settings.language': '语言',
+        'settings.theme': '主题',
+        'settings.audioDevice': '音频设备',
+        'settings.plugins': '插件'
     }
 }
 
-let current: Locale = 'zh'
+let current: Locale = (localStorage.getItem('locale') as Locale) || 'zh'
 
 export const setLocale = (locale: Locale) => {
     current = locale
+    localStorage.setItem('locale', locale)
 }
 
 export const t = (key: string) => {
