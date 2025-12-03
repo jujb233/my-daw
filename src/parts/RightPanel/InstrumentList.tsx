@@ -18,7 +18,11 @@ export const InstrumentList: Component = () => {
                 {inst => (
                     <InstrumentCard
                         label={inst.label}
-                        name={inst.name}
+                        name={
+                            t(`plugins.${inst.name}`) === `plugins.${inst.name}`
+                                ? inst.name
+                                : t(`plugins.${inst.name}`)
+                        }
                         id={inst.id}
                         isExpanded={inst.isExpanded}
                         onToggleExpand={() => toggleInstanceExpanded(inst.id)}

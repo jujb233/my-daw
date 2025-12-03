@@ -1,4 +1,4 @@
-import { Component, createSignal, Show, createResource, For } from 'solid-js'
+import { Component, Show, createResource, For } from 'solid-js'
 import { open } from '@tauri-apps/plugin-dialog'
 import { Surface } from '../../UI/lib/Surface'
 import { Button } from '../../UI/lib/Button'
@@ -85,7 +85,6 @@ export const SettingsPanel: Component<SettingsPanelProps> = props => {
                                             variant='outlined'
                                             onClick={() => {
                                                 setLocale('en')
-                                                location.reload()
                                             }}
                                         >
                                             English
@@ -94,7 +93,6 @@ export const SettingsPanel: Component<SettingsPanelProps> = props => {
                                             variant='outlined'
                                             onClick={() => {
                                                 setLocale('zh')
-                                                location.reload()
                                             }}
                                         >
                                             中文
@@ -163,7 +161,10 @@ export const SettingsPanel: Component<SettingsPanelProps> = props => {
                                             <div class='flex items-center justify-between p-3 bg-surface-container-highest rounded-lg'>
                                                 <div class='flex flex-col'>
                                                     <span class='font-medium text-on-surface'>
-                                                        {plugin.name}
+                                                        {t(`plugins.${plugin.unique_id}`) ===
+                                                        `plugins.${plugin.unique_id}`
+                                                            ? plugin.name
+                                                            : t(`plugins.${plugin.unique_id}`)}
                                                     </span>
                                                     <span class='text-xs text-on-surface-variant'>
                                                         {plugin.vendor}
