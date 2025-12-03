@@ -52,8 +52,9 @@ impl ClapPlugin {
         let lib = Library::new(path).map_err(|e| e.to_string())?;
         let lib = Arc::new(lib);
 
-        let entry_fn: Symbol<unsafe extern "C" fn(path: *const i8) -> *const clap_plugin_entry> =
-            lib.get(b"clap_entry").map_err(|e| e.to_string())?;
+        let entry_fn: Symbol<
+            unsafe extern "C" fn(path: *const std::os::raw::c_char) -> *const clap_plugin_entry,
+        > = lib.get(b"clap_entry").map_err(|e| e.to_string())?;
 
         let c_path = CString::new(path).unwrap();
         let entry = entry_fn(c_path.as_ptr());
@@ -69,7 +70,8 @@ impl ClapPlugin {
 
         let get_factory = (*entry).get_factory.ok_or("No get_factory function")?;
         let factory_id = b"clap.plugin-factory\0";
-        let factory = get_factory(factory_id.as_ptr() as *const _) as *const clap_sys::factory::plugin_factory::clap_plugin_factory;
+        let factory = get_factory(factory_id.as_ptr() as *const _)
+            as *const clap_sys::factory::plugin_factory::clap_plugin_factory;
 
         if factory.is_null() {
             return Err("Failed to get plugin factory".to_string());
@@ -92,7 +94,7 @@ impl ClapPlugin {
 
         let plugin_id = (*descriptor).id;
         let create_plugin = (*factory).create_plugin.ok_or("No create_plugin")?;
-        
+
         let plugin = create_plugin(factory, &HOST, plugin_id);
         if plugin.is_null() {
             return Err("Failed to create plugin instance".to_string());
@@ -107,15 +109,19 @@ impl ClapPlugin {
         // Activate with sample rate and block size
         // TODO: Get real sample rate
         if !activate(plugin, 44100.0, 32, 4096) {
-             return Err("Failed to activate plugin".to_string());
+            return Err("Failed to activate plugin".to_string());
         }
 
-        let name = CStr::from_ptr((*descriptor).name).to_string_lossy().into_owned();
-        let vendor = CStr::from_ptr((*descriptor).vendor).to_string_lossy().into_owned();
+        let name = CStr::from_ptr((*descriptor).name)
+            .to_string_lossy()
+            .into_owned();
+        let vendor = CStr::from_ptr((*descriptor).vendor)
+            .to_string_lossy()
+            .into_owned();
         let unique_id = CStr::from_ptr(plugin_id).to_string_lossy().into_owned();
 
         // TODO: Scan parameters
-        let params = Vec::new(); 
+        let params = Vec::new();
 
         Ok(Self {
             _library: lib,
@@ -127,7 +133,10 @@ impl ClapPlugin {
                 plugin_type: PluginType::Clap,
                 unique_id,
             },
-            io_config: IOConfig { inputs: 0, outputs: 2 }, // Assume stereo out for now
+            io_config: IOConfig {
+                inputs: 0,
+                outputs: 2,
+            }, // Assume stereo out for now
             params,
         })
     }
@@ -170,30 +179,30 @@ impl Plugin for ClapPlugin {
 
             // Prepare Audio Buffers
             // CLAP expects an array of pointers to f32 arrays (for non-interleaved)
-            // Our AudioBuffer is interleaved or non-interleaved? 
+            // Our AudioBuffer is interleaved or non-interleaved?
             // `AudioBuffer` struct has `samples: &mut [f32]`. This is usually interleaved in our simple engine.
             // But CLAP usually wants non-interleaved.
             // If our engine is interleaved, we need to de-interleave.
             // For now, let's assume we only support 1 channel or we hack it.
             // Wait, `AudioBuffer` in `plugin.rs` has `channels`.
-            
+
             // We need scratch buffers for de-interleaving if we are interleaved.
             // Let's assume for a moment we are just passing pointers.
             // But we can't easily de-interleave in the audio thread without allocation if we didn't prepare.
-            
+
             // For this prototype, let's assume Stereo and we de-interleave into stack arrays if small enough,
             // or just process silence if we can't.
-            
+
             // Actually, let's just implement a dummy process for now to prove it loads.
             // Real audio processing requires buffer management.
-            
+
             let mut out_l = vec![0.0f32; buffer.samples.len() / 2];
             let mut out_r = vec![0.0f32; buffer.samples.len() / 2];
-            
+
             // De-interleave input (if any) - skipping for now (synth)
-            
+
             let mut out_ptrs = [out_l.as_mut_ptr(), out_r.as_mut_ptr()];
-            
+
             let mut audio_out = clap_sys::audio_buffer::clap_audio_buffer {
                 data32: out_ptrs.as_mut_ptr(),
                 data64: ptr::null_mut(),
@@ -230,6 +239,5 @@ impl Plugin for ClapPlugin {
         0.0
     }
 
-    fn set_param(&mut self, _id: u32, _value: f32) {
-    }
+    fn set_param(&mut self, _id: u32, _value: f32) {}
 }

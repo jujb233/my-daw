@@ -95,7 +95,12 @@ jobs:
             - name: 安装 Rust
               uses: dtolnay/rust-toolchain@stable
               with:
-                  targets: aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
+                  targets: aarch64-linux-android armv7-linux-androideabi
+
+            - name: Rust 缓存
+              uses: swatinem/rust-cache@v2
+              with:
+                  workspaces: src-tauri
 
             - name: 安装前端依赖
               run: npm install
@@ -126,16 +131,6 @@ jobs:
                   export CXX_armv7_linux_androideabi="$TOOLCHAIN/armv7a-linux-androideabi26-clang++"
                   export CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_LINKER="$TOOLCHAIN/armv7a-linux-androideabi26-clang"
                   export CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_RUSTFLAGS="-C linker=$TOOLCHAIN/armv7a-linux-androideabi26-clang"
-
-                  export CC_i686_linux_android="$TOOLCHAIN/i686-linux-android26-clang"
-                  export CXX_i686_linux_android="$TOOLCHAIN/i686-linux-android26-clang++"
-                  export CARGO_TARGET_I686_LINUX_ANDROID_LINKER="$TOOLCHAIN/i686-linux-android26-clang"
-                  export CARGO_TARGET_I686_LINUX_ANDROID_RUSTFLAGS="-C linker=$TOOLCHAIN/i686-linux-android26-clang"
-
-                  export CC_x86_64_linux_android="$TOOLCHAIN/x86_64-linux-android26-clang"
-                  export CXX_x86_64_linux_android="$TOOLCHAIN/x86_64-linux-android26-clang++"
-                  export CARGO_TARGET_X86_64_LINUX_ANDROID_LINKER="$TOOLCHAIN/x86_64-linux-android26-clang"
-                  export CARGO_TARGET_X86_64_LINUX_ANDROID_RUSTFLAGS="-C linker=$TOOLCHAIN/x86_64-linux-android26-clang"
 
                   npm run tauri android build -- --apk true
 
