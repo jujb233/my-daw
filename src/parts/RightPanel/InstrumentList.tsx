@@ -26,7 +26,7 @@ export const InstrumentList: Component = () => {
                         id={inst.id}
                         isExpanded={inst.isExpanded}
                         onToggleExpand={() => toggleInstanceExpanded(inst.id)}
-                        onRemove={() => removeInstance(inst.id)}
+                        onRemove={() => removeInstance(inst.index)}
                     >
                         {/* Label Editor */}
                         <div>
@@ -36,7 +36,9 @@ export const InstrumentList: Component = () => {
                             <input
                                 type='text'
                                 value={inst.label}
-                                onInput={e => updateInstanceLabel(inst.id, e.currentTarget.value)}
+                                onInput={e =>
+                                    updateInstanceLabel(inst.index, e.currentTarget.value)
+                                }
                                 class='w-full bg-surface-container-highest text-on-surface text-sm px-2 py-1 rounded border-none focus:ring-1 focus:ring-primary outline-none'
                             />
                         </div>

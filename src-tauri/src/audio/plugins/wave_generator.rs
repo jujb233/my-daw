@@ -94,6 +94,7 @@ impl Plugin for WaveGenerator {
                         // 简单的 MIDI -> 频率 转换：440 * 2^((note - 69) / 12)
                         self.frequency = 440.0 * 2.0f32.powf((*note as f32 - 69.0) / 12.0);
                         self.active = true;
+                        println!("WaveGenerator: NoteOn {} freq {}", note, self.frequency);
                     }
                     NoteEvent::NoteOff { .. } => {
                         self.active = false;

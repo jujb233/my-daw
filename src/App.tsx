@@ -8,14 +8,15 @@ import { SettingsPanel } from './parts/Settings/SettingsPanel'
 import { IconButton } from './UI/lib/IconButton'
 import { t } from './i18n'
 import { showSettings, setShowSettings } from './store/ui'
-import { fetchInstruments, fetchTracks } from './store'
+import { fetchTracks } from './store'
 import { fetchMixerTracks } from './store/mixer'
+import { fetchInstances } from './store/audio'
 
 export default function App() {
     const [isSidebarOpen, setIsSidebarOpen] = createSignal(true)
 
     onMount(() => {
-        fetchInstruments()
+        fetchInstances()
         fetchMixerTracks()
         fetchTracks()
     })

@@ -4,7 +4,7 @@ import { getPluginParameters } from '../services/plugin'
 import { GenericPluginUI } from './GenericPluginUI'
 
 interface PluginHostProps {
-    instId: number
+    instId: string
     uniqueId: string
     currentValues: Record<number, number>
 }

@@ -17,6 +17,7 @@ export const DawService = {
     },
 
     async updateClip(id: string, updates: Partial<Clip>): Promise<void> {
+        console.log('DawService.updateClip', id, updates)
         await invoke('update_clip', {
             id,
             name: updates.name,
@@ -71,5 +72,9 @@ export const DawService = {
 
     async getActivePlugins(): Promise<any[]> {
         return await invoke('get_active_plugins')
+    },
+
+    async log(msg: string): Promise<void> {
+        await invoke('log_msg', { msg })
     }
 }

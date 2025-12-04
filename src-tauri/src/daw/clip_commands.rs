@@ -57,6 +57,10 @@ pub fn update_clip(
     instrument_ids: Option<Vec<String>>,
     instrument_routes: Option<HashMap<String, usize>>,
 ) -> Result<(), String> {
+    println!("ClipCommand: update_clip called for id: {}", id);
+    println!("ClipCommand: Inputs - name: {:?}, start: {:?}, track_id: {:?}, length: {:?}, notes_count: {:?}, instrument_ids: {:?}, routes: {:?}", 
+        name, start, track_id, length, notes.as_ref().map(|n| n.len()), instrument_ids, instrument_routes);
+
     let mut needs_rebuild = false;
 
     {

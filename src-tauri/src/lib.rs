@@ -37,6 +37,11 @@ fn import_plugin(
     manager.scan_clap_plugin(&path)
 }
 
+#[tauri::command]
+fn log_msg(msg: String) {
+    println!("Frontend Log: {}", msg);
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // 使用 5 个默认轨道初始化
@@ -127,7 +132,8 @@ pub fn run() {
             import_plugin,
             get_arrangement_tracks,
             add_arrangement_track,
-            remove_arrangement_track
+            remove_arrangement_track,
+            log_msg
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

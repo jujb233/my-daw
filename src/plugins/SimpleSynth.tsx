@@ -4,7 +4,7 @@ import { updateInstanceParam } from '../store/audio'
 import { t } from '../i18n'
 
 interface SimpleSynthProps {
-    instId: number
+    instId: string
     params: Record<number, number>
 }
 

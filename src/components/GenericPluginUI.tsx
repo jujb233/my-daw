@@ -4,7 +4,7 @@ import { Slider } from '../UI/lib/Slider'
 import { updateInstanceParam } from '../store/audio'
 
 interface GenericPluginUIProps {
-    instId: number
+    instId: string
     params: PluginParameter[]
     currentValues: Record<number, number>
 }

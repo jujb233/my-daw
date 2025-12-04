@@ -73,15 +73,6 @@ export const [store, setStore] = createStore<AppStore>(DEFAULT_PROJECT)
 
 // --- Actions ---
 
-export const fetchInstruments = async () => {
-    try {
-        const instruments = await DawService.getActivePlugins()
-        setStore('instruments', instruments)
-    } catch (e) {
-        console.error('Failed to fetch instruments:', e)
-    }
-}
-
 export const selectClip = (id: string | null) => {
     setStore('selectedClipId', id)
 }
@@ -259,6 +250,11 @@ export const updateClip = (id: string, update: Partial<Clip>) => {
     }
 
     // Sync with backend
+    if (update.instrumentIds) {
+        DawService.log(
+            `Store: updateClip calling backend with instrumentIds: ${JSON.stringify(update.instrumentIds)}`
+        )
+    }
     DawService.updateClip(id, update).catch(e => console.error('Failed to sync clip update:', e))
 }
 

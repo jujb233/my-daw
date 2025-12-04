@@ -5,7 +5,7 @@ import { IconButton } from '../lib/IconButton'
 interface InstrumentCardProps {
     label: string
     name: string
-    id: number
+    id: string
     isExpanded?: boolean
     onToggleExpand?: () => void
     onRemove?: () => void

@@ -116,6 +116,7 @@ impl Sequencer {
             };
 
             if is_active {
+                // println!("Sequencer: Clip {} is active. Insts: {:?}", clip.name, clip.instrument_ids);
                 // 1. 收集路由
                 // 如果多个 Clip 使用相同的乐器，我们合并目标轨道
                 for &inst_id in &clip.instrument_ids {
@@ -141,6 +142,10 @@ impl Sequencer {
 
                             // 检查 Note On
                             if note_start_abs >= self.current_time && note_start_abs < end_time {
+                                println!(
+                                    "Sequencer: NoteOn {} vel {} for inst {}",
+                                    note.note, note.velocity, inst_id
+                                );
                                 inst_events.push(PluginEvent::Midi(NoteEvent::NoteOn {
                                     note: note.note,
                                     velocity: note.velocity,

@@ -32,6 +32,7 @@ pub fn create_audio_graph(state: &State<'_, AppState>) -> Result<Box<dyn Plugin>
     // 映射 UUID -> 混音台索引
     let mut inst_uuid_to_index = std::collections::HashMap::new();
 
+    println!("Core: Building Audio Graph");
     for (_i, p_data) in plugins.iter().enumerate() {
         let inst_idx = if let Some(plugin) = manager.create_plugin(&p_data.name) {
             Some(mixer.add_instrument(plugin))
@@ -47,7 +48,16 @@ pub fn create_audio_graph(state: &State<'_, AppState>) -> Result<Box<dyn Plugin>
         };
 
         if let Some(idx) = inst_idx {
+            println!(
+                "Core: Mapped Plugin UUID {} ({}) to Index {}",
+                p_data.id, p_data.name, idx
+            );
             inst_uuid_to_index.insert(p_data.id.clone(), idx);
+        } else {
+            println!(
+                "Core: Failed to create plugin for UUID {} ({})",
+                p_data.id, p_data.name
+            );
         }
     }
 
@@ -66,13 +76,26 @@ pub fn create_audio_graph(state: &State<'_, AppState>) -> Result<Box<dyn Plugin>
 
     let sequencer = mixer.get_sequencer_mut();
     for clip in clips.iter() {
+        println!(
+            "Core: Processing Clip {}. Raw Instrument IDs: {:?}",
+            clip.name, clip.instrument_ids
+        );
         // 映射乐器 UUID 到索引
         let mut instrument_ids = Vec::new();
         for uuid in &clip.instrument_ids {
             if let Some(&idx) = inst_uuid_to_index.get(uuid) {
                 instrument_ids.push(idx);
+            } else {
+                println!(
+                    "Core: Warning - Clip {} references unknown instrument UUID {}",
+                    clip.name, uuid
+                );
             }
         }
+        println!(
+            "Core: Clip {} mapped to instruments {:?}",
+            clip.name, instrument_ids
+        );
 
         // 映射路由
         let mut instrument_routes = std::collections::HashMap::new();

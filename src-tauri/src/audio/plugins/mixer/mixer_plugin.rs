@@ -183,6 +183,17 @@ impl Plugin for MixerPlugin {
             // 处理乐器
             inst.process(&mut inst_buffer, &inst_events, output_events);
 
+            // Debug: Check if instrument produced sound
+            let mut max_sample = 0.0f32;
+            for s in self.scratch_buffer.iter() {
+                if s.abs() > max_sample {
+                    max_sample = s.abs();
+                }
+            }
+            if max_sample > 0.0 {
+                // println!("Mixer: Inst {} produced sound, max: {}", inst_idx, max_sample);
+            }
+
             // 混音到目标轨道
             if let Some(target_tracks) = routing.get(&inst_idx) {
                 for &track_idx in target_tracks {

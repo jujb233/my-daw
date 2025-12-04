@@ -20,6 +20,25 @@ export const PianoRoll: Component<PianoRollProps> = props => {
     const NOTE_HEIGHT = 20
     const KEYS = Array.from({ length: 128 }, (_, i) => 127 - i)
 
+    // Cursor Logic
+    const cursorPosition = () => {
+        const c = clip()
+        if (!c || !store.playback.isPlaying) return null
+
+        const currentTime = store.playback.currentPosition.time
+        const clipStart = defaultTimeService.ticksToSeconds(
+            defaultTimeService.positionToTicks(c.start)
+        )
+        const clipEnd = clipStart + defaultTimeService.ticksToSeconds(c.length.totalTicks)
+
+        if (currentTime >= clipStart && currentTime <= clipEnd) {
+            const relativeTime = currentTime - clipStart
+            const relativeTicks = defaultTimeService.secondsToTicks(relativeTime)
+            return relativeTicks * pixelsPerTick()
+        }
+        return null
+    }
+
     const handleNoteUpdate = (
         noteId: string,
         newStartPx: number,
@@ -198,6 +217,14 @@ export const PianoRoll: Component<PianoRollProps> = props => {
                             )}
                         </For>
                     </div>
+
+                    {/* Playback Cursor */}
+                    <Show when={cursorPosition() !== null}>
+                        <div
+                            class='absolute top-0 bottom-0 w-[2px] bg-primary z-20 pointer-events-none'
+                            style={{ left: `${cursorPosition()}px` }}
+                        />
+                    </Show>
 
                     {/* Notes */}
                     <Show when={clip()}>
