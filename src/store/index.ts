@@ -1,18 +1,27 @@
 import { createStore } from 'solid-js/store'
 import { DawService } from '../services/daw'
-import { ProjectStore, ClipContent, ClipInstance, Track, Note } from './types'
+import { ProjectData, Clip, Position } from './model'
+import { defaultTimeService } from '../services/time'
 
-const DEFAULT_PROJECT: ProjectStore = {
+interface UIState {
+    playback: {
+        isPlaying: boolean;
+        currentPosition: Position;
+        startTime: number | null;
+    };
+    selectedTrackId: number | null;
+    selectedClipId: string | null;
+    snapInterval: string; // '1/4', '1/8', '1/16', etc.
+}
+
+type AppStore = ProjectData & UIState;
+
+const DEFAULT_PROJECT: AppStore = {
     info: {
         name: 'New Project',
         artist: 'User',
         bpm: 120,
-        timeSignature: [4, 4]
-    },
-    playback: {
-        isPlaying: false,
-        currentBar: 1,
-        startTime: null
+        timeSignature: { numerator: 4, denominator: 4 }
     },
     tracks: [
         { id: 0, name: 'Grand Piano', color: '#aec6ff', muted: false, soloed: false },
@@ -20,16 +29,31 @@ const DEFAULT_PROJECT: ProjectStore = {
         { id: 2, name: 'Bass', color: '#bfc6dc', muted: false, soloed: false }
     ],
     clips: [],
-    clipLibrary: {},
+    instruments: [],
+    playback: {
+        isPlaying: false,
+        currentPosition: { bar: 1, beat: 1, sixteenth: 1, tick: 0, time: 0 },
+        startTime: null
+    },
     selectedTrackId: null,
-    selectedClipId: null
+    selectedClipId: null,
+    snapInterval: '1/16'
 }
 
-export const [store, setStore] = createStore<ProjectStore>(DEFAULT_PROJECT)
+export const [store, setStore] = createStore<AppStore>(DEFAULT_PROJECT)
 
 // --- Actions ---
 
-export const selectClip = (id: number | null) => {
+export const fetchInstruments = async () => {
+    try {
+        const instruments = await DawService.getActivePlugins()
+        setStore('instruments', instruments)
+    } catch (e) {
+        console.error('Failed to fetch instruments:', e)
+    }
+}
+
+export const selectClip = (id: string | null) => {
     setStore('selectedClipId', id)
 }
 
@@ -44,23 +68,23 @@ const updatePlaybackState = async () => {
     try {
         const [backendIsPlaying, time] = await DawService.getPlaybackState()
 
-        const bpm = store.info.bpm
-        const timeSigNum = store.info.timeSignature[0]
+        // Update TimeService with current project settings
+        defaultTimeService.setBpm(store.info.bpm);
+        defaultTimeService.setTimeSignature(store.info.timeSignature);
 
-        const currentBeat = time * (bpm / 60)
-        const currentBar = currentBeat / timeSigNum + 1
+        const currentTicks = defaultTimeService.secondsToTicks(time);
+        const currentPosition = defaultTimeService.ticksToPosition(currentTicks);
 
         let isPlaying = backendIsPlaying
 
         // Fix for race condition where backend hasn't started yet
-        // If we requested play recently (< 500ms), trust local state over backend 'false'
         if (!isPlaying && store.playback.isPlaying && Date.now() - lastPlayRequestTime < 500) {
             isPlaying = true
         }
 
         setStore('playback', {
             isPlaying,
-            currentBar,
+            currentPosition,
             startTime: time
         })
 
@@ -100,151 +124,82 @@ export const togglePlayback = async () => {
         }
     } catch (e) {
         console.error('Failed to toggle playback:', e)
-        // Revert on error
-        setStore('playback', 'isPlaying', !store.playback.isPlaying)
     }
 }
 
-export const setBpm = (bpm: number) => {
-    setStore('info', 'bpm', bpm)
-}
-
-export const addTrack = () => {
-    const id = store.tracks.length // Simple auto-increment for now, matching backend if we sync
-    const newTrack: Track = {
-        id,
-        name: `Track ${id + 1}`,
-        color: '#e3e2e6',
-        muted: false,
-        soloed: false
-    }
-    setStore('tracks', [...store.tracks, newTrack])
-}
-
-// Helper to find or create content by name
-const getOrCreateContentId = (name: string, color: string): string => {
-    // Check if content with this name already exists
-    const existingId = Object.keys(store.clipLibrary).find(
-        key => store.clipLibrary[key].name === name
-    )
-
-    if (existingId) {
-        return existingId
-    }
-
-    // Create new
-    const newId = `c_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-    const newContent: ClipContent = {
-        id: newId,
-        name,
-        color,
-        notes: []
-    }
-
-    setStore('clipLibrary', newId, newContent)
-    return newId
-}
-
-export const addClip = async (
-    trackId: number,
-    startBar: number,
-    name: string = 'Clip',
-    color: string = '#aec6ff'
-) => {
-    const contentId = getOrCreateContentId(name, color)
-    const content = store.clipLibrary[contentId]
-
-    // Calculate time and duration
-    const bpm = store.info.bpm
-    const timeSigNum = store.info.timeSignature[0]
-    const secondsPerBeat = 60 / bpm
-    const secondsPerBar = secondsPerBeat * timeSigNum
-
-    const startTime = (startBar - 1) * secondsPerBar
-    const duration = 8 * secondsPerBar // Default 8 bars
-
+export const addTrack = async () => {
     try {
-        // Call backend to create clip
-        // Use instrument 0 (SimpleSynth) by default for now
-        const instrumentIds = [0]
-        const id = await DawService.addClip(name, startTime, duration, instrumentIds)
+        await DawService.addTrack()
+        // Optimistic update or fetch
+        // For now, we just push a new track to the store to match backend logic
+        const newId = store.tracks.length
+        setStore('tracks', tracks => [
+            ...tracks,
+            {
+                id: newId,
+                name: `Track ${newId + 1}`,
+                color: '#aec6ff', // Default color
+                muted: false,
+                soloed: false
+            }
+        ])
+    } catch (e) {
+        console.error('Failed to add track:', e)
+    }
+}
 
-        // If content has notes (from copy/paste), sync them to backend
-        if (content.notes.length > 0) {
-            await DawService.updateClip(id, { notes: content.notes })
-        }
-
-        const newClip: ClipInstance = {
+export const addClip = async (trackId: number, start: Position, length: MusicalLength) => {
+    try {
+        const name = 'New Clip'
+        const id = await DawService.addClip(trackId, name, start, length)
+        
+        const newClip: Clip = {
             id,
             trackId,
-            clipContentId: contentId,
-            startBar,
-            lengthBars: 8 // Default 8 bars
+            name,
+            color: '#3b82f6',
+            start,
+            length,
+            notes: []
         }
-        setStore('clips', [...store.clips, newClip])
+        
+        setStore('clips', (clips) => [...clips, newClip])
     } catch (e) {
         console.error('Failed to add clip:', e)
     }
 }
 
-export const updateClipNotes = async (contentId: string, notes: Note[]) => {
-    // 1. Update local library (Flyweight)
-    setStore('clipLibrary', contentId, 'notes', notes)
-
-    // 2. Find all instances using this content
-    const instances = store.clips.filter(c => c.clipContentId === contentId)
-
-    // 3. Update all backend clips
-    await Promise.all(instances.map(instance => DawService.updateClip(instance.id, { notes })))
+export const updateClip = (id: string, update: Partial<Clip>) => {
+    setStore('clips', (c) => c.id === id, update)
+    // Sync with backend
+    DawService.updateClip(id, update).catch(e => console.error("Failed to sync clip update:", e))
 }
 
-export const renameClipContent = async (contentId: string, newName: string) => {
-    // Check uniqueness
-    const exists = Object.values(store.clipLibrary).some(
-        c => c.name === newName && c.id !== contentId
-    )
-    if (exists) {
-        throw new Error('Clip name already exists')
-    }
-
-    // 1. Update local library
-    setStore('clipLibrary', contentId, 'name', newName)
-
-    // 2. Find all instances
-    const instances = store.clips.filter(c => c.clipContentId === contentId)
-
-    // 3. Update all backend clips
-    await Promise.all(
-        instances.map(instance => DawService.updateClip(instance.id, { name: newName }))
-    )
+export const removeClip = (id: string) => {
+    setStore('clips', (clips) => clips.filter(c => c.id !== id))
+    DawService.removeClip(id).catch(e => console.error("Failed to remove clip:", e))
 }
 
-export const deleteClip = async (instanceId: number) => {
+export const removeTrack = async (id: number) => {
     try {
-        await DawService.removeClip(instanceId)
-        setStore('clips', clips => clips.filter(c => c.id !== instanceId))
-        if (store.selectedClipId === instanceId) {
-            selectClip(null)
+        // Find index
+        const index = store.tracks.findIndex(t => t.id === id)
+        if (index === -1) return
+
+        await DawService.removeTrack(index)
+        setStore('tracks', tracks => tracks.filter(t => t.id !== id))
+        
+        // Also remove clips on this track? Or keep them?
+        // Usually we remove them.
+        const clipsToRemove = store.clips.filter(c => c.trackId === id)
+        for (const clip of clipsToRemove) {
+            removeClip(clip.id)
         }
     } catch (e) {
-        console.error('Failed to delete clip:', e)
+        console.error('Failed to remove track:', e)
     }
 }
 
-export const duplicateClip = async (instanceId: number) => {
-    const original = store.clips.find(c => c.id === instanceId)
-    if (!original) return
-
-    // Create new instance with SAME content ID (Flyweight)
-    // Place it after the original (e.g. +4 bars)
-    await addClip(
-        original.trackId,
-        original.startBar + original.lengthBars,
-        store.clipLibrary[original.clipContentId].name,
-        store.clipLibrary[original.clipContentId].color
-    )
-}
-
-export const updateClipPosition = (instanceId: number, newStartBar: number) => {
-    setStore('clips', c => c.id === instanceId, 'startBar', newStartBar)
+export const setSnapInterval = (interval: string) => {
+    setStore('snapInterval', interval)
 }

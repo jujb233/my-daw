@@ -117,9 +117,6 @@ impl Plugin for MixerPlugin {
                 } => {
                     self.sequencer.set_transport(*playing, *position, *tempo);
                 }
-                PluginEvent::UpdateClip(clip) => {
-                    self.sequencer.update_clip(clip.clone());
-                }
                 _ => {}
             }
         }
@@ -155,7 +152,6 @@ impl Plugin for MixerPlugin {
                             match e {
                                 PluginEvent::Midi(_) => None, // MIDI comes from Sequencer now (mostly)
                                 PluginEvent::Transport { .. } => None,
-                                PluginEvent::UpdateClip(_) => None,
                                 PluginEvent::Custom(_) => None,
                                 PluginEvent::Parameter { id, value } => {
                                     if *id >= 10000 {
@@ -197,7 +193,6 @@ impl Plugin for MixerPlugin {
                 .filter_map(|e| match e {
                     PluginEvent::Midi(_) => None,
                     PluginEvent::Transport { .. } => None,
-                    PluginEvent::UpdateClip(_) => None,
                     PluginEvent::Custom(_) => None,
                     PluginEvent::Parameter { id, value } => {
                         if *id < 10000 {

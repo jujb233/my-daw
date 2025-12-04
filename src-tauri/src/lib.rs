@@ -54,6 +54,7 @@ pub fn run() {
     // Initialize with a default SimpleSynth
     let mut plugins = Vec::new();
     plugins.push(PluginInstanceData {
+        id: Uuid::new_v4().to_string(),
         name: "com.mydaw.simplesynth".to_string(),
         label: "Grand Piano".to_string(),
         routing_track_index: 0,
@@ -81,6 +82,7 @@ pub fn run() {
             remove_mixer_track,
             get_mixer_tracks,
             set_instrument_routing,
+            get_active_plugins,
             add_clip,
             update_clip,
             get_clip,

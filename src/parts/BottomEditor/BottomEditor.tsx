@@ -2,7 +2,7 @@ import { Component, Show, createSignal, createEffect } from 'solid-js'
 import { Surface } from '../../UI/lib/Surface'
 import { Input } from '../../UI/lib/Input'
 import { Button } from '../../UI/lib/Button'
-import { store, setStore, setBpm, selectClip } from '../../store'
+import { store, setStore, selectClip } from '../../store'
 import { PianoRoll } from '../MidiEditor/PianoRoll'
 import { IconButton } from '../../UI/lib/IconButton'
 import { t } from '../../i18n'
@@ -88,12 +88,14 @@ export const BottomEditor: Component = () => {
                                 label={t('bottom.bpm')}
                                 type='number'
                                 value={store.info.bpm}
-                                onInput={e => setBpm(parseFloat(e.currentTarget.value))}
+                                onInput={e =>
+                                    setStore('info', 'bpm', parseFloat(e.currentTarget.value))
+                                }
                                 class='w-24'
                             />
                             <Input
                                 label={t('bottom.timeSig')}
-                                value={`${store.info.timeSignature[0]}/${store.info.timeSignature[1]}`}
+                                value={`${store.info.timeSignature.numerator}/${store.info.timeSignature.denominator}`}
                                 class='w-24'
                                 disabled
                             />

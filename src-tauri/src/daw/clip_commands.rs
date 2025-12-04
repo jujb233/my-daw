@@ -1,52 +1,32 @@
-use crate::audio::core::clip::{Clip, Note};
-use crate::audio::core::plugin::PluginEvent;
 use crate::daw::core::rebuild_engine;
+use crate::daw::model::{Clip, MusicalLength, Note, Position};
 use crate::daw::state::AppState;
 use tauri::State;
-
-use std::collections::HashMap;
+use uuid::Uuid;
 
 #[tauri::command]
 pub fn add_clip(
     state: State<'_, AppState>,
+    track_id: usize,
     name: String,
-    start_time: f64,
-    duration: f64,
-    instrument_ids: Vec<usize>,
-    // Optional initial routing. If not provided, defaults to empty.
-    // Format: Map<InstrumentID, List<TrackID>>
-    instrument_routes: Option<HashMap<usize, Vec<usize>>>,
-) -> Result<usize, String> {
-    let id = {
+    start: Position,
+    length: MusicalLength,
+) -> Result<String, String> {
+    let id = Uuid::new_v4().to_string();
+
+    {
         let mut clips = state.clips.lock().map_err(|_| "Failed to lock clips")?;
-        let id = clips.len();
-
-        // Default routing: if not provided, maybe route all instruments to track 0?
-        // For now, let's just use what's provided or empty.
-        let routes = instrument_routes.unwrap_or_else(|| {
-            let mut map = HashMap::new();
-            for &inst_id in &instrument_ids {
-                map.insert(inst_id, vec![0]); // Default to Master (0)
-            }
-            map
-        });
-
         clips.push(Clip {
-            id,
+            id: id.clone(),
+            track_id,
             name,
-            start_time,
-            duration,
-            instrument_ids,
-            instrument_routes: routes,
-            notes: vec![Note {
-                relative_start: 0.0,
-                duration: 1.0,
-                note: 60,
-                velocity: 0.8,
-            }], // Default C4
+            color: "#3b82f6".to_string(),
+            start,
+            length,
+            notes: vec![],
+            instrument_id: None,
         });
-        id
-    };
+    }
 
     rebuild_engine(&state)?;
     Ok(id)
@@ -55,13 +35,12 @@ pub fn add_clip(
 #[tauri::command]
 pub fn update_clip(
     state: State<'_, AppState>,
-    id: usize,
+    id: String,
     name: Option<String>,
-    start_time: Option<f64>,
-    duration: Option<f64>,
-    instrument_ids: Option<Vec<usize>>,
-    instrument_routes: Option<HashMap<usize, Vec<usize>>>,
+    start: Option<Position>,
+    length: Option<MusicalLength>,
     notes: Option<Vec<Note>>,
+    instrument_id: Option<String>,
 ) -> Result<(), String> {
     let updated_clip = {
         let mut clips = state.clips.lock().map_err(|_| "Failed to lock clips")?;
@@ -69,20 +48,17 @@ pub fn update_clip(
             if let Some(n) = name {
                 clip.name = n;
             }
-            if let Some(s) = start_time {
-                clip.start_time = s;
+            if let Some(s) = start {
+                clip.start = s;
             }
-            if let Some(d) = duration {
-                clip.duration = d;
-            }
-            if let Some(i) = instrument_ids {
-                clip.instrument_ids = i;
-            }
-            if let Some(r) = instrument_routes {
-                clip.instrument_routes = r;
+            if let Some(l) = length {
+                clip.length = l;
             }
             if let Some(n) = notes {
                 clip.notes = n;
+            }
+            if let Some(i) = instrument_id {
+                clip.instrument_id = Some(i);
             }
             Some(clip.clone())
         } else {
@@ -90,20 +66,15 @@ pub fn update_clip(
         }
     };
 
-    if let Some(clip) = updated_clip {
-        let engine = state
-            .audio_engine
-            .lock()
-            .map_err(|_| "Failed to lock audio engine")?;
-        if engine.is_running() {
-            engine.send_event(PluginEvent::UpdateClip(clip));
-        }
+    if updated_clip.is_some() {
+        rebuild_engine(&state)?;
     }
+
     Ok(())
 }
 
 #[tauri::command]
-pub fn get_clip(state: State<'_, AppState>, id: usize) -> Result<Clip, String> {
+pub fn get_clip(state: State<'_, AppState>, id: String) -> Result<Clip, String> {
     let clips = state.clips.lock().map_err(|_| "Failed to lock clips")?;
     if let Some(clip) = clips.iter().find(|c| c.id == id) {
         Ok(clip.clone())
@@ -113,7 +84,7 @@ pub fn get_clip(state: State<'_, AppState>, id: usize) -> Result<Clip, String> {
 }
 
 #[tauri::command]
-pub fn remove_clip(state: State<'_, AppState>, id: usize) -> Result<(), String> {
+pub fn remove_clip(state: State<'_, AppState>, id: String) -> Result<(), String> {
     {
         let mut clips = state.clips.lock().map_err(|_| "Failed to lock clips")?;
         if let Some(index) = clips.iter().position(|c| c.id == id) {

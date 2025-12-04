@@ -1,11 +1,13 @@
 use crate::audio::engine::AudioEngine;
-use crate::audio::core::clip::Clip;
 use crate::audio::plugins::manager::PluginManager;
-use serde::Serialize;
+use crate::daw::model::Clip;
+use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 use uuid::Uuid;
 
+#[derive(Clone, Serialize, Deserialize)]
 pub struct PluginInstanceData {
+    pub id: String,
     pub name: String,
     pub label: String,
     pub routing_track_index: usize,

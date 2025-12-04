@@ -4,38 +4,111 @@ import { t } from '../../i18n'
 interface GridClipProps {
     name: string
     color?: string
-    width: number // in pixels or grid units
-    left: number // in pixels or grid units
+    width: number // in pixels
+    left: number // in pixels
+    isSelected?: boolean
     onRemove?: () => void
-    // Add props for editing
-    instrumentId?: number
-    targetTrackId?: number
-    onUpdate?: (updates: any) => void
+    onUpdate?: (newLeft: number, newWidth: number) => void
     onClick?: () => void
 }
 
 export const GridClip: Component<GridClipProps> = props => {
+    const handleMouseDown = (e: MouseEvent) => {
+        if (e.button !== 0) return // Only left click
+        e.stopPropagation()
+        props.onClick?.()
+
+        const startX = e.clientX
+        const startLeft = props.left
+
+        const onMove = (moveEvent: MouseEvent) => {
+            const delta = moveEvent.clientX - startX
+            props.onUpdate?.(startLeft + delta, props.width)
+        }
+
+        const onUp = () => {
+            window.removeEventListener('mousemove', onMove)
+            window.removeEventListener('mouseup', onUp)
+        }
+
+        window.addEventListener('mousemove', onMove)
+        window.addEventListener('mouseup', onUp)
+    }
+
+    const handleResizeLeft = (e: MouseEvent) => {
+        e.stopPropagation()
+        const startX = e.clientX
+        const startLeft = props.left
+        const startWidth = props.width
+
+        const onMove = (moveEvent: MouseEvent) => {
+            const delta = moveEvent.clientX - startX
+            const newWidth = Math.max(10, startWidth - delta)
+            const newLeft = startLeft + (startWidth - newWidth)
+            props.onUpdate?.(newLeft, newWidth)
+        }
+
+        const onUp = () => {
+            window.removeEventListener('mousemove', onMove)
+            window.removeEventListener('mouseup', onUp)
+        }
+
+        window.addEventListener('mousemove', onMove)
+        window.addEventListener('mouseup', onUp)
+    }
+
+    const handleResizeRight = (e: MouseEvent) => {
+        e.stopPropagation()
+        const startX = e.clientX
+        const startWidth = props.width
+
+        const onMove = (moveEvent: MouseEvent) => {
+            const delta = moveEvent.clientX - startX
+            const newWidth = Math.max(10, startWidth + delta)
+            props.onUpdate?.(props.left, newWidth)
+        }
+
+        const onUp = () => {
+            window.removeEventListener('mousemove', onMove)
+            window.removeEventListener('mouseup', onUp)
+        }
+
+        window.addEventListener('mousemove', onMove)
+        window.addEventListener('mouseup', onUp)
+    }
+
     return (
         <div
-            class='absolute h-full rounded border border-black/20 overflow-hidden cursor-pointer hover:brightness-110 transition-all group flex flex-col'
+            class={`absolute h-full rounded border overflow-hidden cursor-pointer hover:brightness-110 transition-all group flex flex-col ${props.isSelected ? 'border-white ring-1 ring-white' : 'border-black/20'}`}
             style={{
                 width: `${props.width}px`,
                 left: `${props.left}px`,
                 'background-color': props.color || '#3b82f6'
             }}
-            onClick={e => {
-                e.stopPropagation()
-                props.onClick?.()
-            }}
+            onMouseDown={handleMouseDown}
+            onDblClick={e => e.stopPropagation()}
         >
-            <div class='px-2 py-1 text-xs font-medium text-white truncate select-none flex justify-between items-center'>
+            {/* Left Resize Handle */}
+            <div
+                class='absolute left-0 top-0 bottom-0 w-2 cursor-w-resize hover:bg-white/20 z-10'
+                onMouseDown={handleResizeLeft}
+            ></div>
+
+            <div class='px-2 py-1 text-xs font-medium text-white truncate select-none flex justify-between items-center pointer-events-none'>
                 <span>{props.name}</span>
             </div>
+
+            {/* Right Resize Handle */}
+            <div
+                class='absolute right-0 top-0 bottom-0 w-2 cursor-w-resize hover:bg-white/20 z-10'
+                onMouseDown={handleResizeRight}
+            ></div>
+
             {/* Remove Button (visible on hover) */}
             {props.onRemove && (
                 <div
-                    class='absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 rounded-full p-0.5 cursor-pointer hover:bg-black/70'
-                    onClick={e => {
+                    class='absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 rounded-full p-0.5 cursor-pointer hover:bg-black/70 z-20'
+                    onMouseDown={e => {
                         e.stopPropagation()
                         props.onRemove?.()
                     }}

@@ -1,15 +1,28 @@
-import { Component, For, createSignal } from 'solid-js'
-import { store, setStore, addTrack, addClip, selectTrack, selectClip } from '../../store'
+import { Component, For } from 'solid-js'
+import {
+    store,
+    selectTrack,
+    selectClip,
+    updateClip,
+    addTrack,
+    addClip,
+    removeTrack
+} from '../../store'
 import { t } from '../../i18n'
-import { ClipInstance } from '../../store/types'
 import { Button } from '../../UI/lib/Button'
 import { invoke } from '@tauri-apps/api/core'
+import { defaultTimeService, PPQ } from '../../services/time'
+import { GridClip } from './GridClip'
+import { MusicalLength } from '../../store/model'
 
 const PIXELS_PER_BAR = 60
 
 const Playhead: Component = () => {
     // Offset by 200px (Header width)
-    const left = () => (store.playback.currentBar - 1) * PIXELS_PER_BAR + 200
+    // We need to calculate pixels based on currentPosition
+    const ticks = () => defaultTimeService.positionToTicks(store.playback.currentPosition)
+    const ticksPerBar = () => PPQ * store.info.timeSignature.numerator
+    const left = () => (ticks() / ticksPerBar()) * PIXELS_PER_BAR + 200
 
     return (
         <div
@@ -22,24 +35,32 @@ const Playhead: Component = () => {
 }
 
 const Ruler: Component<{ scrollRef: (el: HTMLDivElement) => void }> = props => {
-    const handleRulerClick = (e: MouseEvent) => {
-        const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect()
-        const x = e.clientX - rect.left
+    const handleMouseDown = (e: MouseEvent) => {
+        const target = e.currentTarget as HTMLDivElement
+        const rect = target.getBoundingClientRect()
 
-        // Calculate bar from pixels
-        const bar = x / PIXELS_PER_BAR + 1
+        const updatePosition = (clientX: number) => {
+            const x = clientX - rect.left
+            const bar = x / PIXELS_PER_BAR + 1
+            const time = defaultTimeService.ticksToSeconds(
+                (bar - 1) * (PPQ * store.info.timeSignature.numerator)
+            )
+            invoke('seek', { position: time })
+        }
 
-        // Convert to time (assuming 120bpm 4/4 for now, should use store.info)
-        const bpm = store.info.bpm
-        const timeSig = store.info.timeSignature[0]
-        const secondsPerBeat = 60 / bpm
-        const secondsPerBar = secondsPerBeat * timeSig
+        updatePosition(e.clientX)
 
-        const time = (bar - 1) * secondsPerBar
+        const onMove = (moveEvent: MouseEvent) => {
+            updatePosition(moveEvent.clientX)
+        }
 
-        invoke('seek', { position: time })
-        // Optimistic update
-        setStore('playback', { currentBar: bar, startTime: time })
+        const onUp = () => {
+            window.removeEventListener('mousemove', onMove)
+            window.removeEventListener('mouseup', onUp)
+        }
+
+        window.addEventListener('mousemove', onMove)
+        window.addEventListener('mouseup', onUp)
     }
 
     return (
@@ -52,7 +73,7 @@ const Ruler: Component<{ scrollRef: (el: HTMLDivElement) => void }> = props => {
                 class='flex-1 relative overflow-hidden whitespace-nowrap cursor-pointer h-full'
             >
                 {/* Container for ruler content that matches track width */}
-                <div class='h-full relative min-w-[4000px]' onClick={handleRulerClick}>
+                <div class='h-full relative min-w-[4000px]' onMouseDown={handleMouseDown}>
                     <div class='absolute bottom-0 left-0 w-full h-full flex text-xs text-on-surface-variant font-mono pointer-events-none'>
                         <For each={Array.from({ length: 100 })}>
                             {(_, i) => {
@@ -71,7 +92,9 @@ const Ruler: Component<{ scrollRef: (el: HTMLDivElement) => void }> = props => {
                     {/* Playhead Marker in Ruler */}
                     <div
                         class='absolute bottom-0 h-full w-[1px] bg-red-500 z-50 pointer-events-none'
-                        style={{ left: `${(store.playback.currentBar - 1) * PIXELS_PER_BAR}px` }}
+                        style={{
+                            left: `${(defaultTimeService.positionToTicks(store.playback.currentPosition) / (PPQ * store.info.timeSignature.numerator)) * PIXELS_PER_BAR}px`
+                        }}
                     >
                         <div class='absolute top-0 -left-1.5 w-3 h-3 bg-red-500 rotate-45'></div>
                     </div>
@@ -106,160 +129,186 @@ const TrackHeader: Component<{ track: any }> = props => {
                     >
                         S
                     </div>
+                    <div
+                        title={t('tracks.delete')}
+                        class='w-4 h-4 rounded text-[10px] flex items-center justify-center cursor-pointer bg-on-surface-variant/20 hover:bg-error hover:text-on-error'
+                        onClick={e => {
+                            e.stopPropagation()
+                            if (confirm(t('tracks.deleteConfirm') || 'Delete track?')) {
+                                removeTrack(props.track.id)
+                            }
+                        }}
+                    >
+                        X
+                    </div>
                 </div>
             </div>
-            <div class='flex-1 bg-surface-container-highest rounded opacity-50'>
-                {/* Mini visualizer placeholder */}
-            </div>
         </div>
     )
 }
 
-const ClipView: Component<{ clip: ClipInstance }> = props => {
-    const content = () => store.clipLibrary[props.clip.clipContentId]
-    const [isDragging, setIsDragging] = createSignal(false)
-    const [dragOffset, setDragOffset] = createSignal(0)
+const TrackLane: Component<{ track: any }> = props => {
+    const pixelsPerTick = () => {
+        const ticksPerBar = PPQ * store.info.timeSignature.numerator
+        return PIXELS_PER_BAR / ticksPerBar
+    }
 
-    const handleMouseDown = (e: MouseEvent) => {
-        e.preventDefault()
-        e.stopPropagation()
-        selectClip(props.clip.id)
-        setIsDragging(true)
-        const startX = e.clientX
+    const handleClipUpdate = (clipId: string, newLeftPx: number, newWidthPx: number) => {
+        const ppt = pixelsPerTick()
 
-        const handleMouseMove = (moveEvent: MouseEvent) => {
-            setDragOffset(moveEvent.clientX - startX)
+        // Convert pixels to ticks
+        let startTicks = newLeftPx / ppt
+        let durationTicks = newWidthPx / ppt
+
+        // Snap
+        const snap = store.snapInterval || '1/16'
+        startTicks = defaultTimeService.snapTicks(startTicks, snap)
+        durationTicks = defaultTimeService.snapTicks(durationTicks, snap)
+
+        // Ensure non-negative
+        startTicks = Math.max(0, startTicks)
+        durationTicks = Math.max(PPQ / 4, durationTicks)
+
+        const newStart = defaultTimeService.ticksToPosition(startTicks)
+
+        const length: MusicalLength = {
+            bars: 0,
+            beats: 0,
+            sixteenths: 0,
+            ticks: 0,
+            totalTicks: durationTicks,
+            seconds: defaultTimeService.ticksToSeconds(durationTicks)
         }
 
-        const handleMouseUp = async () => {
-            setIsDragging(false)
-            window.removeEventListener('mousemove', handleMouseMove)
-            window.removeEventListener('mouseup', handleMouseUp)
+        updateClip(clipId, {
+            start: newStart,
+            length: length
+        })
+    }
 
-            const offsetBars = dragOffset() / PIXELS_PER_BAR
-            // Snap to grid (optional, but good for DAW) - let's snap to 0.25 bar (1 beat)
-            const rawNewStartBar = props.clip.startBar + offsetBars
-            const newStartBar = Math.max(1, Math.round(rawNewStartBar * 4) / 4)
+    const handleDblClick = (e: MouseEvent) => {
+        // Ignore clicks on clips or other children if we want strictly empty space
+        // But e.target check is tricky if there are grid lines.
+        // Grid lines have pointer-events-none so they are fine.
+        // Clips stop propagation? Or we check target.
 
-            // Calculate time
-            const bpm = store.info.bpm
-            const timeSig = store.info.timeSignature[0]
-            const newStartTime = (newStartBar - 1) * timeSig * (60 / bpm)
+        // If we click on a clip, the clip's onClick/onDblClick handles it.
+        // But here we are on the lane div.
 
-            try {
-                await invoke('update_clip', {
-                    id: props.clip.id,
-                    startTime: newStartTime
-                })
+        const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect()
+        const x = e.clientX - rect.left
 
-                // Update local store
-                setStore('clips', clips =>
-                    clips.map(c => (c.id === props.clip.id ? { ...c, startBar: newStartBar } : c))
-                )
-            } catch (err) {
-                console.error('Failed to update clip:', err)
-            }
+        const ppt = pixelsPerTick()
+        let startTicks = x / ppt
 
-            setDragOffset(0)
+        // Snap to beat (1/4) for new clips
+        const snap = store.snapInterval || '1/4'
+        startTicks = defaultTimeService.snapTicks(startTicks, snap)
+
+        const start = defaultTimeService.ticksToPosition(startTicks)
+
+        // Default length 1 bar
+        const lengthTicks = PPQ * store.info.timeSignature.numerator
+        const length: MusicalLength = {
+            bars: 1,
+            beats: 0,
+            sixteenths: 0,
+            ticks: 0,
+            totalTicks: lengthTicks,
+            seconds: defaultTimeService.ticksToSeconds(lengthTicks)
         }
 
-        window.addEventListener('mousemove', handleMouseMove)
-        window.addEventListener('mouseup', handleMouseUp)
+        addClip(props.track.id, start, length)
     }
 
     return (
         <div
-            class='absolute top-1 bottom-1 rounded-md flex flex-col justify-center px-2 text-xs font-medium shadow-sm cursor-pointer hover:brightness-110 border overflow-hidden'
-            style={{
-                left: `${(props.clip.startBar - 1) * PIXELS_PER_BAR + dragOffset()}px`,
-                width: `${props.clip.lengthBars * PIXELS_PER_BAR}px`,
-                'background-color': `${content()?.color}80` || '#aec6ff80',
-                'border-color': content()?.color || '#aec6ff',
-                color: '#e3e2e6',
-                'z-index': isDragging() ? 100 : 10,
-                cursor: isDragging() ? 'grabbing' : 'grab'
-            }}
-            title={`${t('clip.title')}: ${content()?.name}`}
-            onMouseDown={handleMouseDown}
+            class='flex-1 h-24 border-b border-outline-variant relative bg-surface-container-lowest min-w-[4000px]'
+            onDblClick={handleDblClick}
         >
-            <span class='truncate'>{content()?.name}</span>
-            <span class='text-[10px] opacity-70 truncate'>Bar {props.clip.startBar}</span>
-        </div>
-    )
-}
-
-const TrackLane: Component<{ trackId: number }> = props => {
-    const trackClips = () => store.clips.filter(c => c.trackId === props.trackId)
-
-    const handleDoubleClick = (e: MouseEvent) => {
-        const barIndex = Math.floor(e.offsetX / PIXELS_PER_BAR) + 1
-        // Snap to 4-bar grid
-        const gridStart = Math.floor((barIndex - 1) / 4) * 4 + 1
-        addClip(props.trackId, gridStart, 'Pattern A', '#aec6ff')
-    }
-
-    return (
-        <div
-            class='flex-1 h-24 border-b border-outline-variant bg-surface-container-lowest relative min-w-[4000px]'
-            onDblClick={handleDoubleClick}
-        >
-            {/* Grid Lines (every 4 bars) */}
+            {/* Grid Lines */}
             <div class='absolute inset-0 pointer-events-none'>
                 <For each={Array.from({ length: 100 })}>
                     {(_, i) => (
                         <div
-                            class='absolute top-0 bottom-0 border-r border-outline-variant/20'
-                            style={{ left: `${(i() + 1) * 4 * PIXELS_PER_BAR}px` }}
-                        ></div>
-                    )}
-                </For>
-                {/* Bar lines (fainter) */}
-                <For each={Array.from({ length: 400 })}>
-                    {(_, i) => (
-                        <div
-                            class='absolute top-0 bottom-0 border-r border-outline-variant/5'
-                            style={{ left: `${(i() + 1) * PIXELS_PER_BAR}px` }}
+                            class='absolute top-0 bottom-0 border-l border-outline-variant/30'
+                            style={{ left: `${i() * PIXELS_PER_BAR}px` }}
                         ></div>
                     )}
                 </For>
             </div>
 
             {/* Clips */}
-            <For each={trackClips()}>{clip => <ClipView clip={clip} />}</For>
+            <For each={store.clips}>
+                {clip => {
+                    if (clip.trackId !== props.track.id) return null
+
+                    const startTicks = defaultTimeService.positionToTicks(clip.start)
+                    const left = startTicks * pixelsPerTick()
+                    const width = clip.length.totalTicks * pixelsPerTick()
+
+                    return (
+                        <GridClip
+                            name={clip.name}
+                            color={clip.color}
+                            width={width}
+                            left={left}
+                            isSelected={store.selectedClipId === clip.id}
+                            onClick={() => selectClip(clip.id)}
+                            onUpdate={(l, w) => handleClipUpdate(clip.id, l, w)}
+                        />
+                    )
+                }}
+            </For>
         </div>
     )
 }
 
 export const TrackEditor: Component = () => {
     let scrollContainer: HTMLDivElement | undefined
-    let rulerContainer: HTMLDivElement | undefined
+    let rulerScroll: HTMLDivElement | undefined
 
     const handleScroll = (e: Event) => {
         const target = e.target as HTMLDivElement
-        if (rulerContainer) {
-            rulerContainer.scrollLeft = target.scrollLeft
+        if (rulerScroll) {
+            rulerScroll.scrollLeft = target.scrollLeft
         }
     }
 
     return (
-        <div class='flex-1 flex flex-col overflow-hidden bg-surface-container-lowest relative'>
-            <Ruler scrollRef={el => (rulerContainer = el)} />
-            <div ref={scrollContainer} onScroll={handleScroll} class='flex-1 overflow-auto'>
-                <div class='flex flex-col min-w-fit pb-20 relative'>
-                    <Playhead />
-                    <For each={store.tracks}>
-                        {track => (
-                            <div class='flex'>
-                                <TrackHeader track={track} />
-                                <TrackLane trackId={track.id} />
+        <div class='flex-1 flex flex-col overflow-hidden bg-surface'>
+            <Ruler scrollRef={el => (rulerScroll = el)} />
+            <div class='flex-1 overflow-y-auto overflow-x-hidden relative'>
+                <Playhead />
+                <div
+                    ref={scrollContainer}
+                    class='absolute inset-0 overflow-auto'
+                    onScroll={handleScroll}
+                >
+                    <div class='min-w-max'>
+                        <For each={store.tracks}>
+                            {track => (
+                                <div class='flex'>
+                                    <TrackHeader track={track} />
+                                    <TrackLane track={track} />
+                                </div>
+                            )}
+                        </For>
+                        {/* Add Track Button Area */}
+                        <div class='flex'>
+                            <div class='w-[200px] shrink-0 p-2 border-r border-outline-variant'>
+                                <Button
+                                    variant='text'
+                                    class='w-full justify-start'
+                                    onClick={() => {
+                                        addTrack()
+                                    }}
+                                >
+                                    + {t('tracks.add')}
+                                </Button>
                             </div>
-                        )}
-                    </For>
-
-                    <div class='p-4'>
-                        <Button variant='tonal' onClick={addTrack}>
-                            {t('tracks.addTrack')}
-                        </Button>
+                            <div class='flex-1 border-b border-outline-variant bg-surface-container-lowest'></div>
+                        </div>
                     </div>
                 </div>
             </div>

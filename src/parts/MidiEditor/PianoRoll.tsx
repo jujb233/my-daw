@@ -1,88 +1,119 @@
 import { Component, createSignal, For, Show } from 'solid-js'
-import { invoke } from '@tauri-apps/api/core'
-import { Ruler } from './Ruler'
-import { store, setStore, updateClipNotes } from '../../store'
+import { store, updateClip } from '../../store'
 import { IconButton } from '../../UI/lib/IconButton'
-import { Note } from '../../store/types'
+import { PianoRollNote } from './PianoRollNote'
+import { defaultTimeService, PPQ } from '../../services/time'
+import { Note, MusicalLength } from '../../store/model'
 
 interface PianoRollProps {
-    clipId: number
+    clipId: string
 }
 
 export const PianoRoll: Component<PianoRollProps> = props => {
-    const [zoom, setZoom] = createSignal(100) // pixels per beat (quarter note)
+    const [zoom, setZoom] = createSignal(100) // pixels per beat
     let keysContainer: HTMLDivElement | undefined
     let gridContainer: HTMLDivElement | undefined
 
-    // Derived state from store
-    const clipData = () => {
-        const instance = store.clips.find(c => c.id === props.clipId)
-        if (!instance) return null
-        const content = store.clipLibrary[instance.clipContentId]
-        if (!content) return null
+    const clip = () => store.clips.find(c => c.id === props.clipId)
 
-        const bpm = store.info.bpm
-        const timeSig = store.info.timeSignature[0]
+    const pixelsPerTick = () => zoom() / PPQ
+    const NOTE_HEIGHT = 20
+    const KEYS = Array.from({ length: 128 }, (_, i) => 127 - i)
 
-        return {
-            instance,
-            content,
-            startBeats: (instance.startBar - 1) * timeSig,
-            durationBeats: instance.lengthBars * timeSig,
-            bpm
+    const handleNoteUpdate = (
+        noteId: string,
+        newStartPx: number,
+        newWidthPx: number,
+        newNoteVal?: number
+    ) => {
+        const c = clip()
+        if (!c) return
+
+        const ppt = pixelsPerTick()
+        let startTicks = newStartPx / ppt
+        let durationTicks = newWidthPx / ppt
+
+        // Snap
+        const snap = store.snapInterval || '1/16'
+        startTicks = defaultTimeService.snapTicks(startTicks, snap)
+        durationTicks = defaultTimeService.snapTicks(durationTicks, snap)
+
+        startTicks = Math.max(0, startTicks)
+        durationTicks = Math.max(PPQ / 16, durationTicks)
+
+        const newStart = defaultTimeService.ticksToPosition(startTicks)
+        const newDuration: MusicalLength = {
+            bars: 0,
+            beats: 0,
+            sixteenths: 0,
+            ticks: 0,
+            totalTicks: durationTicks,
+            seconds: defaultTimeService.ticksToSeconds(durationTicks)
         }
+
+        const updatedNotes = c.notes.map(n => {
+            if (n.id === noteId) {
+                return {
+                    ...n,
+                    start: newStart,
+                    duration: newDuration,
+                    note: newNoteVal !== undefined ? newNoteVal : n.note
+                }
+            }
+            return n
+        })
+
+        updateClip(c.id, { notes: updatedNotes })
     }
 
-    const addNote = async (beat: number, pitch: number) => {
-        const data = clipData()
-        if (!data) return
+    const handleGridClick = (e: MouseEvent) => {
+        if (e.button !== 0) return
+        const c = clip()
+        if (!c) return
 
-        // Constraint: Cannot add note outside clip duration
-        if (beat < 0 || beat > data.durationBeats) return
+        const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect()
+        const x = e.clientX - rect.left
+        const y = e.clientY - rect.top + (gridContainer?.scrollTop || 0)
+
+        const ppt = pixelsPerTick()
+        let tick = x / ppt
+        const snap = store.snapInterval || '1/16'
+        tick = defaultTimeService.snapTicks(tick, snap)
+
+        const noteIndex = Math.floor(y / NOTE_HEIGHT)
+        const pitch = 127 - noteIndex
+
+        if (pitch < 0 || pitch > 127) return
 
         const newNote: Note = {
-            relative_start: beat,
-            duration: Math.min(1.0, data.durationBeats - beat), // Default 1 beat or remainder
+            id: Math.random().toString(36).substr(2, 9),
             note: pitch,
+            start: defaultTimeService.ticksToPosition(tick),
+            duration: {
+                bars: 0,
+                beats: 0,
+                sixteenths: 0,
+                ticks: 0,
+                totalTicks: PPQ, // 1 beat default
+                seconds: defaultTimeService.ticksToSeconds(PPQ)
+            },
             velocity: 0.8
         }
 
-        const updatedNotes = [...data.content.notes, newNote]
-
-        // Update store (which updates UI immediately)
-        setStore('clipLibrary', data.instance.clipContentId, 'notes', updatedNotes)
-
-        try {
-            await updateClipNotes(data.instance.clipContentId, updatedNotes)
-        } catch (e) {
-            console.error('Failed to update clip notes:', e)
-        }
+        updateClip(c.id, { notes: [...c.notes, newNote] })
     }
 
-    const removeNote = async (index: number) => {
-        const data = clipData()
-        if (!data) return
-
-        const updatedNotes = data.content.notes.filter((_, i) => i !== index)
-        setStore('clipLibrary', data.instance.clipContentId, 'notes', updatedNotes)
-
-        try {
-            await updateClipNotes(data.instance.clipContentId, updatedNotes)
-        } catch (e) {
-            console.error('Failed to update clip notes:', e)
-        }
+    const removeNote = (noteId: string) => {
+        const c = clip()
+        if (!c) return
+        updateClip(c.id, { notes: c.notes.filter(n => n.id !== noteId) })
     }
 
-    // Sync scroll
     const handleScroll = () => {
         if (keysContainer && gridContainer) {
             keysContainer.scrollTop = gridContainer.scrollTop
         }
     }
-
-    // Grid rendering helpers
-    const NOTE_HEIGHT = 20
-    const KEYS = Array.from({ length: 128 }, (_, i) => 127 - i) // Top to bottom
 
     return (
         <div class='flex h-full w-full bg-surface-container-low overflow-hidden relative'>
@@ -93,37 +124,21 @@ export const PianoRoll: Component<PianoRollProps> = props => {
                     variant='standard'
                     class='w-8 h-8'
                 >
-                    <svg
-                        xmlns='http://www.w3.org/2000/svg'
-                        height='20'
-                        viewBox='0 -960 960 960'
-                        width='20'
-                        fill='currentColor'
-                    >
-                        <path d='M200-440v-80h560v80H200Z' />
-                    </svg>
+                    -
                 </IconButton>
                 <IconButton
-                    onClick={() => setZoom(z => Math.min(500, z * 1.25))}
+                    onClick={() => setZoom(z => Math.min(500, z * 1.2))}
                     variant='standard'
                     class='w-8 h-8'
                 >
-                    <svg
-                        xmlns='http://www.w3.org/2000/svg'
-                        height='20'
-                        viewBox='0 -960 960 960'
-                        width='20'
-                        fill='currentColor'
-                    >
-                        <path d='M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z' />
-                    </svg>
+                    +
                 </IconButton>
             </div>
 
-            {/* Piano Keys (Left) */}
+            {/* Keys (Left) */}
             <div
-                ref={keysContainer}
-                class='w-16 flex-shrink-0 overflow-hidden border-r border-outline-variant bg-surface mt-8' // mt-8 to offset ruler
+                ref={el => (keysContainer = el)}
+                class='w-16 shrink-0 border-r border-outline-variant overflow-hidden bg-white'
             >
                 <div class='relative' style={{ height: `${KEYS.length * NOTE_HEIGHT}px` }}>
                     <For each={KEYS}>
@@ -131,9 +146,13 @@ export const PianoRoll: Component<PianoRollProps> = props => {
                             const isBlack = [1, 3, 6, 8, 10].includes(note % 12)
                             return (
                                 <div
-                                    class={`h-[20px] border-b border-outline-variant text-[10px] flex items-center justify-end pr-1 ${isBlack ? 'bg-surface-container-high text-on-surface-variant' : 'bg-surface text-on-surface'}`}
+                                    class={`absolute left-0 right-0 border-b border-outline-variant/50 flex items-center justify-end pr-1 text-[10px] ${isBlack ? 'bg-black text-white' : 'bg-white text-black'}`}
+                                    style={{
+                                        top: `${(127 - note) * NOTE_HEIGHT}px`,
+                                        height: `${NOTE_HEIGHT}px`
+                                    }}
                                 >
-                                    {note % 12 === 0 ? `C${note / 12 - 1}` : ''}
+                                    {note % 12 === 0 ? `C${Math.floor(note / 12) - 1}` : ''}
                                 </div>
                             )
                         }}
@@ -141,99 +160,69 @@ export const PianoRoll: Component<PianoRollProps> = props => {
                 </div>
             </div>
 
-            {/* Grid Area */}
+            {/* Grid (Right) */}
             <div
-                ref={gridContainer}
-                class='flex-1 overflow-auto relative bg-surface-container-lowest'
+                ref={el => (gridContainer = el)}
+                class='flex-1 overflow-auto relative bg-surface-container-lowest cursor-crosshair'
                 onScroll={handleScroll}
+                onMouseDown={handleGridClick}
             >
-                {/* Ruler (Sticky) */}
-                <div class='sticky top-0 z-20 bg-surface-container-high'>
-                    <Ruler
-                        zoom={zoom()}
-                        length={clipData()?.durationBeats || 10}
-                        height={32}
-                        onClick={beat => {
-                            const data = clipData()
-                            if (data) {
-                                const globalBeats = data.startBeats + beat
-                                const globalTime = globalBeats * (60 / data.bpm)
-                                invoke('seek', { position: globalTime })
-                                setStore('playback', 'startTime', globalTime)
-                            }
-                        }}
-                    />
-                </div>
-
                 <div
-                    class='relative min-w-full'
+                    class='relative'
                     style={{
                         height: `${KEYS.length * NOTE_HEIGHT}px`,
-                        width: clipData() ? `${clipData()!.durationBeats * zoom()}px` : '100%'
-                    }}
-                    onClick={e => {
-                        // Adjust click coordinates for ruler height
-                        const rect = e.currentTarget.getBoundingClientRect()
-                        const x = e.clientX - rect.left
-                        const y = e.clientY - rect.top // This is relative to the grid container content
-
-                        const time = x / zoom()
-                        const noteIndex = Math.floor(y / NOTE_HEIGHT)
-                        const pitch = 127 - noteIndex
-
-                        addNote(time, pitch)
+                        width: `${(clip()?.length.totalTicks || 0) * pixelsPerTick() + 1000}px` // Extra space
                     }}
                 >
                     {/* Grid Lines */}
-                    <div
-                        class='absolute inset-0 pointer-events-none opacity-10'
-                        style={{
-                            'background-image': `linear-gradient(to right, #888 1px, transparent 1px), linear-gradient(to bottom, #888 1px, transparent 1px)`,
-                            'background-size': `${zoom()}px ${NOTE_HEIGHT}px`
-                        }}
-                    />
+                    <div class='absolute inset-0 pointer-events-none'>
+                        {/* Vertical lines for beats */}
+                        <For each={Array.from({ length: 100 })}>
+                            {(_, i) => (
+                                <div
+                                    class='absolute top-0 bottom-0 border-l border-outline-variant/20'
+                                    style={{ left: `${i() * PPQ * pixelsPerTick()}px` }}
+                                ></div>
+                            )}
+                        </For>
+                        {/* Horizontal lines for notes */}
+                        <For each={KEYS}>
+                            {note => (
+                                <div
+                                    class='absolute left-0 right-0 border-b border-outline-variant/10'
+                                    style={{
+                                        top: `${(127 - note) * NOTE_HEIGHT}px`,
+                                        height: `${NOTE_HEIGHT}px`
+                                    }}
+                                ></div>
+                            )}
+                        </For>
+                    </div>
+
                     {/* Notes */}
-                    <For each={clipData()?.content.notes}>
-                        {(note, i) => (
-                            <div
-                                class='absolute bg-primary rounded-sm border border-primary-container cursor-pointer hover:brightness-110'
-                                style={{
-                                    left: `${note.relative_start * zoom()}px`,
-                                    top: `${(127 - note.note) * NOTE_HEIGHT}px`,
-                                    width: `${note.duration * zoom()}px`,
-                                    height: `${NOTE_HEIGHT - 1}px`
-                                }}
-                                onClick={e => {
-                                    e.stopPropagation()
-                                    removeNote(i())
-                                }}
-                            />
-                        )}
-                    </For>{' '}
-                    {/* Playhead - Only visible if within clip range */}
-                    <Show
-                        when={(() => {
-                            const data = clipData()
-                            if (!data || store.playback.startTime === null) return false
-                            const currentBeats = store.playback.startTime * (data.bpm / 60)
-                            const localBeats = currentBeats - data.startBeats
-                            return localBeats >= 0 && localBeats <= data.durationBeats
-                        })()}
-                    >
-                        <div
-                            class='absolute top-0 bottom-0 w-0.5 bg-tertiary z-10 pointer-events-none'
-                            style={{
-                                left: `${(() => {
-                                    const data = clipData()
-                                    if (!data) return 0
-                                    const currentBeats =
-                                        (store.playback.startTime || 0) * (data.bpm / 60)
-                                    return (currentBeats - data.startBeats) * zoom()
-                                })()}px`
+                    <Show when={clip()}>
+                        <For each={clip()!.notes}>
+                            {note => {
+                                const startPx =
+                                    defaultTimeService.positionToTicks(note.start) * pixelsPerTick()
+                                const widthPx = note.duration.totalTicks * pixelsPerTick()
+                                const topPx = (127 - note.note) * NOTE_HEIGHT
+
+                                return (
+                                    <div style={{ position: 'absolute', top: `${topPx}px` }}>
+                                        <PianoRollNote
+                                            note={note.note}
+                                            startPx={startPx}
+                                            widthPx={widthPx}
+                                            heightPx={NOTE_HEIGHT}
+                                            velocity={note.velocity}
+                                            onUpdate={(s, w) => handleNoteUpdate(note.id, s, w)}
+                                            onRemove={() => removeNote(note.id)}
+                                        />
+                                    </div>
+                                )
                             }}
-                        >
-                            <div class='w-3 h-3 -ml-1.5 bg-tertiary transform rotate-45 -mt-1.5'></div>
-                        </div>
+                        </For>
                     </Show>
                 </div>
             </div>

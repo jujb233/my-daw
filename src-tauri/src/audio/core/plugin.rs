@@ -26,7 +26,6 @@ pub enum PluginEvent {
         position: Option<f64>,
         tempo: Option<f64>,
     },
-    UpdateClip(crate::audio::core::clip::Clip),
     #[allow(dead_code)]
     Custom(String),
 }

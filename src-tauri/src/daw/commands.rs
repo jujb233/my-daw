@@ -73,6 +73,15 @@ pub fn get_mixer_tracks(state: State<'_, AppState>) -> Result<Vec<MixerTrackData
 }
 
 #[tauri::command]
+pub fn get_active_plugins(state: State<'_, AppState>) -> Result<Vec<PluginInstanceData>, String> {
+    let plugins = state
+        .active_plugins
+        .lock()
+        .map_err(|_| "Failed to lock plugins")?;
+    Ok(plugins.clone())
+}
+
+#[tauri::command]
 pub fn add_plugin_instance(state: State<'_, AppState>, name: String) -> Result<(), String> {
     {
         let mut plugins = state
@@ -81,6 +90,7 @@ pub fn add_plugin_instance(state: State<'_, AppState>, name: String) -> Result<(
             .map_err(|_| "Failed to lock plugins list")?;
 
         plugins.push(PluginInstanceData {
+            id: Uuid::new_v4().to_string(),
             name,
             label: "New Instrument".to_string(),
             routing_track_index: 0,

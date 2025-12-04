@@ -11,7 +11,7 @@ pub struct Note {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Clip {
-    pub id: usize,
+    pub id: String,
     pub name: String,
     pub start_time: f64, // In seconds
     pub duration: f64,

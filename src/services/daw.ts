@@ -1,53 +1,37 @@
 import { invoke } from '@tauri-apps/api/core'
-import { Note } from '../store/types'
-
-export interface BackendClip {
-    id: number
-    name: string
-    start_time: number
-    duration: number
-    instrument_ids: number[]
-    instrument_routes: Record<number, number[]>
-    notes: Note[]
-}
+import { Clip, Position, MusicalLength } from '../store/model'
 
 export const DawService = {
     async addClip(
+        trackId: number,
         name: string,
-        startTime: number,
-        duration: number,
-        instrumentIds: number[] = []
-    ): Promise<number> {
+        start: Position,
+        length: MusicalLength
+    ): Promise<string> {
         return await invoke('add_clip', {
+            trackId,
             name,
-            startTime,
-            duration,
-            instrumentIds,
-            instrumentRoutes: null
+            start,
+            length
         })
     },
 
-    async updateClip(id: number, updates: Partial<BackendClip>): Promise<void> {
-        // Convert camelCase to snake_case for backend if needed, but tauri usually handles it.
-        // However, our backend expects specific Option fields.
-        // Let's map explicitly to be safe and clean.
-        const args: any = { id }
-        if (updates.name !== undefined) args.name = updates.name
-        if (updates.start_time !== undefined) args.startTime = updates.start_time
-        if (updates.duration !== undefined) args.duration = updates.duration
-        if (updates.instrument_ids !== undefined) args.instrumentIds = updates.instrument_ids
-        if (updates.instrument_routes !== undefined)
-            args.instrumentRoutes = updates.instrument_routes
-        if (updates.notes !== undefined) args.notes = updates.notes
-
-        await invoke('update_clip', args)
+    async updateClip(id: string, updates: Partial<Clip>): Promise<void> {
+        await invoke('update_clip', {
+            id,
+            name: updates.name,
+            start: updates.start,
+            length: updates.length,
+            notes: updates.notes,
+            instrumentId: updates.instrumentId
+        })
     },
 
-    async getClip(id: number): Promise<BackendClip> {
+    async getClip(id: string): Promise<Clip> {
         return await invoke('get_clip', { id })
     },
 
-    async removeClip(id: number): Promise<void> {
+    async removeClip(id: string): Promise<void> {
         await invoke('remove_clip', { id })
     },
 
@@ -59,15 +43,19 @@ export const DawService = {
         await invoke('pause')
     },
 
-    async stop(): Promise<void> {
-        await invoke('stop')
-    },
-
-    async seek(position: number): Promise<void> {
-        await invoke('seek', { position })
-    },
-
     async getPlaybackState(): Promise<[boolean, number]> {
         return await invoke('get_playback_state')
+    },
+
+    async addTrack(): Promise<void> {
+        await invoke('add_mixer_track')
+    },
+
+    async removeTrack(index: number): Promise<void> {
+        await invoke('remove_mixer_track', { index })
+    },
+
+    async getActivePlugins(): Promise<any[]> {
+        return await invoke('get_active_plugins')
     }
 }

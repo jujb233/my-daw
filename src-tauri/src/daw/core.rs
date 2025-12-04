@@ -43,7 +43,21 @@ pub fn create_audio_graph(state: &State<'_, AppState>) -> Result<Box<dyn Plugin>
     let clips = state.clips.lock().map_err(|_| "Failed to lock clips")?;
     let sequencer = mixer.get_sequencer_mut();
     for clip in clips.iter() {
-        sequencer.add_clip(clip.clone());
+        let audio_clip = crate::audio::core::clip::Clip {
+            id: clip.id.clone(),
+            name: clip.name.clone(),
+            start_time: clip.start.time,
+            duration: clip.length.seconds,
+            instrument_ids: vec![clip.track_id],
+            instrument_routes: std::collections::HashMap::new(),
+            notes: clip.notes.iter().map(|n| crate::audio::core::clip::Note {
+                relative_start: n.start.time,
+                duration: n.duration.seconds,
+                note: n.note,
+                velocity: n.velocity,
+            }).collect(),
+        };
+        sequencer.add_clip(audio_clip);
     }
 
     Ok(Box::new(mixer))

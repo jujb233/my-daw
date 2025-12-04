@@ -54,14 +54,6 @@ impl Sequencer {
         self.clips.push(clip);
     }
 
-    pub fn update_clip(&mut self, clip: Clip) {
-        if let Some(c) = self.clips.iter_mut().find(|c| c.id == clip.id) {
-            *c = clip;
-        } else {
-            self.clips.push(clip);
-        }
-    }
-
     // Returns:
     // 1. Events for Instruments: HashMap<InstrumentID, Vec<PluginEvent>>
     // 2. Routing for this block: HashMap<InstrumentID, Vec<TrackID>>
