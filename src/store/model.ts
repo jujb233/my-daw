@@ -40,7 +40,8 @@ export interface Clip {
     start: Position;
     length: MusicalLength;
     notes: Note[];
-    instrumentId?: string; // ID of the instrument (plugin instance) this clip plays
+    instrumentIds: string[];
+    instrumentRoutes: Record<string, number>; // InstrumentID -> TrackID
     isSelected?: boolean;
 }
 

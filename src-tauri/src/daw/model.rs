@@ -14,7 +14,7 @@ pub struct Position {
     pub beat: u32,
     pub sixteenth: u32,
     pub tick: u32,
-    pub time: f64, // Seconds
+    pub time: f64, // 以秒为单位
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -25,7 +25,7 @@ pub struct MusicalLength {
     pub sixteenths: u32,
     pub ticks: u32,
     pub total_ticks: u64,
-    pub seconds: f64,
+    pub seconds: f64, // 以秒为单位
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -38,6 +38,8 @@ pub struct Note {
     pub velocity: f32,
 }
 
+use std::collections::HashMap;
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Clip {
@@ -48,5 +50,6 @@ pub struct Clip {
     pub start: Position,
     pub length: MusicalLength,
     pub notes: Vec<Note>,
-    pub instrument_id: Option<String>,
+    pub instrument_ids: Vec<String>,
+    pub instrument_routes: HashMap<String, usize>,
 }

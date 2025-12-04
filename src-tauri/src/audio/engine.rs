@@ -40,7 +40,7 @@ impl AudioEngine {
             cpal::SampleFormat::F32 => device.build_output_stream(
                 &config,
                 move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
-                    // Collect events from the queue
+                    // 从队列中收集事件
                     let mut events = Vec::new();
                     while let Ok(event) = rx.try_recv() {
                         events.push(event);
@@ -55,7 +55,7 @@ impl AudioEngine {
                     let mut output_events = Vec::new();
                     plugin.process(&mut buffer, &events, &mut output_events);
 
-                    // TODO: Handle output events (e.g. send back to main thread)
+                    // TODO: 处理输出事件（例如：发送回主线程）
                 },
                 err_fn,
                 None,

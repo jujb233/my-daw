@@ -37,7 +37,7 @@ fn import_plugin(
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // Initialize with 5 default tracks
+    // 使用 5 个默认轨道初始化
     let mut tracks = Vec::new();
     for i in 0..5 {
         tracks.push(MixerTrackData {
@@ -51,7 +51,7 @@ pub fn run() {
         });
     }
 
-    // Initialize with a default SimpleSynth
+    // 使用默认的 SimpleSynth 初始化
     let mut plugins = Vec::new();
     plugins.push(PluginInstanceData {
         id: Uuid::new_v4().to_string(),
@@ -85,6 +85,7 @@ pub fn run() {
             get_active_plugins,
             add_clip,
             update_clip,
+            copy_clip,
             get_clip,
             remove_clip,
             play,

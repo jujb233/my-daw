@@ -37,7 +37,7 @@ pub fn add_mixer_track(state: State<'_, AppState>) -> Result<(), String> {
             pan: 0.0,
             mute: false,
             solo: false,
-            meter_id: Some(Uuid::new_v4()), // Generate ID here
+            meter_id: Some(Uuid::new_v4()), // 在这里生成 ID
         });
     }
     rebuild_engine(&state)?;
@@ -53,7 +53,7 @@ pub fn remove_mixer_track(state: State<'_, AppState>, index: usize) -> Result<()
             .map_err(|_| "Failed to lock tracks")?;
         if index < tracks.len() {
             tracks.remove(index);
-            // Re-index
+            // 重新索引
             for (i, track) in tracks.iter_mut().enumerate() {
                 track.id = i;
             }
@@ -95,7 +95,7 @@ pub fn add_plugin_instance(state: State<'_, AppState>, name: String) -> Result<(
             label: "New Instrument".to_string(),
             routing_track_index: 0,
         });
-    } // Unlock plugins
+    } // 解锁插件
 
     rebuild_engine(&state)?;
 
@@ -113,7 +113,7 @@ pub fn remove_plugin_instance(state: State<'_, AppState>, index: usize) -> Resul
         if index < plugins.len() {
             plugins.remove(index);
         }
-    } // Unlock plugins
+    } // 解锁插件
 
     rebuild_engine(&state)?;
 
@@ -152,8 +152,8 @@ pub fn toggle_audio(state: State<'_, AppState>) -> Result<bool, String> {
 
         engine.start(root).map_err(|e| e.to_string())?;
 
-        // Send a test note immediately to ALL synths?
-        // Currently we broadcast MIDI.
+        // 立即向所有合成器发送测试音符？
+        // 目前我们使用广播 MIDI 的方式。
         engine.send_event(PluginEvent::Midi(NoteEvent::NoteOn {
             note: 69,
             velocity: 1.0,
@@ -169,7 +169,7 @@ pub fn update_parameter(
     param_id: u32,
     value: f32,
 ) -> Result<(), String> {
-    // println!("Command: update_parameter {} {}", param_id, value); // Too noisy?
+    // println!("Command: update_parameter {} {}", param_id, value); // 太嘈杂？
     let engine = state
         .audio_engine
         .lock()
@@ -212,7 +212,7 @@ pub fn play(state: State<'_, AppState>) -> Result<(), String> {
         .map_err(|_| "Failed to lock audio engine")?;
 
     if !engine.is_running() {
-        // Start the engine
+        // 启动引擎
         let root = create_audio_graph(&state)?;
 
         engine.start(root).map_err(|e| e.to_string())?;
@@ -267,7 +267,7 @@ pub fn seek(state: State<'_, AppState>, position: f64) -> Result<(), String> {
         .map_err(|_| "Failed to lock audio engine")?;
 
     if engine.is_running() {
-        // We preserve the playing state
+        // 我们保留播放状态
         let playing = get_is_playing();
         engine.send_event(PluginEvent::Transport {
             playing,

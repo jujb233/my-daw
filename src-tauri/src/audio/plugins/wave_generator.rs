@@ -86,12 +86,12 @@ impl Plugin for WaveGenerator {
         events: &[PluginEvent],
         _output_events: &mut Vec<PluginEvent>,
     ) {
-        // Handle events first
+        // 先处理事件
         for event in events {
             if let PluginEvent::Midi(midi) = event {
                 match midi {
                     NoteEvent::NoteOn { note, .. } => {
-                        // Simple MIDI to Hz conversion: 440 * 2^((note - 69) / 12)
+                        // 简单的 MIDI -> 频率 转换：440 * 2^((note - 69) / 12)
                         self.frequency = 440.0 * 2.0f32.powf((*note as f32 - 69.0) / 12.0);
                         self.active = true;
                     }
@@ -107,7 +107,7 @@ impl Plugin for WaveGenerator {
         }
 
         if !self.active {
-            // Silence
+            // 静音
             buffer.samples.fill(0.0);
             return;
         }

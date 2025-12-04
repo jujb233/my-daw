@@ -23,7 +23,16 @@ export const DawService = {
             start: updates.start,
             length: updates.length,
             notes: updates.notes,
-            instrumentId: updates.instrumentId
+            instrument_ids: updates.instrumentIds,
+            instrument_routes: updates.instrumentRoutes
+        })
+    },
+
+    async copyClip(originalId: string, newTrackId: number, newStart: Position): Promise<string> {
+        return await invoke('copy_clip', {
+            originalId,
+            newTrackId,
+            newStart
         })
     },
 

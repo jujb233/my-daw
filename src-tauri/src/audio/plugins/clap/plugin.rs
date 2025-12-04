@@ -10,7 +10,7 @@ use std::ffi::{CStr, CString};
 use std::ptr;
 use std::sync::Arc;
 
-// Minimal Host Implementation
+// CLAP 主机（Host）的最小实现
 unsafe extern "C" fn host_get_extension(
     _host: *const clap_host,
     _extension_id: *const std::os::raw::c_char,
@@ -36,7 +36,7 @@ static HOST: clap_host = clap_host {
 };
 
 pub struct ClapPlugin {
-    _library: Arc<Library>, // Keep library loaded
+    _library: Arc<Library>, // 保持库加载（防止被卸载）
     plugin: *const clap_plugin,
     info: PluginInfo,
     #[allow(dead_code)]
@@ -83,7 +83,7 @@ impl ClapPlugin {
             return Err("No plugins found in library".to_string());
         }
 
-        // Just take the first plugin for now
+        // 目前只取第一个插件
         let get_plugin_descriptor = (*factory)
             .get_plugin_descriptor
             .ok_or("No get_plugin_descriptor")?;
@@ -106,8 +106,8 @@ impl ClapPlugin {
         }
 
         let activate = (*plugin).activate.ok_or("No activate")?;
-        // Activate with sample rate and block size
-        // TODO: Get real sample rate
+        // 使用采样率和块大小进行激活
+        // TODO: 获取真实的采样率
         if !activate(plugin, 44100.0, 32, 4096) {
             return Err("Failed to activate plugin".to_string());
         }
@@ -120,7 +120,7 @@ impl ClapPlugin {
             .into_owned();
         let unique_id = CStr::from_ptr(plugin_id).to_string_lossy().into_owned();
 
-        // TODO: Scan parameters
+        // TODO: 扫描参数
         let params = Vec::new();
 
         Ok(Self {
@@ -136,7 +136,7 @@ impl ClapPlugin {
             io_config: IOConfig {
                 inputs: 0,
                 outputs: 2,
-            }, // Assume stereo out for now
+            }, // 目前假设为立体声输出
             params,
         })
     }
@@ -177,29 +177,29 @@ impl Plugin for ClapPlugin {
         unsafe {
             let process_fn = (*self.plugin).process.unwrap();
 
-            // Prepare Audio Buffers
-            // CLAP expects an array of pointers to f32 arrays (for non-interleaved)
-            // Our AudioBuffer is interleaved or non-interleaved?
-            // `AudioBuffer` struct has `samples: &mut [f32]`. This is usually interleaved in our simple engine.
-            // But CLAP usually wants non-interleaved.
-            // If our engine is interleaved, we need to de-interleave.
-            // For now, let's assume we only support 1 channel or we hack it.
-            // Wait, `AudioBuffer` in `plugin.rs` has `channels`.
+            // 准备音频缓冲区
+            // CLAP 期望接收指向 f32 数组的指针数组（用于非交错/非 interleaved）
+            // 我们的 AudioBuffer 是交错还是非交错？
+            // `AudioBuffer` 结构的 `samples: &mut [f32]`，在我们的简单引擎中通常是交错的。
+            // 但 CLAP 通常要求非交错格式。
+            // 如果我们的引擎是交错的，我们需要进行去交错处理（de-interleave）。
+            // 暂时假设仅支持单声道或采用一些 hack 处理。
+            // 注意，`plugin.rs` 中的 `AudioBuffer` 有 `channels` 字段。
 
-            // We need scratch buffers for de-interleaving if we are interleaved.
-            // Let's assume for a moment we are just passing pointers.
-            // But we can't easily de-interleave in the audio thread without allocation if we didn't prepare.
+            // 如果是交错格式，我们需要用于去交错的临时缓冲区。
+            // 暂时先假设我们只是传递指针。
+            // 但如果没有提前准备，在音频线程中实现去交错（且不分配）并不容易。
 
-            // For this prototype, let's assume Stereo and we de-interleave into stack arrays if small enough,
-            // or just process silence if we can't.
+            // 对于原型，假设为立体声并在足够小时将其去交错到栈数组，
+            // 否则如果无法处理则直接输出静音。
 
-            // Actually, let's just implement a dummy process for now to prove it loads.
-            // Real audio processing requires buffer management.
+            // 实际上，这里先实现一个占位（dummy）处理以证明插件能加载运行。
+            // 真正的音频处理需要更复杂的缓冲区管理。
 
             let mut out_l = vec![0.0f32; buffer.samples.len() / 2];
             let mut out_r = vec![0.0f32; buffer.samples.len() / 2];
 
-            // De-interleave input (if any) - skipping for now (synth)
+            // 去交错输入（如果有）- 暂时跳过（合成器）
 
             let mut out_ptrs = [out_l.as_mut_ptr(), out_r.as_mut_ptr()];
 
@@ -215,17 +215,17 @@ impl Plugin for ClapPlugin {
                 steady_time: -1,
                 frames_count: (buffer.samples.len() / 2) as u32,
                 transport: ptr::null(),
-                audio_inputs: ptr::null_mut(), // No inputs
+                audio_inputs: ptr::null_mut(), // 无输入
                 audio_outputs: &mut audio_out,
                 audio_inputs_count: 0,
                 audio_outputs_count: 1,
-                in_events: ptr::null(), // TODO: Events
+                in_events: ptr::null(), // TODO: 事件
                 out_events: ptr::null(),
             };
 
             process_fn(self.plugin, &process_data);
 
-            // Interleave back
+            // 重新交错回去
             for i in 0..out_l.len() {
                 if i * 2 + 1 < buffer.samples.len() {
                     buffer.samples[i * 2] = out_l[i];

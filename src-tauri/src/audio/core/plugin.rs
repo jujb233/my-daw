@@ -38,8 +38,8 @@ pub struct AudioBuffer<'a> {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IOConfig {
-    pub inputs: usize,  // Number of input channels
-    pub outputs: usize, // Number of output channels
+    pub inputs: usize,  // 输入通道数量
+    pub outputs: usize, // 输出通道数量
 }
 
 impl Default for IOConfig {
@@ -83,7 +83,7 @@ pub struct PluginInfo {
     pub vendor: String,
     pub url: String,
     pub plugin_type: PluginType,
-    pub unique_id: String, // Added for identification
+    pub unique_id: String, // 用于标识
 }
 
 pub trait Plugin: Send + Sync {
@@ -97,10 +97,10 @@ pub trait Plugin: Send + Sync {
         IOConfig::default()
     }
 
-    /// Process audio block.
-    /// `buffer` contains the audio data to be processed (in-place).
-    /// `events` contains MIDI or parameter events for this block.
-    /// `output_events` is a buffer to push outgoing events to.
+    /// 处理音频块。
+    /// `buffer` 包含需要处理的音频数据（就地处理）。
+    /// `events` 包含该块的 MIDI 或参数事件。
+    /// `output_events` 是用于推送输出事件的缓冲区。
     fn process(
         &mut self,
         buffer: &mut AudioBuffer,
@@ -108,7 +108,7 @@ pub trait Plugin: Send + Sync {
         output_events: &mut Vec<PluginEvent>,
     );
 
-    // Parameter handling
+    // 参数处理
     #[allow(dead_code)]
     fn get_param(&self, id: u32) -> f32;
     fn set_param(&mut self, id: u32, value: f32);

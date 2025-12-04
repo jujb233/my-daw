@@ -72,10 +72,10 @@ impl Plugin for FunctionalPlugin {
     }
 
     fn get_param(&self, _id: u32) -> f32 {
-        0.0 // TODO: Store param state
+        0.0 // TODO: 存储参数状态
     }
 
     fn set_param(&mut self, _id: u32, _value: f32) {
-        // TODO: Store param state
+        // TODO: 存储参数状态
     }
 }

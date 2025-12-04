@@ -12,13 +12,13 @@ pub fn create_simple_synth() -> Box<dyn Plugin> {
     let wave_idx = container.add_plugin(Box::new(wave));
     let gain_idx = container.add_plugin(Box::new(gain));
 
-    // Map Container Param 0 -> GainFader Param 0 (Gain)
+    // 将容器参数 0 映射到 GainFader 参数 0（增益）
     container.map_param(0, gain_idx, 0);
 
-    // Map Container Param 1 -> WaveGenerator Param 1 (Waveform)
+    // 将容器参数 1 映射到 WaveGenerator 参数 1（波形）
     container.map_param(1, wave_idx, 1);
 
-    container.set_io_config(0, 2); // 0 Inputs, 2 Outputs
+    container.set_io_config(0, 2); // 0 个输入，2 个输出
 
     Box::new(container)
 }

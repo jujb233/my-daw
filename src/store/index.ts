@@ -24,9 +24,9 @@ const DEFAULT_PROJECT: AppStore = {
         timeSignature: { numerator: 4, denominator: 4 }
     },
     tracks: [
-        { id: 0, name: 'Grand Piano', color: '#aec6ff', muted: false, soloed: false },
-        { id: 1, name: 'Drums', color: '#ffb4ab', muted: false, soloed: false },
-        { id: 2, name: 'Bass', color: '#bfc6dc', muted: false, soloed: false }
+        { id: 0, name: 'Track 1', color: '#aec6ff', muted: false, soloed: false },
+        { id: 1, name: 'Track 2', color: '#ffb4ab', muted: false, soloed: false },
+        { id: 2, name: 'Track 3', color: '#bfc6dc', muted: false, soloed: false }
     ],
     clips: [],
     instruments: [],
@@ -150,7 +150,12 @@ export const addTrack = async () => {
 
 export const addClip = async (trackId: number, start: Position, length: MusicalLength) => {
     try {
-        const name = 'New Clip'
+        // Auto-name: Clip 1, Clip 2...
+        const existingNames = new Set(store.clips.map(c => c.name));
+        let i = 1;
+        while (existingNames.has(`Clip ${i}`)) i++;
+        const name = `Clip ${i}`;
+
         const id = await DawService.addClip(trackId, name, start, length)
         
         const newClip: Clip = {
@@ -160,7 +165,9 @@ export const addClip = async (trackId: number, start: Position, length: MusicalL
             color: '#3b82f6',
             start,
             length,
-            notes: []
+            notes: [],
+            instrumentIds: [],
+            instrumentRoutes: {}
         }
         
         setStore('clips', (clips) => [...clips, newClip])
@@ -169,8 +176,43 @@ export const addClip = async (trackId: number, start: Position, length: MusicalL
     }
 }
 
+export const copyClip = async (originalId: string, newTrackId: number, newStart: Position) => {
+    try {
+        const original = store.clips.find(c => c.id === originalId);
+        if (!original) return;
+
+        const id = await DawService.copyClip(originalId, newTrackId, newStart);
+        
+        const newClip: Clip = {
+            ...original,
+            id,
+            trackId: newTrackId,
+            start: newStart,
+            // Name, notes, length, instruments are shared/copied
+        };
+        
+        setStore('clips', (clips) => [...clips, newClip]);
+    } catch (e) {
+        console.error('Failed to copy clip:', e);
+    }
+}
+
 export const updateClip = (id: string, update: Partial<Clip>) => {
-    setStore('clips', (c) => c.id === id, update)
+    // 1. Determine if this is a content update or instance update
+    const isContentUpdate = update.notes !== undefined || update.length !== undefined || update.instrumentIds !== undefined || update.instrumentRoutes !== undefined || update.name !== undefined;
+    
+    if (isContentUpdate) {
+        // Find the clip to get its name
+        const target = store.clips.find(c => c.id === id);
+        if (target) {
+            // Update ALL clips with same name
+            setStore('clips', (c) => c.name === target.name, update);
+        }
+    } else {
+        // Instance update (start, trackId)
+        setStore('clips', (c) => c.id === id, update);
+    }
+
     // Sync with backend
     DawService.updateClip(id, update).catch(e => console.error("Failed to sync clip update:", e))
 }

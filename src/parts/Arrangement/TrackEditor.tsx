@@ -6,7 +6,8 @@ import {
     updateClip,
     addTrack,
     addClip,
-    removeTrack
+    removeTrack,
+    copyClip
 } from '../../store'
 import { t } from '../../i18n'
 import { Button } from '../../UI/lib/Button'
@@ -34,6 +35,8 @@ const Playhead: Component = () => {
     )
 }
 
+import { setStore } from '../../store'
+
 const Ruler: Component<{ scrollRef: (el: HTMLDivElement) => void }> = props => {
     const handleMouseDown = (e: MouseEvent) => {
         const target = e.currentTarget as HTMLDivElement
@@ -42,9 +45,13 @@ const Ruler: Component<{ scrollRef: (el: HTMLDivElement) => void }> = props => {
         const updatePosition = (clientX: number) => {
             const x = clientX - rect.left
             const bar = x / PIXELS_PER_BAR + 1
-            const time = defaultTimeService.ticksToSeconds(
-                (bar - 1) * (PPQ * store.info.timeSignature.numerator)
-            )
+            const ticks = (bar - 1) * (PPQ * store.info.timeSignature.numerator)
+            const time = defaultTimeService.ticksToSeconds(ticks)
+
+            // Optimistic update
+            const newPos = defaultTimeService.ticksToPosition(ticks)
+            setStore('playback', 'currentPosition', newPos)
+
             invoke('seek', { position: time })
         }
 
@@ -153,7 +160,12 @@ const TrackLane: Component<{ track: any }> = props => {
         return PIXELS_PER_BAR / ticksPerBar
     }
 
-    const handleClipUpdate = (clipId: string, newLeftPx: number, newWidthPx: number) => {
+    const handleClipCommit = (
+        clipId: string,
+        newLeftPx: number,
+        newWidthPx: number,
+        isCopy: boolean
+    ) => {
         const ppt = pixelsPerTick()
 
         // Convert pixels to ticks
@@ -180,10 +192,28 @@ const TrackLane: Component<{ track: any }> = props => {
             seconds: defaultTimeService.ticksToSeconds(durationTicks)
         }
 
-        updateClip(clipId, {
-            start: newStart,
-            length: length
-        })
+        if (isCopy) {
+            copyClip(clipId, props.track.id, newStart)
+        } else {
+            // Only update length if it actually changed (resizing), otherwise keep original length
+            // But wait, handleClipCommit receives newWidthPx.
+            // If we are just moving, newWidthPx should be the same as before.
+            // However, we are recalculating 'length' from 'durationTicks'.
+            // This might lose precision or reset some properties if not careful.
+            // But for now, let's trust the calculation.
+
+            // IMPORTANT: We must also update the trackId if the clip was moved to a different track!
+            // But GridClip is inside a For loop filtered by trackId.
+            // Dragging across tracks is not yet supported by this simple drag handler
+            // because the handler is bound to the specific TrackLane.
+            // To support cross-track dragging, we'd need a global drag state.
+            // For now, let's assume movement is within the same track (horizontal).
+
+            updateClip(clipId, {
+                start: newStart,
+                length: length
+            })
+        }
     }
 
     const handleDblClick = (e: MouseEvent) => {
@@ -255,7 +285,7 @@ const TrackLane: Component<{ track: any }> = props => {
                             left={left}
                             isSelected={store.selectedClipId === clip.id}
                             onClick={() => selectClip(clip.id)}
-                            onUpdate={(l, w) => handleClipUpdate(clip.id, l, w)}
+                            onCommit={(l, w, isCopy) => handleClipCommit(clip.id, l, w, isCopy)}
                         />
                     )
                 }}

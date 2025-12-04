@@ -13,7 +13,7 @@ impl GainFader {
     pub fn new() -> Self {
         Self {
             id: Uuid::new_v4(),
-            gain: 0.5, // Default -6dB
+            gain: 0.5, // 默认 -6dB
         }
     }
 }
@@ -46,17 +46,17 @@ impl Plugin for GainFader {
         events: &[PluginEvent],
         _output_events: &mut Vec<PluginEvent>,
     ) {
-        // Handle parameter updates
+        // 处理参数更新
         for event in events {
             if let PluginEvent::Parameter { id, value } = event {
                 if *id == 0 {
-                    // ID 0 = Gain
+                    // ID 0 = 增益
                     self.gain = *value;
                 }
             }
         }
 
-        // Apply gain
+        // 应用增益
         for sample in buffer.samples.iter_mut() {
             *sample *= self.gain;
         }

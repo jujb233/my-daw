@@ -1,4 +1,4 @@
-import { Component } from 'solid-js'
+import { Component, createSignal, Show } from 'solid-js'
 import { t } from '../../i18n'
 
 interface GridClipProps {
@@ -8,11 +8,17 @@ interface GridClipProps {
     left: number // in pixels
     isSelected?: boolean
     onRemove?: () => void
-    onUpdate?: (newLeft: number, newWidth: number) => void
+    onCommit?: (newLeft: number, newWidth: number, isCopy: boolean) => void
     onClick?: () => void
 }
 
 export const GridClip: Component<GridClipProps> = props => {
+    // Local state for dragging to avoid flooding the store/backend
+    const [dragState, setDragState] = createSignal<{ left: number; width: number } | null>(null)
+
+    const currentLeft = () => dragState()?.left ?? props.left
+    const currentWidth = () => dragState()?.width ?? props.width
+
     const handleMouseDown = (e: MouseEvent) => {
         if (e.button !== 0) return // Only left click
         e.stopPropagation()
@@ -20,15 +26,31 @@ export const GridClip: Component<GridClipProps> = props => {
 
         const startX = e.clientX
         const startLeft = props.left
+        const startWidth = props.width
+
+        // Initialize drag state
+        setDragState({ left: startLeft, width: startWidth })
 
         const onMove = (moveEvent: MouseEvent) => {
             const delta = moveEvent.clientX - startX
-            props.onUpdate?.(startLeft + delta, props.width)
+            setDragState({
+                left: startLeft + delta,
+                width: startWidth
+            })
         }
 
-        const onUp = () => {
+        const onUp = (upEvent: MouseEvent) => {
             window.removeEventListener('mousemove', onMove)
             window.removeEventListener('mouseup', onUp)
+
+            const finalState = dragState()
+            if (finalState) {
+                // Ensure we don't commit if nothing changed (prevents jitter)
+                if (finalState.left !== startLeft || finalState.width !== startWidth) {
+                    props.onCommit?.(finalState.left, finalState.width, upEvent.altKey)
+                }
+            }
+            setDragState(null)
         }
 
         window.addEventListener('mousemove', onMove)
@@ -41,16 +63,24 @@ export const GridClip: Component<GridClipProps> = props => {
         const startLeft = props.left
         const startWidth = props.width
 
+        setDragState({ left: startLeft, width: startWidth })
+
         const onMove = (moveEvent: MouseEvent) => {
             const delta = moveEvent.clientX - startX
             const newWidth = Math.max(10, startWidth - delta)
             const newLeft = startLeft + (startWidth - newWidth)
-            props.onUpdate?.(newLeft, newWidth)
+            setDragState({ left: newLeft, width: newWidth })
         }
 
-        const onUp = () => {
+        const onUp = (upEvent: MouseEvent) => {
             window.removeEventListener('mousemove', onMove)
             window.removeEventListener('mouseup', onUp)
+
+            const finalState = dragState()
+            if (finalState) {
+                props.onCommit?.(finalState.left, finalState.width, false) // Resize is never a copy
+            }
+            setDragState(null)
         }
 
         window.addEventListener('mousemove', onMove)
@@ -61,16 +91,25 @@ export const GridClip: Component<GridClipProps> = props => {
         e.stopPropagation()
         const startX = e.clientX
         const startWidth = props.width
+        const startLeft = props.left
+
+        setDragState({ left: startLeft, width: startWidth })
 
         const onMove = (moveEvent: MouseEvent) => {
             const delta = moveEvent.clientX - startX
             const newWidth = Math.max(10, startWidth + delta)
-            props.onUpdate?.(props.left, newWidth)
+            setDragState({ left: startLeft, width: newWidth })
         }
 
-        const onUp = () => {
+        const onUp = (upEvent: MouseEvent) => {
             window.removeEventListener('mousemove', onMove)
             window.removeEventListener('mouseup', onUp)
+
+            const finalState = dragState()
+            if (finalState) {
+                props.onCommit?.(finalState.left, finalState.width, false)
+            }
+            setDragState(null)
         }
 
         window.addEventListener('mousemove', onMove)
@@ -79,10 +118,10 @@ export const GridClip: Component<GridClipProps> = props => {
 
     return (
         <div
-            class={`absolute h-full rounded border overflow-hidden cursor-pointer hover:brightness-110 transition-all group flex flex-col ${props.isSelected ? 'border-white ring-1 ring-white' : 'border-black/20'}`}
+            class={`absolute h-full rounded border overflow-hidden cursor-pointer hover:brightness-110 transition-all group flex flex-col ${props.isSelected ? 'border-white ring-1 ring-white' : 'border-black/20'} ${dragState() ? 'opacity-80 z-50' : ''}`}
             style={{
-                width: `${props.width}px`,
-                left: `${props.left}px`,
+                width: `${currentWidth()}px`,
+                left: `${currentLeft()}px`,
                 'background-color': props.color || '#3b82f6'
             }}
             onMouseDown={handleMouseDown}

@@ -3,9 +3,9 @@ use std::collections::HashMap;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Note {
-    pub relative_start: f64, // Seconds relative to clip start
-    pub duration: f64,       // Seconds
-    pub note: u8,            // MIDI note number
+    pub relative_start: f64, // 相对于片段起始的秒数
+    pub duration: f64,       // 秒数
+    pub note: u8,            // MIDI 音符编号
     pub velocity: f32,
 }
 
@@ -13,10 +13,10 @@ pub struct Note {
 pub struct Clip {
     pub id: String,
     pub name: String,
-    pub start_time: f64, // In seconds
+    pub start_time: f64, // 以秒为单位
     pub duration: f64,
     pub instrument_ids: Vec<usize>,
-    // Map InstrumentID -> List of Target TrackIDs
+    // 映射 乐器 ID -> 目标轨道 ID 列表
     pub instrument_routes: HashMap<usize, Vec<usize>>,
     pub notes: Vec<Note>,
 }

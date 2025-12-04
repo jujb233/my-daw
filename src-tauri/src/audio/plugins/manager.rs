@@ -22,22 +22,22 @@ impl PluginManager {
     }
 
     fn scan_native_plugins(&mut self) {
-        // Simple Synth
+        // 简易合成器 (Simple Synth)
         let synth = create_simple_synth();
         let info = synth.info();
         self.known_plugins.insert(info.unique_id.clone(), info);
 
-        // Wave Generator
+        // 波形生成器 (Wave Generator)
         let wave = WaveGenerator::new();
         let info = wave.info();
         self.known_plugins.insert(info.unique_id.clone(), info);
 
-        // Gain Fader
+        // 增益推子 (Gain Fader)
         let gain = GainFader::new();
         let info = gain.info();
         self.known_plugins.insert(info.unique_id.clone(), info);
 
-        // Level Meter
+        // 电平计 (Level Meter)
         let meter = LevelMeter::new();
         let info = meter.info();
         self.known_plugins.insert(info.unique_id.clone(), info);

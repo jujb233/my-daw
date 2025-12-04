@@ -6,7 +6,7 @@ use std::sync::Mutex;
 use std::sync::OnceLock;
 use uuid::Uuid;
 
-// Global storage for meter levels
+// 电平计（Meter）电平的全局存储
 pub static METER_LEVELS: OnceLock<Mutex<HashMap<Uuid, f32>>> = OnceLock::new();
 
 pub fn get_meter_levels() -> HashMap<Uuid, f32> {
@@ -72,10 +72,10 @@ impl Plugin for LevelMeter {
             }
             let rms = (sum_sq / len as f32).sqrt();
 
-            // Simple smoothing
+            // 简单平滑处理
             self.current_level = self.current_level * 0.8 + rms * 0.2;
 
-            // Update global map
+            // 更新全局映射
             let map_mutex = METER_LEVELS.get_or_init(|| Mutex::new(HashMap::new()));
             if let Ok(mut map) = map_mutex.lock() {
                 map.insert(self.id, self.current_level);
@@ -88,6 +88,6 @@ impl Plugin for LevelMeter {
     }
 
     fn set_param(&mut self, _id: u32, _value: f32) {
-        // No params
+        // 无参数
     }
 }

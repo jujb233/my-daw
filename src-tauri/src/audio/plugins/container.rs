@@ -8,7 +8,7 @@ pub struct PluginContainer {
     #[allow(dead_code)]
     id: Uuid,
     plugins: Vec<Box<dyn Plugin>>,
-    // Map external_param_id -> (plugin_index, internal_param_id)
+    // 映射 external_param_id -> (plugin_index, internal_param_id)
     param_map: HashMap<u32, (usize, u32)>,
     info: PluginInfo,
     io_config: IOConfig,
@@ -44,9 +44,9 @@ impl PluginContainer {
     pub fn insert_plugin(&mut self, index: usize, plugin: Box<dyn Plugin>) {
         if index <= self.plugins.len() {
             self.plugins.insert(index, plugin);
-            // Note: This invalidates existing indices in param_map!
-            // For this prototype, we assume we build the chain once or handle remapping.
-            // Since we rebuild the whole engine on change, it's fine.
+            // 注意：这会使 param_map 中现有的索引失效！
+            // 对于此原型，我们假设一次性构建链条或进行重映射。
+            // 由于我们在更改时会重建整个引擎，因此这没问题。
         }
     }
 
@@ -87,28 +87,28 @@ impl Plugin for PluginContainer {
         events: &[PluginEvent],
         output_events: &mut Vec<PluginEvent>,
     ) {
-        // Split events: Global events (Midi) go to everyone (or specific ones?)
-        // Parameter events need to be routed based on param_map.
+        // 切分事件：全局事件（MIDI）是否广播给所有插件或特定插件？
+        // 参数事件需要基于 param_map 进行路由。
 
-        // For now, let's just broadcast MIDI to all, and route Parameters.
-        // But wait, we can't easily split the slice of events without allocation.
-        // So we'll iterate plugins and for each plugin, filter relevant events.
-        // This is inefficient for many events, but fine for now.
+        // 目前，先把 MIDI 广播给所有插件，并路由参数事件。
+        // 但我们无法在不分配内存的情况下轻易拆分事件切片。
+        // 因此我们会遍历插件，并为每个插件筛选相关事件。
+        // 这对大量事件来说效率较低，但暂时可接受。
 
-        // Optimization: Pre-process events into a list for each plugin?
-        // Or just pass all events to all plugins, but plugins only react to what they know?
-        // But plugins don't know about the Container's mapping.
-        // So the Container MUST translate the event.
+        // 优化：将事件预处理成每个插件的列表？
+        // 或者将所有事件传递给所有插件，但插件只对它们识别的事件做出反应？
+        // 但插件并不知道容器的映射信息。
+        // 所以容器必须翻译这些事件。
 
-        // We need to construct a new event list for each plugin if we want to translate parameters.
-        // Since we can't easily allocate on the audio thread, this is tricky.
-        // Ideally, we'd have a pre-allocated event buffer.
+        // 如果我们要翻译参数，则需要为每个插件构建新的事件列表。
+        // 由于在音频线程中不宜分配内存，这很棘手。
+        // 理想情况下，我们应该有一个预先分配的事件缓冲区。
 
-        // For this prototype, we'll do a simplified approach:
-        // 1. Apply parameter changes immediately to the plugins (mutate state).
-        // 2. Pass only MIDI events to process().
+        // 对于这个原型，我们采用简化的方法：
+        // 1. 立即将参数更改应用到插件（直接修改状态）。
+        // 2. 仅将 MIDI 事件传给 process()。
 
-        // Extract parameter changes
+        // 提取参数更改
         for event in events {
             if let PluginEvent::Parameter { id, value } = event {
                 if let Some((plugin_idx, internal_id)) = self.param_map.get(id) {
@@ -119,21 +119,21 @@ impl Plugin for PluginContainer {
             }
         }
 
-        // Pass audio through the chain
+        // 通过插件链传递音频
         for plugin in &mut self.plugins {
-            // We should filter events to only include MIDI here, or translated params.
-            // But since we already applied params via set_param, maybe we just pass MIDI?
-            // Some plugins might expect sample-accurate parameter automation via events.
-            // For now, let's just pass the original events (which might have wrong IDs for children)
-            // BUT filter out parameters to avoid confusion?
-            // Or better: The children don't know the container's IDs.
-            // So we should probably pass only MIDI events.
+            // 我们应该在此处过滤事件，仅包含 MIDI 或已翻译的参数事件。
+            // 但既然我们已通过 set_param 应用了参数，也许仅传递 MIDI 即可？
+            // 有些插件可能期望通过事件获得采样精度的参数自动化。
+            // 目前，就传递原始事件（可能包含子插件无法识别的 ID）
+            // 但应过滤掉参数以避免混淆？
+            // 或者更好地做法：子插件不知道容器的 ID 列表。
+            // 所以我们可能只应传递 MIDI 事件。
 
             let midi_events: Vec<PluginEvent> = events
                 .iter()
                 .filter(|e| matches!(e, PluginEvent::Midi(_)))
                 .cloned()
-                .collect(); // Allocation on audio thread! Bad! But acceptable for prototype.
+                .collect(); // 在音频线程上分配内存！不理想，但用于原型可接受。
 
             plugin.process(buffer, &midi_events, output_events);
         }

@@ -19,12 +19,6 @@ export const ClipDetails: Component = () => {
         updateClip(c.id, { name: newName })
     }
 
-    const handleInstrumentChange = (instrumentId: string) => {
-        const c = clip()
-        if (!c) return
-        updateClip(c.id, { instrumentId })
-    }
-
     const handleDelete = async () => {
         const c = clip()
         if (!c) return
@@ -53,19 +47,80 @@ export const ClipDetails: Component = () => {
                         onChange={e => handleRename(e.currentTarget.value)}
                     />
 
-                    {/* Instrument Selector */}
-                    <div class='flex flex-col gap-1'>
-                        <span class='text-xs text-on-surface-variant'>Instrument</span>
-                        <select
-                            class='w-full bg-surface-container-highest border border-outline-variant rounded p-2 text-sm text-on-surface outline-none'
-                            value={clip()!.instrumentId || ''}
-                            onChange={e => handleInstrumentChange(e.currentTarget.value)}
-                        >
-                            <option value=''>None</option>
+                    {/* Instrument Selector & Routing */}
+                    <div class='flex flex-col gap-2'>
+                        <span class='text-xs text-on-surface-variant'>
+                            {t('clip.instrumentsAndRouting') || 'Instruments & Routing'}
+                        </span>
+                        <div class='flex flex-col gap-2 max-h-[200px] overflow-y-auto border border-outline-variant rounded p-2 bg-surface-container-low'>
                             <For each={store.instruments}>
-                                {inst => <option value={inst.id}>{inst.label || inst.name}</option>}
+                                {inst => {
+                                    const isSelected = () =>
+                                        clip()!.instrumentIds?.includes(inst.id)
+                                    return (
+                                        <div class='flex flex-col gap-1 border-b border-outline-variant/50 pb-2 last:border-0'>
+                                            <div class='flex items-center gap-2'>
+                                                <input
+                                                    type='checkbox'
+                                                    checked={isSelected()}
+                                                    onChange={e => {
+                                                        const c = clip()!
+                                                        let newIds = [...(c.instrumentIds || [])]
+                                                        if (e.currentTarget.checked) {
+                                                            newIds.push(inst.id)
+                                                        } else {
+                                                            newIds = newIds.filter(
+                                                                id => id !== inst.id
+                                                            )
+                                                        }
+                                                        updateClip(c.id, { instrumentIds: newIds })
+                                                    }}
+                                                />
+                                                <span class='text-sm text-on-surface truncate flex-1'>
+                                                    {inst.label || inst.name}
+                                                </span>
+                                            </div>
+
+                                            <Show when={isSelected()}>
+                                                <div class='flex items-center gap-2 pl-6'>
+                                                    <span class='text-xs text-on-surface-variant'>
+                                                        Route to:
+                                                    </span>
+                                                    <select
+                                                        class='flex-1 bg-surface-container-highest border border-outline-variant rounded p-1 text-xs text-on-surface outline-none'
+                                                        value={
+                                                            clip()!.instrumentRoutes?.[inst.id] ??
+                                                            clip()!.trackId
+                                                        }
+                                                        onChange={e => {
+                                                            const c = clip()!
+                                                            const trackId = parseInt(
+                                                                e.currentTarget.value
+                                                            )
+                                                            const newRoutes = {
+                                                                ...(c.instrumentRoutes || {})
+                                                            }
+                                                            newRoutes[inst.id] = trackId
+                                                            updateClip(c.id, {
+                                                                instrumentRoutes: newRoutes
+                                                            })
+                                                        }}
+                                                    >
+                                                        <For each={store.tracks}>
+                                                            {track => (
+                                                                <option value={track.id}>
+                                                                    {track.name}
+                                                                </option>
+                                                            )}
+                                                        </For>
+                                                    </select>
+                                                </div>
+                                            </Show>
+                                        </div>
+                                    )
+                                }}
                             </For>
-                        </select>
+                        </div>
                     </div>
 
                     <div class='grid grid-cols-2 gap-2'>
