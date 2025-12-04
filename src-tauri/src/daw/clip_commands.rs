@@ -51,6 +51,7 @@ pub fn update_clip(
     id: String,
     name: Option<String>,
     start: Option<Position>,
+    track_id: Option<usize>,
     length: Option<MusicalLength>,
     notes: Option<Vec<Note>>,
     instrument_ids: Option<Vec<String>>,
@@ -69,15 +70,6 @@ pub fn update_clip(
         };
 
         // 2. 确定我们是在更新 "内容" (同步) 还是 "实例" (本地)
-        // 内容: 音符, 时长, 颜色, 乐器 ID, 乐器路由
-        // 实例: 开始时间, 轨道 ID
-        // 名称: 如果名称更改，它会变成新内容吗？还是重命名内容？
-        // "修改 Clip，复制的 Clip 会同步"。
-
-        // 如果名称更新，我们重命名所有实例？
-        // 或者它会分离？
-        // 通常重命名会重命名资源。
-
         let mut clips_to_update = Vec::new();
 
         // 如果我们正在更新内容字段，我们将更新所有具有相同名称的 Clip
@@ -93,7 +85,7 @@ pub fn update_clip(
                 }
             }
         } else {
-            // 仅更新实例字段（开始时间）
+            // 仅更新实例字段（开始时间, 轨道 ID）
             if let Some(pos) = clips.iter().position(|c| c.id == id) {
                 clips_to_update.push(pos);
             }
@@ -108,6 +100,9 @@ pub fn update_clip(
                 if clip.id == id {
                     if let Some(s) = &start {
                         clip.start = s.clone();
+                    }
+                    if let Some(tid) = track_id {
+                        clip.track_id = tid;
                     }
                 }
 

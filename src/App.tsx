@@ -1,4 +1,4 @@
-import { createSignal, Show } from 'solid-js'
+import { createSignal, Show, onMount } from 'solid-js'
 import { TopInfoPanel } from './parts/TopInfoPanel'
 import { BottomEditor } from './parts/BottomEditor/BottomEditor'
 import { TrackEditor } from './parts/Arrangement/TrackEditor'
@@ -8,9 +8,17 @@ import { SettingsPanel } from './parts/Settings/SettingsPanel'
 import { IconButton } from './UI/lib/IconButton'
 import { t } from './i18n'
 import { showSettings, setShowSettings } from './store/ui'
+import { fetchInstruments, fetchTracks } from './store'
+import { fetchMixerTracks } from './store/mixer'
 
 export default function App() {
     const [isSidebarOpen, setIsSidebarOpen] = createSignal(true)
+
+    onMount(() => {
+        fetchInstruments()
+        fetchMixerTracks()
+        fetchTracks()
+    })
 
     return (
         <div class='flex flex-col h-screen w-screen bg-background text-on-background overflow-hidden'>

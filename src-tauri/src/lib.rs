@@ -5,7 +5,9 @@ use crate::audio::engine::AudioEngine;
 use crate::audio::plugins::manager::PluginManager;
 use daw::clip_commands::*;
 use daw::commands::*;
+use daw::model::ArrangementTrack;
 use daw::state::{AppState, MixerTrackData, PluginInstanceData};
+use daw::track_commands::*;
 use std::sync::Mutex;
 use uuid::Uuid;
 
@@ -39,10 +41,21 @@ fn import_plugin(
 pub fn run() {
     // 使用 5 个默认轨道初始化
     let mut tracks = Vec::new();
-    for i in 0..5 {
+    // Track 0 is Master
+    tracks.push(MixerTrackData {
+        id: 0,
+        label: "Master".to_string(),
+        volume: 1.0,
+        pan: 0.0,
+        mute: false,
+        solo: false,
+        meter_id: Some(Uuid::new_v4()),
+    });
+
+    for i in 1..5 {
         tracks.push(MixerTrackData {
             id: i,
-            label: format!("Track {}", i + 1),
+            label: format!("Track {}", i),
             volume: 1.0,
             pan: 0.0,
             mute: false,
@@ -60,12 +73,28 @@ pub fn run() {
         routing_track_index: 0,
     });
 
+    // 初始化编排轨道 (Arrangement Tracks)
+    // 默认创建 4 个编排轨道，分别路由到 Mixer Track 1, 2, 3, 4
+    // 注意：Mixer Track 0 是 Master
+    let mut arrangement_tracks = Vec::new();
+    for i in 0..4 {
+        arrangement_tracks.push(ArrangementTrack {
+            id: i,
+            name: format!("Track {}", i + 1),
+            color: "#aec6ff".to_string(),
+            muted: false,
+            soloed: false,
+            target_mixer_track_id: i + 1, // 默认路由到对应的 Mixer Track
+        });
+    }
+
     tauri::Builder::default()
         .manage(AppState {
             audio_engine: Mutex::new(AudioEngine::new()),
             plugin_manager: Mutex::new(PluginManager::new()),
             active_plugins: Mutex::new(plugins),
             mixer_tracks: Mutex::new(tracks),
+            arrangement_tracks: Mutex::new(arrangement_tracks),
             clips: Mutex::new(Vec::new()),
         })
         .plugin(tauri_plugin_opener::init())
@@ -95,7 +124,10 @@ pub fn run() {
             seek,
             get_available_plugins,
             get_plugin_parameters,
-            import_plugin
+            import_plugin,
+            get_arrangement_tracks,
+            add_arrangement_track,
+            remove_arrangement_track
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

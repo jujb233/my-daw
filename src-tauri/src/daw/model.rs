@@ -44,12 +44,23 @@ use std::collections::HashMap;
 #[serde(rename_all = "camelCase")]
 pub struct Clip {
     pub id: String,
-    pub track_id: usize,
+    pub track_id: usize, // Refers to ArrangementTrack ID
     pub name: String,
     pub color: String,
     pub start: Position,
     pub length: MusicalLength,
     pub notes: Vec<Note>,
     pub instrument_ids: Vec<String>,
-    pub instrument_routes: HashMap<String, usize>,
+    pub instrument_routes: HashMap<String, usize>, // InstrumentID -> MixerTrackID (Direct routing override)
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ArrangementTrack {
+    pub id: usize,
+    pub name: String,
+    pub color: String,
+    pub muted: bool,
+    pub soloed: bool,
+    pub target_mixer_track_id: usize,
 }

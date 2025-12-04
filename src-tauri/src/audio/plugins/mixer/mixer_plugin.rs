@@ -200,12 +200,15 @@ impl Plugin for MixerPlugin {
         }
 
         // 2. Process Tracks
-        for track_idx in 0..num_tracks {
+        // 修改：先处理非总轨（1..N），将其输出累加到总轨（0）的输入中。
+        // 然后处理总轨（0），将其输出写入主缓冲区。
+
+        // A. 处理普通轨道 (1..N)
+        for track_idx in 1..num_tracks {
             let start = track_idx * samples_len;
             let end = start + samples_len;
 
             // 将累积的输入复制到临时缓冲区以进行处理
-            // （通常轨道处理是就地进行，但我们需要从累加器移动数据）
             self.scratch_buffer
                 .copy_from_slice(&self.accumulator_buffer[start..end]);
 
@@ -239,7 +242,58 @@ impl Plugin for MixerPlugin {
 
                 track.process(&mut track_buffer, &track_events, output_events);
 
-                // 3. 累加到主输出
+                // 将输出累加到总轨 (Track 0) 的输入缓冲区
+                // 总轨输入位于 accumulator_buffer[0..samples_len]
+                if num_tracks > 0 {
+                    let master_input = &mut self.accumulator_buffer[0..samples_len];
+                    for (i, sample) in self.scratch_buffer.iter().enumerate() {
+                        master_input[i] += sample;
+                    }
+                }
+            }
+        }
+
+        // B. 处理总轨 (Track 0)
+        if num_tracks > 0 {
+            let track_idx = 0;
+            let start = 0;
+            let end = samples_len;
+
+            // 此时 accumulator_buffer[0..samples_len] 包含了直接路由到总轨的乐器声音 + 其他轨道的输出
+            self.scratch_buffer
+                .copy_from_slice(&self.accumulator_buffer[start..end]);
+
+            let track_events: Vec<PluginEvent> = events
+                .iter()
+                .filter_map(|e| match e {
+                    PluginEvent::Midi(_) => None,
+                    PluginEvent::Transport { .. } => None,
+                    PluginEvent::Custom(_) => None,
+                    PluginEvent::Parameter { id, value } => {
+                        if *id < 10000 {
+                            let target_track = (*id / 100) as usize;
+                            if target_track == track_idx {
+                                return Some(PluginEvent::Parameter {
+                                    id: *id % 100,
+                                    value: *value,
+                                });
+                            }
+                        }
+                        None
+                    }
+                })
+                .collect();
+
+            if let Some(track) = self.tracks.get_mut(track_idx) {
+                let mut track_buffer = AudioBuffer {
+                    samples: &mut self.scratch_buffer,
+                    channels,
+                    sample_rate,
+                };
+
+                track.process(&mut track_buffer, &track_events, output_events);
+
+                // 将总轨输出写入主缓冲区
                 for (i, sample) in self.scratch_buffer.iter().enumerate() {
                     buffer.samples[i] += sample;
                 }

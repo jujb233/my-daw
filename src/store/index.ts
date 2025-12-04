@@ -1,20 +1,20 @@
 import { createStore } from 'solid-js/store'
 import { DawService } from '../services/daw'
-import { ProjectData, Clip, Position } from './model'
-import { defaultTimeService } from '../services/time'
+import { ProjectData, Clip, Position, MusicalLength } from './model'
+import { defaultTimeService, SnapGrid } from '../services/time'
 
 interface UIState {
     playback: {
-        isPlaying: boolean;
-        currentPosition: Position;
-        startTime: number | null;
-    };
-    selectedTrackId: number | null;
-    selectedClipId: string | null;
-    snapInterval: string; // '1/4', '1/8', '1/16', etc.
+        isPlaying: boolean
+        currentPosition: Position
+        startTime: number | null
+    }
+    selectedTrackId: number | null
+    selectedClipId: string | null
+    snapInterval: SnapGrid // '1/4', '1/8', '1/16', etc.
 }
 
-type AppStore = ProjectData & UIState;
+type AppStore = ProjectData & UIState
 
 const DEFAULT_PROJECT: AppStore = {
     info: {
@@ -24,9 +24,38 @@ const DEFAULT_PROJECT: AppStore = {
         timeSignature: { numerator: 4, denominator: 4 }
     },
     tracks: [
-        { id: 0, name: 'Track 1', color: '#aec6ff', muted: false, soloed: false },
-        { id: 1, name: 'Track 2', color: '#ffb4ab', muted: false, soloed: false },
-        { id: 2, name: 'Track 3', color: '#bfc6dc', muted: false, soloed: false }
+        {
+            id: 0,
+            name: 'Track 1',
+            color: '#aec6ff',
+            muted: false,
+            soloed: false,
+            targetMixerTrackId: 1
+        },
+        {
+            id: 1,
+            name: 'Track 2',
+            color: '#ffb4ab',
+            muted: false,
+            soloed: false,
+            targetMixerTrackId: 2
+        },
+        {
+            id: 2,
+            name: 'Track 3',
+            color: '#bfc6dc',
+            muted: false,
+            soloed: false,
+            targetMixerTrackId: 3
+        },
+        {
+            id: 3,
+            name: 'Track 4',
+            color: '#bfc6dc',
+            muted: false,
+            soloed: false,
+            targetMixerTrackId: 4
+        }
     ],
     clips: [],
     instruments: [],
@@ -69,11 +98,11 @@ const updatePlaybackState = async () => {
         const [backendIsPlaying, time] = await DawService.getPlaybackState()
 
         // Update TimeService with current project settings
-        defaultTimeService.setBpm(store.info.bpm);
-        defaultTimeService.setTimeSignature(store.info.timeSignature);
+        defaultTimeService.setBpm(store.info.bpm)
+        defaultTimeService.setTimeSignature(store.info.timeSignature)
 
-        const currentTicks = defaultTimeService.secondsToTicks(time);
-        const currentPosition = defaultTimeService.ticksToPosition(currentTicks);
+        const currentTicks = defaultTimeService.secondsToTicks(time)
+        const currentPosition = defaultTimeService.ticksToPosition(currentTicks)
 
         let isPlaying = backendIsPlaying
 
@@ -130,34 +159,31 @@ export const togglePlayback = async () => {
 export const addTrack = async () => {
     try {
         await DawService.addTrack()
-        // Optimistic update or fetch
-        // For now, we just push a new track to the store to match backend logic
-        const newId = store.tracks.length
-        setStore('tracks', tracks => [
-            ...tracks,
-            {
-                id: newId,
-                name: `Track ${newId + 1}`,
-                color: '#aec6ff', // Default color
-                muted: false,
-                soloed: false
-            }
-        ])
+        await fetchTracks()
     } catch (e) {
         console.error('Failed to add track:', e)
+    }
+}
+
+export const fetchTracks = async () => {
+    try {
+        const tracks = await DawService.getTracks()
+        setStore('tracks', tracks)
+    } catch (e) {
+        console.error('Failed to fetch tracks:', e)
     }
 }
 
 export const addClip = async (trackId: number, start: Position, length: MusicalLength) => {
     try {
         // Auto-name: Clip 1, Clip 2...
-        const existingNames = new Set(store.clips.map(c => c.name));
-        let i = 1;
-        while (existingNames.has(`Clip ${i}`)) i++;
-        const name = `Clip ${i}`;
+        const existingNames = new Set(store.clips.map(c => c.name))
+        let i = 1
+        while (existingNames.has(`Clip ${i}`)) i++
+        const name = `Clip ${i}`
 
         const id = await DawService.addClip(trackId, name, start, length)
-        
+
         const newClip: Clip = {
             id,
             trackId,
@@ -169,8 +195,8 @@ export const addClip = async (trackId: number, start: Position, length: MusicalL
             instrumentIds: [],
             instrumentRoutes: {}
         }
-        
-        setStore('clips', (clips) => [...clips, newClip])
+
+        setStore('clips', clips => [...clips, newClip])
     } catch (e) {
         console.error('Failed to add clip:', e)
     }
@@ -178,59 +204,74 @@ export const addClip = async (trackId: number, start: Position, length: MusicalL
 
 export const copyClip = async (originalId: string, newTrackId: number, newStart: Position) => {
     try {
-        const original = store.clips.find(c => c.id === originalId);
-        if (!original) return;
+        const original = store.clips.find(c => c.id === originalId)
+        if (!original) return
 
-        const id = await DawService.copyClip(originalId, newTrackId, newStart);
-        
+        const id = await DawService.copyClip(originalId, newTrackId, newStart)
+
         const newClip: Clip = {
             ...original,
             id,
             trackId: newTrackId,
-            start: newStart,
+            start: newStart
             // Name, notes, length, instruments are shared/copied
-        };
-        
-        setStore('clips', (clips) => [...clips, newClip]);
+        }
+
+        setStore('clips', clips => [...clips, newClip])
     } catch (e) {
-        console.error('Failed to copy clip:', e);
+        console.error('Failed to copy clip:', e)
     }
 }
 
 export const updateClip = (id: string, update: Partial<Clip>) => {
     // 1. Determine if this is a content update or instance update
-    const isContentUpdate = update.notes !== undefined || update.length !== undefined || update.instrumentIds !== undefined || update.instrumentRoutes !== undefined || update.name !== undefined;
-    
+    const isContentUpdate =
+        update.notes !== undefined ||
+        update.length !== undefined ||
+        update.instrumentIds !== undefined ||
+        update.instrumentRoutes !== undefined ||
+        update.name !== undefined
+
     if (isContentUpdate) {
         // Find the clip to get its name
-        const target = store.clips.find(c => c.id === id);
+        const target = store.clips.find(c => c.id === id)
         if (target) {
             // Update ALL clips with same name
-            setStore('clips', (c) => c.name === target.name, update);
+            setStore(
+                'clips',
+                c => c.name === target.name,
+                clip => {
+                    // Only update content properties, preserve instance properties unless specifically targeting this instance
+                    const newClip = { ...clip, ...update }
+
+                    // If this is NOT the target instance, revert instance-specific properties
+                    if (clip.id !== id) {
+                        if (update.start) newClip.start = clip.start
+                        if (update.trackId) newClip.trackId = clip.trackId
+                    }
+                    return newClip
+                }
+            )
         }
     } else {
         // Instance update (start, trackId)
-        setStore('clips', (c) => c.id === id, update);
+        setStore('clips', c => c.id === id, update)
     }
 
     // Sync with backend
-    DawService.updateClip(id, update).catch(e => console.error("Failed to sync clip update:", e))
+    DawService.updateClip(id, update).catch(e => console.error('Failed to sync clip update:', e))
 }
 
 export const removeClip = (id: string) => {
-    setStore('clips', (clips) => clips.filter(c => c.id !== id))
-    DawService.removeClip(id).catch(e => console.error("Failed to remove clip:", e))
+    setStore('clips', clips => clips.filter(c => c.id !== id))
+    DawService.removeClip(id).catch(e => console.error('Failed to remove clip:', e))
 }
 
 export const removeTrack = async (id: number) => {
     try {
-        // Find index
-        const index = store.tracks.findIndex(t => t.id === id)
-        if (index === -1) return
+        await DawService.removeTrack(id)
+        await fetchTracks()
 
-        await DawService.removeTrack(index)
-        setStore('tracks', tracks => tracks.filter(t => t.id !== id))
-        
         // Also remove clips on this track? Or keep them?
         // Usually we remove them.
         const clipsToRemove = store.clips.filter(c => c.trackId === id)
@@ -241,7 +282,6 @@ export const removeTrack = async (id: number) => {
         console.error('Failed to remove track:', e)
     }
 }
-
-export const setSnapInterval = (interval: string) => {
+export const setSnapInterval = (interval: SnapGrid) => {
     setStore('snapInterval', interval)
 }

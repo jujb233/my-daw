@@ -2,7 +2,7 @@ import { Component, createSignal, For, Show } from 'solid-js'
 import { store, updateClip } from '../../store'
 import { IconButton } from '../../UI/lib/IconButton'
 import { PianoRollNote } from './PianoRollNote'
-import { defaultTimeService, PPQ } from '../../services/time'
+import { defaultTimeService, PPQ, SnapGrid } from '../../services/time'
 import { Note, MusicalLength } from '../../store/model'
 
 interface PianoRollProps {
@@ -34,7 +34,7 @@ export const PianoRoll: Component<PianoRollProps> = props => {
         let durationTicks = newWidthPx / ppt
 
         // Snap
-        const snap = store.snapInterval || '1/16'
+        const snap = (store.snapInterval || '1/16') as SnapGrid
         startTicks = defaultTimeService.snapTicks(startTicks, snap)
         durationTicks = defaultTimeService.snapTicks(durationTicks, snap)
 
@@ -77,7 +77,7 @@ export const PianoRoll: Component<PianoRollProps> = props => {
 
         const ppt = pixelsPerTick()
         let tick = x / ppt
-        const snap = store.snapInterval || '1/16'
+        const snap = (store.snapInterval || '1/16') as SnapGrid
         tick = defaultTimeService.snapTicks(tick, snap)
 
         const noteIndex = Math.floor(y / NOTE_HEIGHT)

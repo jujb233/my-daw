@@ -53,6 +53,17 @@ pub fn create_audio_graph(state: &State<'_, AppState>) -> Result<Box<dyn Plugin>
 
     // 加载 Clip 到音序器
     let clips = state.clips.lock().map_err(|_| "Failed to lock clips")?;
+    let arrangement_tracks = state
+        .arrangement_tracks
+        .lock()
+        .map_err(|_| "Failed to lock arrangement tracks")?;
+
+    // 创建 ArrangementTrack ID -> Target Mixer Track ID 的映射
+    let mut track_routing = std::collections::HashMap::new();
+    for track in arrangement_tracks.iter() {
+        track_routing.insert(track.id, track.target_mixer_track_id);
+    }
+
     let sequencer = mixer.get_sequencer_mut();
     for clip in clips.iter() {
         // 映射乐器 UUID 到索引
@@ -66,20 +77,21 @@ pub fn create_audio_graph(state: &State<'_, AppState>) -> Result<Box<dyn Plugin>
         // 映射路由
         let mut instrument_routes = std::collections::HashMap::new();
 
-        // 首先，填充显式路由
+        // 首先，填充显式路由 (Clip 级别的覆盖)
         for (uuid, track_idx) in &clip.instrument_routes {
             if let Some(&inst_idx) = inst_uuid_to_index.get(uuid) {
                 instrument_routes.insert(inst_idx, vec![*track_idx]);
             }
         }
 
-        // 然后，确保所有乐器都有路由（回退到 clip.track_id）
+        // 然后，确保所有乐器都有路由
+        // 默认路由到 Arrangement Track 指定的 Mixer Track
+        let default_target_track = track_routing.get(&clip.track_id).cloned().unwrap_or(0); // 默认为 Master (0)
+
         for uuid in &clip.instrument_ids {
             if let Some(&inst_idx) = inst_uuid_to_index.get(uuid) {
                 if !instrument_routes.contains_key(&inst_idx) {
-                    // 如果没有指定路由，默认路由到 Clip 所在的轨道
-                    // 这符合直觉：Clip 在哪个轨道，声音就从哪个轨道出来
-                    instrument_routes.insert(inst_idx, vec![clip.track_id]);
+                    instrument_routes.insert(inst_idx, vec![default_target_track]);
                 }
             }
         }

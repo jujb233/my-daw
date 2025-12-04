@@ -1,6 +1,5 @@
 import { Component, Show, onMount, For } from 'solid-js'
 import { store, updateClip, selectClip, removeClip, fetchInstruments } from '../../store'
-import { DawService } from '../../services/daw'
 import { t } from '../../i18n'
 import { Input } from '../../UI/lib/Input'
 import { Button } from '../../UI/lib/Button'

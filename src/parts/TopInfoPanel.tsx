@@ -1,6 +1,7 @@
 import { Component } from 'solid-js'
 import { Surface } from '../UI/lib/Surface'
 import { store, togglePlayback, setSnapInterval } from '../store'
+import { SnapGrid } from '../services/time'
 import { IconButton } from '../UI/lib/IconButton'
 import { t } from '../i18n'
 import { openSettings } from '../store/ui'
@@ -34,7 +35,7 @@ export const TopInfoPanel: Component = () => {
                     <select
                         class='bg-transparent text-sm text-on-surface outline-none'
                         value={store.snapInterval}
-                        onChange={e => setSnapInterval(e.currentTarget.value)}
+                        onChange={e => setSnapInterval(e.currentTarget.value as SnapGrid)}
                     >
                         <option value='1/1'>1/1</option>
                         <option value='1/2'>1/2</option>

@@ -1,4 +1,4 @@
-import { Component, For } from 'solid-js'
+import { Component, For, Show } from 'solid-js'
 import {
     store,
     selectTrack,
@@ -12,7 +12,7 @@ import {
 import { t } from '../../i18n'
 import { Button } from '../../UI/lib/Button'
 import { invoke } from '@tauri-apps/api/core'
-import { defaultTimeService, PPQ } from '../../services/time'
+import { defaultTimeService, PPQ, SnapGrid } from '../../services/time'
 import { GridClip } from './GridClip'
 import { MusicalLength } from '../../store/model'
 
@@ -164,7 +164,8 @@ const TrackLane: Component<{ track: any }> = props => {
         clipId: string,
         newLeftPx: number,
         newWidthPx: number,
-        isCopy: boolean
+        isCopy: boolean,
+        isResize: boolean
     ) => {
         const ppt = pixelsPerTick()
 
@@ -173,7 +174,7 @@ const TrackLane: Component<{ track: any }> = props => {
         let durationTicks = newWidthPx / ppt
 
         // Snap
-        const snap = store.snapInterval || '1/16'
+        const snap = (store.snapInterval || '1/16') as SnapGrid
         startTicks = defaultTimeService.snapTicks(startTicks, snap)
         durationTicks = defaultTimeService.snapTicks(durationTicks, snap)
 
@@ -209,10 +210,16 @@ const TrackLane: Component<{ track: any }> = props => {
             // To support cross-track dragging, we'd need a global drag state.
             // For now, let's assume movement is within the same track (horizontal).
 
-            updateClip(clipId, {
-                start: newStart,
-                length: length
-            })
+            if (isResize) {
+                updateClip(clipId, {
+                    start: newStart,
+                    length: length
+                })
+            } else {
+                updateClip(clipId, {
+                    start: newStart
+                })
+            }
         }
     }
 
@@ -232,7 +239,7 @@ const TrackLane: Component<{ track: any }> = props => {
         let startTicks = x / ppt
 
         // Snap to beat (1/4) for new clips
-        const snap = store.snapInterval || '1/4'
+        const snap = (store.snapInterval || '1/4') as SnapGrid
         startTicks = defaultTimeService.snapTicks(startTicks, snap)
 
         const start = defaultTimeService.ticksToPosition(startTicks)
@@ -270,25 +277,21 @@ const TrackLane: Component<{ track: any }> = props => {
 
             {/* Clips */}
             <For each={store.clips}>
-                {clip => {
-                    if (clip.trackId !== props.track.id) return null
-
-                    const startTicks = defaultTimeService.positionToTicks(clip.start)
-                    const left = startTicks * pixelsPerTick()
-                    const width = clip.length.totalTicks * pixelsPerTick()
-
-                    return (
+                {clip => (
+                    <Show when={clip.trackId === props.track.id}>
                         <GridClip
                             name={clip.name}
                             color={clip.color}
-                            width={width}
-                            left={left}
+                            width={clip.length.totalTicks * pixelsPerTick()}
+                            left={defaultTimeService.positionToTicks(clip.start) * pixelsPerTick()}
                             isSelected={store.selectedClipId === clip.id}
                             onClick={() => selectClip(clip.id)}
-                            onCommit={(l, w, isCopy) => handleClipCommit(clip.id, l, w, isCopy)}
+                            onCommit={(l, w, isCopy, isResize) =>
+                                handleClipCommit(clip.id, l, w, isCopy, isResize)
+                            }
                         />
-                    )
-                }}
+                    </Show>
+                )}
             </For>
         </div>
     )

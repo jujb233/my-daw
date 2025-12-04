@@ -46,6 +46,11 @@ pub fn add_mixer_track(state: State<'_, AppState>) -> Result<(), String> {
 
 #[tauri::command]
 pub fn remove_mixer_track(state: State<'_, AppState>, index: usize) -> Result<(), String> {
+    // 0 号轨道是总轨，不可删除
+    if index == 0 {
+        return Err("Cannot remove Master track".to_string());
+    }
+
     {
         let mut tracks = state
             .mixer_tracks

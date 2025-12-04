@@ -73,22 +73,24 @@ export const MixerStrip: Component<MixerStripProps> = props => {
             </div>
 
             {/* Delete Button */}
-            <IconButton
-                onClick={() => removeMixerTrack(props.track.id)}
-                variant='standard'
-                class='text-error hover:bg-error/10 w-10 h-10'
-                title={t('icons.removeTrack')}
-            >
-                <svg
-                    xmlns='http://www.w3.org/2000/svg'
-                    height='24'
-                    viewBox='0 -960 960 960'
-                    width='24'
-                    fill='currentColor'
+            {props.track.id !== 0 && (
+                <IconButton
+                    onClick={() => removeMixerTrack(props.track.id)}
+                    variant='standard'
+                    class='text-error hover:bg-error/10 w-10 h-10'
+                    title={t('icons.removeTrack')}
                 >
-                    <path d='M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z' />
-                </svg>
-            </IconButton>
+                    <svg
+                        xmlns='http://www.w3.org/2000/svg'
+                        height='24'
+                        viewBox='0 -960 960 960'
+                        width='24'
+                        fill='currentColor'
+                    >
+                        <path d='M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z' />
+                    </svg>
+                </IconButton>
+            )}
         </div>
     )
 }

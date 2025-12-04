@@ -1,4 +1,4 @@
-import { Component, createSignal, Show } from 'solid-js'
+import { Component, createSignal } from 'solid-js'
 import { t } from '../../i18n'
 
 interface GridClipProps {
@@ -8,7 +8,7 @@ interface GridClipProps {
     left: number // in pixels
     isSelected?: boolean
     onRemove?: () => void
-    onCommit?: (newLeft: number, newWidth: number, isCopy: boolean) => void
+    onCommit?: (newLeft: number, newWidth: number, isCopy: boolean, isResize: boolean) => void
     onClick?: () => void
 }
 
@@ -47,7 +47,7 @@ export const GridClip: Component<GridClipProps> = props => {
             if (finalState) {
                 // Ensure we don't commit if nothing changed (prevents jitter)
                 if (finalState.left !== startLeft || finalState.width !== startWidth) {
-                    props.onCommit?.(finalState.left, finalState.width, upEvent.altKey)
+                    props.onCommit?.(finalState.left, finalState.width, upEvent.altKey, false)
                 }
             }
             setDragState(null)
@@ -72,13 +72,13 @@ export const GridClip: Component<GridClipProps> = props => {
             setDragState({ left: newLeft, width: newWidth })
         }
 
-        const onUp = (upEvent: MouseEvent) => {
+        const onUp = () => {
             window.removeEventListener('mousemove', onMove)
             window.removeEventListener('mouseup', onUp)
 
             const finalState = dragState()
             if (finalState) {
-                props.onCommit?.(finalState.left, finalState.width, false) // Resize is never a copy
+                props.onCommit?.(finalState.left, finalState.width, false, true) // Resize is never a copy
             }
             setDragState(null)
         }
@@ -101,13 +101,13 @@ export const GridClip: Component<GridClipProps> = props => {
             setDragState({ left: startLeft, width: newWidth })
         }
 
-        const onUp = (upEvent: MouseEvent) => {
+        const onUp = () => {
             window.removeEventListener('mousemove', onMove)
             window.removeEventListener('mouseup', onUp)
 
             const finalState = dragState()
             if (finalState) {
-                props.onCommit?.(finalState.left, finalState.width, false)
+                props.onCommit?.(finalState.left, finalState.width, false, true)
             }
             setDragState(null)
         }

@@ -21,6 +21,7 @@ export const DawService = {
             id,
             name: updates.name,
             start: updates.start,
+            track_id: updates.trackId,
             length: updates.length,
             notes: updates.notes,
             instrument_ids: updates.instrumentIds,
@@ -57,11 +58,15 @@ export const DawService = {
     },
 
     async addTrack(): Promise<void> {
-        await invoke('add_mixer_track')
+        await invoke('add_arrangement_track')
     },
 
-    async removeTrack(index: number): Promise<void> {
-        await invoke('remove_mixer_track', { index })
+    async removeTrack(id: number): Promise<void> {
+        await invoke('remove_arrangement_track', { id })
+    },
+
+    async getTracks(): Promise<any[]> {
+        return await invoke('get_arrangement_tracks')
     },
 
     async getActivePlugins(): Promise<any[]> {
