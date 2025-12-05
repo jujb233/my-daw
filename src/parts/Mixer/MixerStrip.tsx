@@ -37,7 +37,7 @@ export const MixerStrip: Component<MixerStripProps> = props => {
 
             {/* Meter & Fader Container */}
             <div class='flex-1 flex gap-3 items-end justify-center w-full px-2 py-2 bg-surface-container-lowest rounded-lg mx-1 shadow-inner'>
-                <LevelMeter level={props.level} className='h-64 w-4' />
+                <LevelMeter level={props.level} className='h-64 w-11' />
                 <Fader
                     value={props.track.volume}
                     onChange={v => setTrackVolume(props.track.id, v)}

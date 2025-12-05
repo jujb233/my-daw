@@ -304,9 +304,15 @@ impl Plugin for MixerPlugin {
 
                 track.process(&mut track_buffer, &track_events, output_events);
 
-                // 将总轨输出写入主缓冲区
+                // 将总轨输出写入主缓冲区，并进行硬削波（Hard Clip）限制在 0dB ([-1.0, 1.0])
                 for (i, sample) in self.scratch_buffer.iter().enumerate() {
-                    buffer.samples[i] += sample;
+                    let mut out = *sample;
+                    if out > 1.0 {
+                        out = 1.0;
+                    } else if out < -1.0 {
+                        out = -1.0;
+                    }
+                    buffer.samples[i] += out;
                 }
             }
         }

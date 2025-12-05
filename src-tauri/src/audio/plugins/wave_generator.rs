@@ -25,22 +25,43 @@ impl From<f32> for Waveform {
     }
 }
 
+#[derive(Clone, Copy)]
+struct Voice {
+    note: u8,
+    frequency: f32,
+    phase: f32,
+    active: bool,
+    velocity: f32,
+}
+
+impl Voice {
+    fn new() -> Self {
+        Self {
+            note: 0,
+            frequency: 0.0,
+            phase: 0.0,
+            active: false,
+            velocity: 0.0,
+        }
+    }
+}
+
 pub struct WaveGenerator {
     #[allow(dead_code)]
     id: Uuid,
-    phase: f32,
-    frequency: f32,
-    active: bool,
+    voices: Vec<Voice>,
     waveform: Waveform,
 }
 
 impl WaveGenerator {
     pub fn new() -> Self {
+        let mut voices = Vec::with_capacity(16);
+        for _ in 0..16 {
+            voices.push(Voice::new());
+        }
         Self {
             id: Uuid::new_v4(),
-            phase: 0.0,
-            frequency: 440.0,
-            active: false,
+            voices,
             waveform: Waveform::Sine,
         }
     }
@@ -90,14 +111,31 @@ impl Plugin for WaveGenerator {
         for event in events {
             if let PluginEvent::Midi(midi) = event {
                 match midi {
-                    NoteEvent::NoteOn { note, .. } => {
-                        // 简单的 MIDI -> 频率 转换：440 * 2^((note - 69) / 12)
-                        self.frequency = 440.0 * 2.0f32.powf((*note as f32 - 69.0) / 12.0);
-                        self.active = true;
-                        println!("WaveGenerator: NoteOn {} freq {}", note, self.frequency);
+                    NoteEvent::NoteOn { note, velocity } => {
+                        // Find free voice
+                        let mut found = false;
+                        for voice in self.voices.iter_mut() {
+                            if !voice.active {
+                                voice.note = *note;
+                                voice.frequency = 440.0 * 2.0f32.powf((*note as f32 - 69.0) / 12.0);
+                                voice.velocity = *velocity;
+                                voice.active = true;
+                                voice.phase = 0.0;
+                                found = true;
+                                println!("WaveGenerator: NoteOn {} freq {}", note, voice.frequency);
+                                break;
+                            }
+                        }
+                        if !found {
+                            println!("WaveGenerator: No free voices for note {}", note);
+                        }
                     }
-                    NoteEvent::NoteOff { .. } => {
-                        self.active = false;
+                    NoteEvent::NoteOff { note } => {
+                        for voice in self.voices.iter_mut() {
+                            if voice.active && voice.note == *note {
+                                voice.active = false;
+                            }
+                        }
                     }
                 }
             } else if let PluginEvent::Parameter { id, value } = event {
@@ -107,36 +145,45 @@ impl Plugin for WaveGenerator {
             }
         }
 
-        if !self.active {
-            // 静音
-            buffer.samples.fill(0.0);
-            return;
-        }
+        // Clear buffer
+        buffer.samples.fill(0.0);
 
         let channels = buffer.channels;
         let sample_rate = buffer.sample_rate;
+        let buffer_len = buffer.samples.len() / channels;
 
-        for frame in buffer.samples.chunks_mut(channels) {
-            let sample = match self.waveform {
-                Waveform::Sine => (self.phase * 2.0 * PI).sin(),
-                Waveform::Square => {
-                    if self.phase < 0.5 {
-                        1.0
-                    } else {
-                        -1.0
-                    }
-                }
-                Waveform::Sawtooth => 2.0 * self.phase - 1.0,
-                Waveform::Triangle => 4.0 * (self.phase - 0.5).abs() - 1.0,
-            };
-
-            for channel_sample in frame.iter_mut() {
-                *channel_sample = sample;
+        for voice in self.voices.iter_mut() {
+            if !voice.active {
+                continue;
             }
 
-            self.phase += self.frequency / sample_rate;
-            if self.phase > 1.0 {
-                self.phase -= 1.0;
+            let phase_inc = voice.frequency / sample_rate;
+            let amp = voice.velocity * 0.5; // Scale down to avoid clipping
+
+            for frame_idx in 0..buffer_len {
+                let sample = match self.waveform {
+                    Waveform::Sine => (voice.phase * 2.0 * PI).sin(),
+                    Waveform::Square => {
+                        if voice.phase < 0.5 {
+                            1.0
+                        } else {
+                            -1.0
+                        }
+                    }
+                    Waveform::Sawtooth => 2.0 * voice.phase - 1.0,
+                    Waveform::Triangle => 4.0 * (voice.phase - 0.5).abs() - 1.0,
+                };
+
+                let output = sample * amp;
+
+                for ch in 0..channels {
+                    buffer.samples[frame_idx * channels + ch] += output;
+                }
+
+                voice.phase += phase_inc;
+                if voice.phase > 1.0 {
+                    voice.phase -= 1.0;
+                }
             }
         }
     }
