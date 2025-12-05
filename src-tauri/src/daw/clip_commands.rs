@@ -6,6 +6,12 @@ use tauri::State;
 use uuid::Uuid;
 
 #[tauri::command]
+pub fn get_all_clips(state: State<'_, AppState>) -> Result<Vec<Clip>, String> {
+    let clips = state.clips.lock().map_err(|_| "Failed to lock clips")?;
+    Ok(clips.clone())
+}
+
+#[tauri::command]
 pub fn add_clip(
     state: State<'_, AppState>,
     track_id: usize,

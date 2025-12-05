@@ -123,6 +123,7 @@ pub fn run() {
             update_clip,
             copy_clip,
             get_clip,
+            get_all_clips,
             remove_clip,
             play,
             get_playback_state,

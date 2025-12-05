@@ -9,6 +9,7 @@ export default {
     'bottom.bpm': 'BPM',
     'bottom.timeSig': '拍号',
     'bottom.saveProject': '保存项目',
+    'bottom.loadProject': '加载项目',
     'bottom.export': '导出',
     'bottom.midiEditor': 'MIDI 编辑器',
 

@@ -42,12 +42,24 @@ export const DawService = {
         return await invoke('get_clip', { id })
     },
 
+    async getAllClips(): Promise<Clip[]> {
+        return await invoke('get_all_clips')
+    },
+
     async removeClip(id: string): Promise<void> {
         await invoke('remove_clip', { id })
     },
 
     async play(): Promise<void> {
         await invoke('play')
+    },
+
+    async saveProject(path: string): Promise<void> {
+        await invoke('save_project_cmd', { path })
+    },
+
+    async loadProject(path: string): Promise<void> {
+        await invoke('load_project_cmd', { path })
     },
 
     async pause(): Promise<void> {

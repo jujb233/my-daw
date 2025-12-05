@@ -90,7 +90,7 @@ impl ProjectManager {
         tracks: &Vec<ArrangementTrack>,
         clips: &Vec<Clip>,
         mixer_tracks: &Vec<crate::daw::state::MixerTrackData>,
-        _plugins: &Vec<crate::daw::state::PluginInstanceData>,
+        plugins: &Vec<crate::daw::state::PluginInstanceData>,
         project_path: &Path,
     ) -> String {
         let mut script = String::new();
@@ -103,6 +103,13 @@ impl ProjectManager {
         script.push_str("  bpm = 120.0,\n");
         script.push_str("  sample_rate = 44100\n");
         script.push_str("}\n\n");
+
+        for plugin in plugins {
+            script.push_str(&format!(
+                "plugin {{\n  id = \"{}\",\n  name = \"{}\",\n  label = \"{}\",\n  routing_track = {},\n  format = \"Internal\"\n}}\n\n",
+                plugin.id, plugin.name, plugin.label, plugin.routing_track_index
+            ));
+        }
 
         for track in tracks {
             script.push_str(&format!("track {{\n  id = {},\n  name = \"{}\",\n  color = \"{}\",\n  target_mixer = {}\n}}\n\n", 
@@ -133,11 +140,25 @@ impl ProjectManager {
                 crate::daw::model::ClipContent::Audio { .. } => "audio",
             };
 
-            script.push_str(&format!("clip {{\n  id = \"{}\",\n  track_id = {},\n  name = \"{}\",\n  start = {},\n  start_bar = {},\n  start_beat = {},\n  start_sixteenth = {},\n  start_tick = {},\n  duration = {},\n  duration_bars = {},\n  duration_beats = {},\n  duration_sixteenths = {},\n  duration_ticks = {},\n  duration_total_ticks = {},\n  type = \"{}\",\n  audio_path = \"{}\"\n}}\n\n",
-                clip.id, clip.track_id, clip.name, 
+            let inst_ids_str = clip
+                .instrument_ids
+                .iter()
+                .map(|id| format!("\"{}\"", id))
+                .collect::<Vec<_>>()
+                .join(", ");
+
+            let inst_routes_str = clip
+                .instrument_routes
+                .iter()
+                .map(|(k, v)| format!("[\"{}\"] = {}", k, v))
+                .collect::<Vec<_>>()
+                .join(", ");
+
+            script.push_str(&format!("clip {{\n  id = \"{}\",\n  track_id = {},\n  name = \"{}\",\n  color = \"{}\",\n  start = {},\n  start_bar = {},\n  start_beat = {},\n  start_sixteenth = {},\n  start_tick = {},\n  duration = {},\n  duration_bars = {},\n  duration_beats = {},\n  duration_sixteenths = {},\n  duration_ticks = {},\n  duration_total_ticks = {},\n  type = \"{}\",\n  audio_path = \"{}\",\n  instrument_ids = {{{}}},\n  instrument_routes = {{{}}}\n}}\n\n",
+                clip.id, clip.track_id, clip.name, clip.color,
                 clip.start.time, clip.start.bar, clip.start.beat, clip.start.sixteenth, clip.start.tick,
                 clip.length.seconds, clip.length.bars, clip.length.beats, clip.length.sixteenths, clip.length.ticks, clip.length.total_ticks,
-                content_type, audio_path_str));
+                content_type, audio_path_str, inst_ids_str, inst_routes_str));
         }
 
         for mixer in mixer_tracks {
@@ -162,7 +183,8 @@ impl ProjectManager {
                 meta = {},
                 tracks = {},
                 clips = {},
-                mixer = {}
+                mixer = {},
+                plugins = {}
             }
 
             function project(t)
@@ -179,6 +201,10 @@ impl ProjectManager {
 
             function mixer_strip(t)
                 table.insert(_G.project_data.mixer, t)
+            end
+
+            function plugin(t)
+                table.insert(_G.project_data.plugins, t)
             end
         "#,
         )
@@ -205,6 +231,9 @@ impl ProjectManager {
             .map_err(|e| anyhow::anyhow!(e.to_string()))?;
         let _mixer_tbl: Vec<Table> = project_data
             .get("mixer")
+            .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+        let plugins_tbl: Vec<Table> = project_data
+            .get("plugins")
             .map_err(|e| anyhow::anyhow!(e.to_string()))?;
 
         let mut schema = ProjectSchema {
@@ -245,6 +274,19 @@ impl ProjectManager {
                 target_mixer_track_id: t
                     .get("target_mixer")
                     .map_err(|e| anyhow::anyhow!(e.to_string()))?,
+            });
+        }
+
+        for p in plugins_tbl {
+            schema.plugins.push(PluginSchema {
+                id: p.get("id").map_err(|e| anyhow::anyhow!(e.to_string()))?,
+                name: p.get("name").map_err(|e| anyhow::anyhow!(e.to_string()))?,
+                label: p
+                    .get("label")
+                    .unwrap_or_else(|_| p.get("name").unwrap_or("Unknown".to_string())),
+                routing_track_index: p.get("routing_track").unwrap_or(0),
+                format: p.get("format").unwrap_or("Internal".to_string()),
+                state_blob_id: None, // Will be loaded from DB separately if needed, or matched by ID
             });
         }
 
@@ -290,16 +332,39 @@ impl ProjectManager {
                 ClipContentType::Midi
             };
 
+            let inst_ids_tbl: Option<Table> = c.get("instrument_ids").ok();
+            let mut instrument_ids = Vec::new();
+            if let Some(tbl) = inst_ids_tbl {
+                for pair in tbl.pairs::<usize, String>() {
+                    if let Ok((_, id)) = pair {
+                        instrument_ids.push(id);
+                    }
+                }
+            }
+
+            let inst_routes_tbl: Option<Table> = c.get("instrument_routes").ok();
+            let mut instrument_routes = std::collections::HashMap::new();
+            if let Some(tbl) = inst_routes_tbl {
+                for pair in tbl.pairs::<String, usize>() {
+                    if let Ok((k, v)) = pair {
+                        instrument_routes.insert(k, v);
+                    }
+                }
+            }
+
             if let Some(track) = schema.tracks.iter_mut().find(|t| t.id == track_id) {
                 track.clips.push(ClipSchema {
                     id: clip_id,
                     name: c.get("name").map_err(|e| anyhow::anyhow!(e.to_string()))?,
+                    color: c.get("color").unwrap_or("#3b82f6".to_string()),
                     start_position: c.get("start").map_err(|e| anyhow::anyhow!(e.to_string()))?,
                     start_bar: c.get("start_bar").unwrap_or(0),
                     start_beat: c.get("start_beat").unwrap_or(0),
                     start_sixteenth: c.get("start_sixteenth").unwrap_or(0),
                     start_tick: c.get("start_tick").unwrap_or(0),
-                    duration: c.get("duration").map_err(|e| anyhow::anyhow!(e.to_string()))?,
+                    duration: c
+                        .get("duration")
+                        .map_err(|e| anyhow::anyhow!(e.to_string()))?,
                     duration_bars: c.get("duration_bars").unwrap_or(0),
                     duration_beats: c.get("duration_beats").unwrap_or(0),
                     duration_sixteenths: c.get("duration_sixteenths").unwrap_or(0),
@@ -308,6 +373,9 @@ impl ProjectManager {
                     offset: 0.0,
                     content_type,
                     note_count: notes.len(),
+                    notes,
+                    instrument_ids,
+                    instrument_routes,
                 });
             }
         }

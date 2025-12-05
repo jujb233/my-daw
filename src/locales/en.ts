@@ -9,6 +9,7 @@ export default {
     'bottom.bpm': 'BPM',
     'bottom.timeSig': 'Time Sig',
     'bottom.saveProject': 'Save Project',
+    'bottom.loadProject': 'Load Project',
     'bottom.export': 'Export',
     'bottom.midiEditor': 'MIDI Editor',
 

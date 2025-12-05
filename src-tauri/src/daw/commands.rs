@@ -333,7 +333,7 @@ pub fn load_project_cmd(state: State<'_, AppState>, path: String) -> Result<(), 
                     id: c.id.clone(),
                     track_id: t.id,
                     name: c.name.clone(),
-                    color: "#00FF00".to_string(),
+                    color: c.color.clone(),
                     start: crate::daw::model::Position {
                         bar: c.start_bar,
                         beat: c.start_beat,
@@ -349,12 +349,74 @@ pub fn load_project_cmd(state: State<'_, AppState>, path: String) -> Result<(), 
                         total_ticks: c.duration_total_ticks,
                         seconds: c.duration,
                     },
-                    notes: vec![], // TODO: Load notes properly
+                    notes: c
+                        .notes
+                        .iter()
+                        .map(|n| {
+                            let bpm = schema.settings.bpm;
+                            let (num, _den) = schema.settings.time_signature;
+                            let ppq = 960.0;
+
+                            let seconds_per_beat = 60.0 / bpm;
+                            let total_ticks = (n.start / seconds_per_beat * ppq).round() as u64;
+
+                            let ticks_per_beat = ppq as u64;
+                            let ticks_per_bar = ticks_per_beat * num as u64;
+                            let ticks_per_16th = ticks_per_beat / 4;
+
+                            let bar = (total_ticks / ticks_per_bar) + 1;
+                            let rem_bar = total_ticks % ticks_per_bar;
+
+                            let beat = (rem_bar / ticks_per_beat) + 1;
+                            let rem_beat = rem_bar % ticks_per_beat;
+
+                            let sixteenth = (rem_beat / ticks_per_16th) + 1;
+                            let tick = (rem_beat % ticks_per_16th) as u32;
+
+                            let duration_ticks =
+                                (n.duration / seconds_per_beat * ppq).round() as u64;
+
+                            crate::daw::model::Note {
+                                id: uuid::Uuid::new_v4().to_string(),
+                                note: n.note,
+                                start: crate::daw::model::Position {
+                                    bar: bar as u32,
+                                    beat: beat as u32,
+                                    sixteenth: sixteenth as u32,
+                                    tick,
+                                    time: n.start,
+                                },
+                                duration: crate::daw::model::MusicalLength {
+                                    bars: 0,
+                                    beats: 0,
+                                    sixteenths: 0,
+                                    ticks: 0,
+                                    total_ticks: duration_ticks,
+                                    seconds: n.duration,
+                                },
+                                velocity: n.velocity,
+                            }
+                        })
+                        .collect(),
                     content,
-                    instrument_ids: vec![],
-                    instrument_routes: HashMap::new(),
+                    instrument_ids: c.instrument_ids.clone(),
+                    instrument_routes: c.instrument_routes.clone(),
                 });
             }
+        }
+    }
+
+    // Restore plugins
+    {
+        let mut active_plugins = state.active_plugins.lock().map_err(|_| "Lock error")?;
+        active_plugins.clear();
+        for p in &schema.plugins {
+            active_plugins.push(crate::daw::state::PluginInstanceData {
+                id: p.id.clone(),
+                name: p.name.clone(),
+                label: p.label.clone(),
+                routing_track_index: p.routing_track_index,
+            });
         }
     }
 

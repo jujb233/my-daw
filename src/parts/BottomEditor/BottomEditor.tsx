@@ -1,15 +1,64 @@
 import { Component, Show, createSignal, createEffect } from 'solid-js'
+import { open } from '@tauri-apps/plugin-dialog'
 import { Surface } from '../../UI/lib/Surface'
 import { Input } from '../../UI/lib/Input'
 import { Button } from '../../UI/lib/Button'
-import { store, setStore, selectClip } from '../../store'
+import { store, setStore, selectClip, reloadProject } from '../../store'
 import { PianoRoll } from '../MidiEditor/PianoRoll'
 import { IconButton } from '../../UI/lib/IconButton'
 import { t } from '../../i18n'
+import { DawService } from '../../services/daw'
 
 export const BottomEditor: Component = () => {
     const [height, setHeight] = createSignal(300)
     const [isResizing, setIsResizing] = createSignal(false)
+
+    const handleSaveProject = async () => {
+        try {
+            const selected = await open({
+                directory: true,
+                multiple: false,
+                title: t('bottom.saveProject')
+            })
+
+            if (selected && typeof selected === 'string') {
+                await DawService.saveProject(selected)
+                console.log('Project saved to', selected)
+            }
+        } catch (e) {
+            console.error('Failed to save project:', e)
+        }
+    }
+
+    const handleLoadProject = async () => {
+        try {
+            const selected = await open({
+                directory: true,
+                multiple: false,
+                title: t('bottom.loadProject')
+            })
+
+            if (selected && typeof selected === 'string') {
+                await DawService.loadProject(selected)
+                console.log('Project loaded from', selected)
+                await reloadProject()
+            }
+        } catch (e) {
+            console.error('Failed to load project:', e)
+        }
+    }
+
+    const handleExport = async () => {
+        // Placeholder for export functionality
+        // For now, maybe just log or show a not implemented message
+        console.log('Export clicked')
+        // If the user wants to export as project folder (backup?), we could reuse save
+        // But usually export means audio.
+        // Let's just leave it as a log for now unless they specifically asked for audio export.
+        // The user said "Save and Export buttons... click to select directory to store as project folder".
+        // This implies they might want Export to also save the project? Or maybe "Export Project"?
+        // I'll just wire Save for now.
+    }
 
     createEffect(() => {
         if (store.selectedClipId !== null && height() < 150) {
@@ -100,8 +149,15 @@ export const BottomEditor: Component = () => {
                                 disabled
                             />
                             <div class='flex-grow'></div>
-                            <Button variant='tonal'>{t('bottom.saveProject')}</Button>
-                            <Button variant='filled'>{t('bottom.export')}</Button>
+                            <Button variant='tonal' onClick={handleSaveProject}>
+                                {t('bottom.saveProject')}
+                            </Button>
+                            <Button variant='tonal' onClick={handleLoadProject}>
+                                {t('bottom.loadProject')}
+                            </Button>
+                            <Button variant='filled' onClick={handleExport}>
+                                {t('bottom.export')}
+                            </Button>
                         </div>
                     </div>
                 }

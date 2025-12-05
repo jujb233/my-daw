@@ -53,6 +53,7 @@ pub enum TrackType {
 pub struct ClipSchema {
     pub id: String,
     pub name: String,
+    pub color: String,
     pub start_position: f64, // Seconds
     pub start_bar: u32,
     pub start_beat: u32,
@@ -69,6 +70,9 @@ pub struct ClipSchema {
     // For MIDI, notes might be stored in SQLite if too many, or here if few.
     // We'll define a reference or inline data.
     pub note_count: usize,
+    pub notes: Vec<NoteSchema>,
+    pub instrument_ids: Vec<String>,
+    pub instrument_routes: std::collections::HashMap<String, usize>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -105,6 +109,8 @@ pub struct MixerTrackSchema {
 pub struct PluginSchema {
     pub id: String, // UUID
     pub name: String,
+    pub label: String,
+    pub routing_track_index: usize,
     pub format: String,             // VST3, CLAP, Internal
     pub state_blob_id: Option<i64>, // Reference to SQLite blob
 }

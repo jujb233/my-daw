@@ -165,6 +165,22 @@ export const fetchTracks = async () => {
     }
 }
 
+export const fetchClips = async () => {
+    try {
+        const clips = await DawService.getAllClips()
+        setStore('clips', clips)
+    } catch (e) {
+        console.error('Failed to fetch clips:', e)
+    }
+}
+
+export const reloadProject = async () => {
+    await fetchTracks()
+    await fetchClips()
+    // Also reload mixer tracks if needed, but they might be part of tracks or separate
+    // For now tracks and clips are the main arrangement data
+}
+
 export const addClip = async (trackId: number, start: Position, length: MusicalLength) => {
     try {
         // Auto-name: Clip 1, Clip 2...
