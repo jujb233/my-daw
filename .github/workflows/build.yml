@@ -7,132 +7,74 @@ on:
     workflow_dispatch:
 
 jobs:
-    build-desktop:
-        name: 构建桌面版
+    build-all:
+        name: Docker 统一构建
+        runs-on: ubuntu-latest
         permissions:
             contents: write
-        strategy:
-            fail-fast: false
-            matrix:
-                platform: [ubuntu-latest, windows-latest]
-
-        runs-on: ${{ matrix.platform }}
         steps:
             - uses: actions/checkout@v4
 
-            - name: 安装 Node.js
-              uses: actions/setup-node@v4
+            - name: 设置 Docker Buildx
+              uses: docker/setup-buildx-action@v3
+
+            - name: 缓存 Docker 层
+              uses: actions/cache@v4
               with:
-                  node-version: 20
+                  path: /tmp/.buildx-cache
+                  key: ${{ runner.os }}-buildx-${{ github.sha }}
+                  restore-keys: |
+                      ${{ runner.os }}-buildx-
 
-            - name: 安装 Rust
-              uses: dtolnay/rust-toolchain@stable
-
-            - name: 安装依赖 (Ubuntu)
-              if: matrix.platform == 'ubuntu-latest'
-              run: |
-                  sudo apt-get update
-                  sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev rpm libasound2-dev
-
-            - name: 安装前端依赖
-              run: npm install
-
-            - name: 构建桌面版应用
-              uses: tauri-apps/tauri-action@v0
+            - name: 构建构建环境镜像
+              uses: docker/build-push-action@v5
               with:
-                  # omit tagName/releaseName so the action will only build, not create a release
-                  args: ${{ matrix.platform == 'ubuntu-latest' && '--bundles appimage,rpm' || '--bundles nsis' }}
+                  context: .devcontainer
+                  file: .devcontainer/Dockerfile
+                  push: false
+                  load: true
+                  tags: my-daw-builder:latest
+                  cache-from: type=local,src=/tmp/.buildx-cache
+                  cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
 
-            - name: 列出桌面构建产物（调试）
+            - name: 移动缓存
               run: |
-                  echo "Bundle tree:"
-                  ls -R src-tauri/target/release/bundle || true
+                  rm -rf /tmp/.buildx-cache
+                  mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
-            - name: 上传 Ubuntu 最终包 (AppImage & RPM)
-              if: ${{ always() && matrix.platform == 'ubuntu-latest' }}
+            - name: 准备 Keystore
+              run: |
+                  mkdir -p keystore
+                  keytool -genkey -v -keystore keystore/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+
+            - name: 在 Docker 中构建所有产物
+              run: |
+                  docker run --rm \
+                    -v ${{ github.workspace }}:/workspace \
+                    -v ${{ github.workspace }}/keystore:/root/.android \
+                    my-daw-builder:latest \
+                    /bin/bash -c "
+                      npm install && \
+                      npm run tauri build -- --bundles appimage,rpm && \
+                      npm run tauri build -- --runner cargo-xwin --target x86_64-pc-windows-msvc --bundles nsis && \
+                      npm run tauri android build -- --apk --target aarch64-linux-android
+                    "
+
+            - name: 上传 Linux 产物
               uses: actions/upload-artifact@v4
               with:
-                  name: desktop-ubuntu-latest
+                  name: desktop-linux
                   path: |
                       src-tauri/target/release/bundle/**/*.AppImage
                       src-tauri/target/release/bundle/**/*.appimage
                       src-tauri/target/release/bundle/**/*.rpm
 
-            - name: 上传 Windows 最终包 (EXE)
-              if: ${{ always() && matrix.platform == 'windows-latest' }}
+            - name: 上传 Windows 产物
               uses: actions/upload-artifact@v4
               with:
-                  name: desktop-windows-latest
+                  name: desktop-windows
                   path: |
-                      src-tauri/target/release/bundle/**/*.exe
-
-    build-android:
-        name: 构建安卓版
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v4
-
-            - name: 安装 Node.js
-              uses: actions/setup-node@v4
-              with:
-                  node-version: 20
-
-            - name: 安装 Java
-              uses: actions/setup-java@v4
-              with:
-                  distribution: 'temurin'
-                  java-version: '21'
-
-            - name: 安装 Android SDK
-              uses: android-actions/setup-android@v3
-
-            - name: 安装 Android NDK
-              run: |
-                  sdkmanager "ndk;29.0.14206865"
-                  echo "NDK_HOME=$ANDROID_HOME/ndk/29.0.14206865" >> $GITHUB_ENV
-                  echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/29.0.14206865" >> $GITHUB_ENV
-
-            - name: 安装 Rust
-              uses: dtolnay/rust-toolchain@stable
-              with:
-                  targets: aarch64-linux-android armv7-linux-androideabi
-
-            - name: Rust 缓存
-              uses: swatinem/rust-cache@v2
-              with:
-                  workspaces: src-tauri
-
-            - name: 安装前端依赖
-              run: npm install
-
-            - name: 生成 Debug Keystore
-              run: |
-                  mkdir -p ~/.android
-                  if [ ! -f ~/.android/debug.keystore ]; then
-                    keytool -genkey -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
-                  fi
-
-            - name: 构建 Android APK
-              run: |
-                  echo "Using NDK: $NDK_HOME"
-
-                  # 显式设置编译器和链接器路径，强制使用 API 26 (Android 8.0)
-                  # 这是因为 cpal/oboe 依赖的 AAudio 库仅在 API 26+ 可用
-                  # 如果不指定，Rust 可能会默认使用较低的 API 版本 (如 24)，导致找不到 -laaudio
-
-                  TOOLCHAIN=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin
-
-                  export CC_aarch64_linux_android="$TOOLCHAIN/aarch64-linux-android26-clang"
-                  export CXX_aarch64_linux_android="$TOOLCHAIN/aarch64-linux-android26-clang++"
-                  export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="$TOOLCHAIN/aarch64-linux-android26-clang"
-                  export CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS="-C linker=$TOOLCHAIN/aarch64-linux-android26-clang"
-
-                  export CC_armv7_linux_androideabi="$TOOLCHAIN/armv7a-linux-androideabi26-clang"
-                  export CXX_armv7_linux_androideabi="$TOOLCHAIN/armv7a-linux-androideabi26-clang++"
-                  export CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_LINKER="$TOOLCHAIN/armv7a-linux-androideabi26-clang"
-                  export CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_RUSTFLAGS="-C linker=$TOOLCHAIN/armv7a-linux-androideabi26-clang"
-
-                  npm run tauri android build -- --apk true
+                      src-tauri/target/x86_64-pc-windows-msvc/release/bundle/**/*.exe
 
             - name: 上传 Android 产物
               uses: actions/upload-artifact@v4
@@ -142,7 +84,7 @@ jobs:
 
     publish-release:
         name: 发布 Release（汇总并上传所有平台资产）
-        needs: [build-desktop, build-android]
+        needs: [build-all]
         runs-on: ubuntu-latest
         permissions:
             contents: write
@@ -150,16 +92,16 @@ jobs:
             - name: Checkout code
               uses: actions/checkout@v4
 
-            - name: 下载 Ubuntu 桌面产物
+            - name: 下载 Linux 产物
               uses: actions/download-artifact@v4
               with:
-                  name: desktop-ubuntu-latest
-                  path: artifacts/ubuntu
+                  name: desktop-linux
+                  path: artifacts/linux
 
-            - name: 下载 Windows 桌面产物
+            - name: 下载 Windows 产物
               uses: actions/download-artifact@v4
               with:
-                  name: desktop-windows-latest
+                  name: desktop-windows
                   path: artifacts/windows
 
             - name: 下载 Android 产物
@@ -176,13 +118,10 @@ jobs:
             - name: 创建 Release 并上传所有资产
               uses: softprops/action-gh-release@v2
               with:
-                  # Only upload the final bundle packages so we don't try to upload
-                  # internal files (e.g. shared libraries) which may cause conflicts
-                  # during overwriting or trigger update requests that lead to 404.
                   files: |
-                      artifacts/ubuntu/**/*.AppImage
-                      artifacts/ubuntu/**/*.appimage
-                      artifacts/ubuntu/**/*.rpm
+                      artifacts/linux/**/*.AppImage
+                      artifacts/linux/**/*.appimage
+                      artifacts/linux/**/*.rpm
                       artifacts/windows/**/*.exe
                       artifacts/android/**/*.apk
                   tag_name: ${{ github.ref_name }}
@@ -190,12 +129,6 @@ jobs:
                   body: '请在下方 Assets 中下载安装包。'
                   draft: false
                   prerelease: false
-                  # Avoid attempting to update/replace existing assets. If you want
-                  # replacement behavior, set to true and ensure the release exists
-                  # with properly matching asset names beforehand.
                   overwrite_files: false
-                  # Do not fail if some globs don't match — not every run produces
-                  # all platform artifacts. Keep `fail_on_unmatched_files` off.
                   fail_on_unmatched_files: false
-                  # Explicitly supply token (defaults to GITHUB_TOKEN) to be explicit
                   token: ${{ secrets.GITHUB_TOKEN }}

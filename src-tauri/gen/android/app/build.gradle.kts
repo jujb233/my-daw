@@ -21,19 +21,19 @@ repositories {
 }
 
 android {
-    compileSdk = 36
-    buildToolsVersion = "36.0.0"
+    compileSdk = 35
+    buildToolsVersion = "35.0.0"
     ndkVersion = "29.0.14206865"
     namespace = "com.jujb233.my_daw"
     defaultConfig {
         manifestPlaceholders["usesCleartextTraffic"] = "false"
         applicationId = "com.jujb233.my_daw"
         minSdk = 26
-        targetSdk = 36
+        targetSdk = 35
         versionCode = tauriProperties.getProperty("tauri.android.versionCode", "1").toInt()
         versionName = tauriProperties.getProperty("tauri.android.versionName", "1.0")
         ndk {
-            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+            abiFilters += listOf("arm64-v8a")
         }
     }
     signingConfigs {

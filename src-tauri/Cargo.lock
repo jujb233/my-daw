@@ -2267,7 +2267,7 @@ dependencies = [
 
 [[package]]
 name = "my-daw"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "anyhow",
  "clap-sys",
