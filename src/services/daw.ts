@@ -22,11 +22,11 @@ export const DawService = {
             id,
             name: updates.name,
             start: updates.start,
-            track_id: updates.trackId,
+            trackId: updates.trackId,
             length: updates.length,
             notes: updates.notes,
-            instrument_ids: updates.instrumentIds,
-            instrument_routes: updates.instrumentRoutes
+            instrumentIds: updates.instrumentIds,
+            instrumentRoutes: updates.instrumentRoutes
         })
     },
 
