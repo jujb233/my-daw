@@ -4,8 +4,10 @@ use crate::audio::plugins::mixer::mixer_plugin::MixerPlugin;
 
 use crate::daw::sequencer::{get_is_playing, get_playback_position};
 use tauri::State;
+use std::sync::{Arc, Mutex};
+use std::collections::HashMap;
 
-pub fn create_audio_graph(state: &State<'_, AppState>) -> Result<Box<dyn Plugin>, String> {
+pub fn create_audio_graph(state: &State<'_, AppState>) -> Result<(Box<dyn Plugin>, HashMap<String, Arc<Mutex<Box<dyn Plugin>>>>), String> {
     let plugins = state
         .active_plugins
         .lock()
@@ -31,18 +33,23 @@ pub fn create_audio_graph(state: &State<'_, AppState>) -> Result<Box<dyn Plugin>
 
     // 映射 UUID -> 混音台索引
     let mut inst_uuid_to_index = std::collections::HashMap::new();
+    let mut inst_uuid_to_instance = HashMap::new();
 
     println!("Core: Building Audio Graph");
     for (_i, p_data) in plugins.iter().enumerate() {
-        let inst_idx = if let Some(plugin) = manager.create_plugin(&p_data.name) {
-            Some(mixer.add_instrument(plugin))
+        let plugin_opt = if let Some(plugin) = manager.create_plugin(&p_data.name) {
+            Some(plugin)
         } else if p_data.name == "SimpleSynth" {
             // 兼容旧版本的后备方案
-            if let Some(plugin) = manager.create_plugin("com.mydaw.simplesynth") {
-                Some(mixer.add_instrument(plugin))
-            } else {
-                None
-            }
+            manager.create_plugin("com.mydaw.simplesynth")
+        } else {
+            None
+        };
+
+        let inst_idx = if let Some(plugin) = plugin_opt {
+            let wrapped = Arc::new(Mutex::new(plugin));
+            inst_uuid_to_instance.insert(p_data.id.clone(), wrapped.clone());
+            Some(mixer.add_instrument(wrapped))
         } else {
             None
         };
@@ -139,7 +146,7 @@ pub fn create_audio_graph(state: &State<'_, AppState>) -> Result<Box<dyn Plugin>
         sequencer.add_clip(audio_clip);
     }
 
-    Ok(Box::new(mixer))
+    Ok((Box::new(mixer), inst_uuid_to_instance))
 }
 
 pub fn rebuild_engine(state: &State<'_, AppState>) -> Result<(), String> {
@@ -158,7 +165,13 @@ pub fn rebuild_engine(state: &State<'_, AppState>) -> Result<(), String> {
     }
 
     // 始终重建图（graph）
-    let root = create_audio_graph(state)?;
+    let (root, instances) = create_audio_graph(state)?;
+
+    // 更新 AppState 中的实例引用
+    {
+        let mut state_instances = state.plugin_instances.lock().map_err(|_| "Failed to lock plugin instances")?;
+        *state_instances = instances;
+    }
 
     // 如果之前正在运行或我们希望在重建时保持状态，请恢复状态
     // 我们需要把 root 转回 MixerPlugin 才能设置传输状态，或者在启动后立即发送事件

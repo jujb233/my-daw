@@ -3,7 +3,9 @@ use super::state::{AppState, MixerTrackData, PluginInstanceData};
 use crate::audio::core::plugin::{NoteEvent, PluginEvent};
 use crate::audio::plugins::mixer::level_meter::get_meter_levels;
 use crate::daw::sequencer::{get_is_playing, get_playback_position};
+use crate::daw::serialization::project::ProjectManager;
 use std::collections::HashMap;
+use std::path::PathBuf;
 use tauri::State;
 use uuid::Uuid;
 
@@ -153,7 +155,7 @@ pub fn toggle_audio(state: State<'_, AppState>) -> Result<bool, String> {
         engine.stop();
         Ok(false)
     } else {
-        let root = create_audio_graph(&state)?;
+        let (root, _instances) = create_audio_graph(&state)?;
 
         engine.start(root).map_err(|e| e.to_string())?;
 
@@ -218,7 +220,7 @@ pub fn play(state: State<'_, AppState>) -> Result<(), String> {
 
     if !engine.is_running() {
         // 启动引擎
-        let root = create_audio_graph(&state)?;
+        let (root, _instances) = create_audio_graph(&state)?;
 
         engine.start(root).map_err(|e| e.to_string())?;
     }
@@ -280,5 +282,109 @@ pub fn seek(state: State<'_, AppState>, position: f64) -> Result<(), String> {
             tempo: None,
         });
     }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn save_project_cmd(state: State<'_, AppState>, path: String) -> Result<(), String> {
+    let path_buf = PathBuf::from(path);
+    ProjectManager::save_project(&state, &path_buf).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn load_project_cmd(state: State<'_, AppState>, path: String) -> Result<(), String> {
+    let path_buf = PathBuf::from(path);
+    let schema = ProjectManager::load_project(&path_buf).map_err(|e| e.to_string())?;
+    let plugin_states = ProjectManager::load_plugin_states(&path_buf).map_err(|e| e.to_string())?;
+
+    // Apply schema to state
+    {
+        let mut tracks = state.arrangement_tracks.lock().map_err(|_| "Lock error")?;
+        tracks.clear();
+        for t in schema.tracks.iter() {
+            tracks.push(crate::daw::model::ArrangementTrack {
+                id: t.id,
+                name: t.name.clone(),
+                color: t.color.clone(),
+                muted: false,
+                soloed: false,
+                target_mixer_track_id: t.target_mixer_track_id,
+            });
+        }
+    }
+
+    {
+        let mut clips = state.clips.lock().map_err(|_| "Lock error")?;
+        clips.clear();
+        for t in schema.tracks.iter() {
+            for c in &t.clips {
+                let content = match &c.content_type {
+                    crate::daw::serialization::schema::ClipContentType::Midi => {
+                        crate::daw::model::ClipContent::Midi
+                    }
+                    crate::daw::serialization::schema::ClipContentType::Audio { file_path } => {
+                        crate::daw::model::ClipContent::Audio {
+                            path: file_path.clone(),
+                        }
+                    }
+                };
+
+                clips.push(crate::daw::model::Clip {
+                    id: c.id.clone(),
+                    track_id: t.id,
+                    name: c.name.clone(),
+                    color: "#00FF00".to_string(),
+                    start: crate::daw::model::Position {
+                        bar: c.start_bar,
+                        beat: c.start_beat,
+                        sixteenth: c.start_sixteenth,
+                        tick: c.start_tick,
+                        time: c.start_position,
+                    },
+                    length: crate::daw::model::MusicalLength {
+                        bars: c.duration_bars,
+                        beats: c.duration_beats,
+                        sixteenths: c.duration_sixteenths,
+                        ticks: c.duration_ticks,
+                        total_ticks: c.duration_total_ticks,
+                        seconds: c.duration,
+                    },
+                    notes: vec![], // TODO: Load notes properly
+                    content,
+                    instrument_ids: vec![],
+                    instrument_routes: HashMap::new(),
+                });
+            }
+        }
+    }
+
+    // Store pending states
+    {
+        let mut pending = state
+            .pending_plugin_states
+            .lock()
+            .map_err(|_| "Lock error")?;
+        *pending = plugin_states;
+    }
+
+    rebuild_engine(&state)?;
+
+    // Apply states to new instances
+    {
+        let instances = state.plugin_instances.lock().map_err(|_| "Lock error")?;
+        let pending = state
+            .pending_plugin_states
+            .lock()
+            .map_err(|_| "Lock error")?;
+
+        for (id, instance) in instances.iter() {
+            if let Some(state_blob) = pending.get(id) {
+                if let Ok(mut inst) = instance.lock() {
+                    inst.set_state(state_blob);
+                }
+            }
+        }
+    }
+
     Ok(())
 }

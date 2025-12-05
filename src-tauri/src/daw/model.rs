@@ -41,6 +41,13 @@ pub struct Note {
 use std::collections::HashMap;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(tag = "type", content = "data")]
+pub enum ClipContent {
+    Midi,
+    Audio { path: String },
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Clip {
     pub id: String,
@@ -50,6 +57,7 @@ pub struct Clip {
     pub start: Position,
     pub length: MusicalLength,
     pub notes: Vec<Note>,
+    pub content: ClipContent,
     pub instrument_ids: Vec<String>,
     pub instrument_routes: HashMap<String, usize>, // InstrumentID -> MixerTrackID (Direct routing override)
 }

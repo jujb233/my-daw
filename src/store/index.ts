@@ -183,6 +183,7 @@ export const addClip = async (trackId: number, start: Position, length: MusicalL
             start,
             length,
             notes: [],
+            content: { type: 'Midi' },
             instrumentIds: [],
             instrumentRoutes: {}
         }

@@ -32,6 +32,8 @@ export interface Note {
     selected?: boolean
 }
 
+export type ClipContent = { type: 'Midi' } | { type: 'Audio'; data: { path: string } }
+
 export interface Clip {
     id: string
     trackId: number
@@ -40,6 +42,7 @@ export interface Clip {
     start: Position
     length: MusicalLength
     notes: Note[]
+    content: ClipContent
     instrumentIds: string[]
     instrumentRoutes: Record<string, number> // InstrumentID -> TrackID
     isSelected?: boolean

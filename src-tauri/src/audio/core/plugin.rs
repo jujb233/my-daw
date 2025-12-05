@@ -92,6 +92,12 @@ pub trait Plugin: Send + Sync {
 
     fn get_parameters(&self) -> Vec<PluginParameter>;
 
+    fn get_state(&self) -> Vec<u8> {
+        Vec::new()
+    }
+
+    fn set_state(&mut self, _state: &[u8]) {}
+
     #[allow(dead_code)]
     fn get_io_config(&self) -> IOConfig {
         IOConfig::default()

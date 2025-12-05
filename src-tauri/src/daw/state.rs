@@ -1,8 +1,10 @@
 use crate::audio::engine::AudioEngine;
 use crate::audio::plugins::manager::PluginManager;
+use crate::audio::core::plugin::Plugin;
 use crate::daw::model::{ArrangementTrack, Clip};
 use serde::{Deserialize, Serialize};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
+use std::collections::HashMap;
 use uuid::Uuid;
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -31,4 +33,6 @@ pub struct AppState {
     pub mixer_tracks: Mutex<Vec<MixerTrackData>>,
     pub arrangement_tracks: Mutex<Vec<ArrangementTrack>>,
     pub clips: Mutex<Vec<Clip>>,
+    pub plugin_instances: Mutex<HashMap<String, Arc<Mutex<Box<dyn Plugin>>>>>,
+    pub pending_plugin_states: Mutex<HashMap<String, Vec<u8>>>,
 }

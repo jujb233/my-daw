@@ -36,6 +36,7 @@ pub fn add_clip(
             start,
             length,
             notes: vec![],
+            content: crate::daw::model::ClipContent::Midi,
             instrument_ids: vec![],
             instrument_routes: HashMap::new(),
         });
@@ -159,6 +160,7 @@ pub fn copy_clip(
             start: new_start,
             length: original.length,
             notes: original.notes,
+            content: original.content,
             instrument_ids: original.instrument_ids,
             instrument_routes: original.instrument_routes,
         });

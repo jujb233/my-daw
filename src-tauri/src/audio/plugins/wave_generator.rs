@@ -94,6 +94,16 @@ impl Plugin for WaveGenerator {
         }]
     }
 
+    fn get_state(&self) -> Vec<u8> {
+        vec![self.waveform as u8]
+    }
+
+    fn set_state(&mut self, state: &[u8]) {
+        if let Some(&val) = state.first() {
+            self.waveform = Waveform::from(val as f32);
+        }
+    }
+
     fn get_io_config(&self) -> IOConfig {
         IOConfig {
             inputs: 0,

@@ -81,6 +81,31 @@ impl Plugin for PluginContainer {
         params
     }
 
+    fn get_state(&self) -> Vec<u8> {
+        let mut state = Vec::new();
+        for plugin in &self.plugins {
+            let child_state = plugin.get_state();
+            let len = child_state.len() as u32;
+            state.extend_from_slice(&len.to_le_bytes());
+            state.extend_from_slice(&child_state);
+        }
+        state
+    }
+
+    fn set_state(&mut self, state: &[u8]) {
+        let mut cursor = 0;
+        for plugin in &mut self.plugins {
+            if cursor + 4 > state.len() { break; }
+            let len_bytes: [u8; 4] = state[cursor..cursor+4].try_into().unwrap();
+            let len = u32::from_le_bytes(len_bytes) as usize;
+            cursor += 4;
+            
+            if cursor + len > state.len() { break; }
+            plugin.set_state(&state[cursor..cursor+len]);
+            cursor += len;
+        }
+    }
+
     fn process(
         &mut self,
         buffer: &mut AudioBuffer,

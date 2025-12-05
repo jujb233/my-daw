@@ -101,6 +101,8 @@ pub fn run() {
             mixer_tracks: Mutex::new(tracks),
             arrangement_tracks: Mutex::new(arrangement_tracks),
             clips: Mutex::new(Vec::new()),
+            plugin_instances: Mutex::new(std::collections::HashMap::new()),
+            pending_plugin_states: Mutex::new(std::collections::HashMap::new()),
         })
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
@@ -133,7 +135,9 @@ pub fn run() {
             get_arrangement_tracks,
             add_arrangement_track,
             remove_arrangement_track,
-            log_msg
+            log_msg,
+            save_project_cmd,
+            load_project_cmd
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

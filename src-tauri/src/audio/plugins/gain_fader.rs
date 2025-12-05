@@ -40,6 +40,17 @@ impl Plugin for GainFader {
         }]
     }
 
+    fn get_state(&self) -> Vec<u8> {
+        self.gain.to_le_bytes().to_vec()
+    }
+
+    fn set_state(&mut self, state: &[u8]) {
+        if state.len() >= 4 {
+            let bytes: [u8; 4] = state[0..4].try_into().unwrap();
+            self.gain = f32::from_le_bytes(bytes);
+        }
+    }
+
     fn process(
         &mut self,
         buffer: &mut AudioBuffer,

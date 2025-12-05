@@ -3,13 +3,14 @@ use crate::audio::core::plugin::{
 };
 use crate::audio::plugins::mixer::track::MixerTrack;
 use crate::daw::sequencer::Sequencer;
+use std::sync::{Arc, Mutex};
 use uuid::Uuid;
 
 pub struct MixerPlugin {
     #[allow(dead_code)]
     id: Uuid,
     tracks: Vec<MixerTrack>,
-    instruments: Vec<Box<dyn Plugin>>,
+    instruments: Vec<Arc<Mutex<Box<dyn Plugin>>>>,
     sequencer: Sequencer,
     scratch_buffer: Vec<f32>,
     accumulator_buffer: Vec<f32>,
@@ -42,7 +43,7 @@ impl MixerPlugin {
         m_id
     }
 
-    pub fn add_instrument(&mut self, plugin: Box<dyn Plugin>) -> usize {
+    pub fn add_instrument(&mut self, plugin: Arc<Mutex<Box<dyn Plugin>>>) -> usize {
         self.instruments.push(plugin);
         self.instruments.len() - 1
     }
@@ -50,7 +51,7 @@ impl MixerPlugin {
     // 移除了 set_routing，因为它现在通过 Sequencer 动态处理
 
     #[allow(dead_code)]
-    pub fn get_instrument_mut(&mut self, index: usize) -> Option<&mut Box<dyn Plugin>> {
+    pub fn get_instrument_mut(&mut self, index: usize) -> Option<&mut Arc<Mutex<Box<dyn Plugin>>>> {
         self.instruments.get_mut(index)
     }
 
@@ -172,7 +173,7 @@ impl Plugin for MixerPlugin {
                 }
             }));
 
-            let inst = &mut self.instruments[inst_idx];
+            let inst_arc = &self.instruments[inst_idx];
 
             let mut inst_buffer = AudioBuffer {
                 samples: &mut self.scratch_buffer,
@@ -181,7 +182,14 @@ impl Plugin for MixerPlugin {
             };
 
             // 处理乐器
-            inst.process(&mut inst_buffer, &inst_events, output_events);
+            if let Ok(mut plugin) = inst_arc.try_lock() {
+                plugin.process(&mut inst_buffer, &inst_events, output_events);
+            } else {
+                // 如果无法锁定（例如正在保存状态），则输出静音
+                for s in self.scratch_buffer.iter_mut() {
+                    *s = 0.0;
+                }
+            }
 
             // Debug: Check if instrument produced sound
             let mut max_sample = 0.0f32;
@@ -327,8 +335,10 @@ impl Plugin for MixerPlugin {
         if id >= 10000 {
             let inst_idx = ((id - 10000) / 100) as usize;
             let param_id = (id - 10000) % 100;
-            if let Some(inst) = self.instruments.get(inst_idx) {
-                return inst.get_param(param_id);
+            if let Some(inst_arc) = self.instruments.get(inst_idx) {
+                if let Ok(inst) = inst_arc.lock() {
+                    return inst.get_param(param_id);
+                }
             }
             return 0.0;
         }
@@ -346,8 +356,10 @@ impl Plugin for MixerPlugin {
         if id >= 10000 {
             let inst_idx = ((id - 10000) / 100) as usize;
             let param_id = (id - 10000) % 100;
-            if let Some(inst) = self.instruments.get_mut(inst_idx) {
-                inst.set_param(param_id, value);
+            if let Some(inst_arc) = self.instruments.get_mut(inst_idx) {
+                if let Ok(mut inst) = inst_arc.lock() {
+                    inst.set_param(param_id, value);
+                }
             }
             return;
         }
