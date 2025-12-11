@@ -18,11 +18,11 @@ interface MixerStripProps {
 
 export const MixerStrip: Component<MixerStripProps> = props => {
     return (
-        <div class='w-28 bg-surface-container-low border-r border-outline-variant flex flex-col items-center py-3 gap-3 shrink-0 select-none'>
+        <div class='bg-surface-container-low border-outline-variant flex w-28 shrink-0 flex-col items-center gap-3 border-r py-3 select-none'>
             {/* Header / Label */}
             <div class='w-full px-2 text-center'>
                 <span
-                    class='text-sm font-medium text-on-surface truncate block'
+                    class='text-on-surface block truncate text-sm font-medium'
                     title={props.track.label}
                 >
                     {props.track.label}
@@ -31,12 +31,12 @@ export const MixerStrip: Component<MixerStripProps> = props => {
 
             {/* Pan / Other controls placeholder */}
             {/* Made larger for touch */}
-            <div class='w-10 h-10 rounded-full border border-outline-variant flex items-center justify-center bg-surface hover:bg-surface-container-high cursor-pointer'>
-                <div class='w-0.5 h-4 bg-primary rotate-0' />
+            <div class='border-outline-variant bg-surface hover:bg-surface-container-high flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border'>
+                <div class='bg-primary h-4 w-0.5 rotate-0' />
             </div>
 
             {/* Meter & Fader Container */}
-            <div class='flex-1 flex gap-3 items-end justify-center w-full px-2 py-2 bg-surface-container-lowest rounded-lg mx-1 shadow-inner'>
+            <div class='bg-surface-container-lowest mx-1 flex w-full flex-1 items-end justify-center gap-3 rounded-lg px-2 py-2 shadow-inner'>
                 <LevelMeter level={props.level} className='h-64 w-11' />
                 <Fader
                     value={props.track.volume}
@@ -47,10 +47,10 @@ export const MixerStrip: Component<MixerStripProps> = props => {
             </div>
 
             {/* Mute / Solo / Rec */}
-            <div class='flex gap-2 w-full justify-center px-2'>
+            <div class='flex w-full justify-center gap-2 px-2'>
                 <button
                     title={t('icons.mute')}
-                    class={`flex-1 h-10 text-xs font-bold rounded transition-colors ${
+                    class={`h-10 flex-1 rounded text-xs font-bold transition-colors ${
                         props.track.mute
                             ? 'bg-error text-on-error'
                             : 'bg-surface-container-highest text-on-surface-variant hover:bg-surface-container-high'
@@ -61,7 +61,7 @@ export const MixerStrip: Component<MixerStripProps> = props => {
                 </button>
                 <button
                     title={t('icons.solo')}
-                    class={`flex-1 h-10 text-xs font-bold rounded transition-colors ${
+                    class={`h-10 flex-1 rounded text-xs font-bold transition-colors ${
                         props.track.solo
                             ? 'bg-tertiary text-on-tertiary'
                             : 'bg-surface-container-highest text-on-surface-variant hover:bg-surface-container-high'
@@ -77,7 +77,7 @@ export const MixerStrip: Component<MixerStripProps> = props => {
                 <IconButton
                     onClick={() => removeMixerTrack(props.track.id)}
                     variant='standard'
-                    class='text-error hover:bg-error/10 w-10 h-10'
+                    class='text-error hover:bg-error/10 h-10 w-10'
                     title={t('icons.removeTrack')}
                 >
                     <svg

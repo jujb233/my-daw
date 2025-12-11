@@ -56,23 +56,17 @@ export const MixerPanel: Component = () => {
         <>
             {/* Mobile Backdrop */}
             <div
-                class={`fixed inset-0 bg-black/50 z-30 md:hidden transition-opacity ${isOpen() ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+                class={`fixed inset-0 z-30 bg-black/50 transition-opacity md:hidden ${isOpen() ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`}
                 onClick={() => setIsOpen(false)}
             ></div>
 
             <div
-                class={`
-                    absolute left-0 top-0 bottom-0 md:relative 
-                    z-40 bg-surface border-r border-outline-variant 
-                    flex flex-col shadow-xl h-full shrink-0
-                    ${isResizing() ? 'transition-none' : 'transition-all duration-300 ease-in-out'}
-                    ${isOpen() ? '' : 'w-0 md:w-12'}
-                `}
+                class={`bg-surface border-outline-variant absolute top-0 bottom-0 left-0 z-40 flex h-full shrink-0 flex-col border-r shadow-xl md:relative ${isResizing() ? 'transition-none' : 'transition-all duration-300 ease-in-out'} ${isOpen() ? '' : 'w-0 md:w-12'} `}
                 style={{ width: isOpen() ? `${width()}px` : undefined }}
             >
                 {/* Toggle Handle - Centered on Right Edge */}
                 <div
-                    class='absolute -right-6 top-1/2 -translate-y-1/2 w-6 h-24 bg-surface border border-l-0 border-outline-variant rounded-r-lg cursor-pointer flex items-center justify-center hover:bg-surface-container-high z-50 shadow-md'
+                    class='bg-surface border-outline-variant hover:bg-surface-container-high absolute top-1/2 -right-6 z-50 flex h-24 w-6 -translate-y-1/2 cursor-pointer items-center justify-center rounded-r-lg border border-l-0 shadow-md'
                     onClick={() => setIsOpen(!isOpen())}
                     title={isOpen() ? 'Collapse' : 'Expand'}
                 >
@@ -90,7 +84,7 @@ export const MixerPanel: Component = () => {
 
                 {/* Resize Handle - Wider for touch */}
                 <div
-                    class={`absolute right-0 top-0 bottom-0 w-4 translate-x-2 cursor-col-resize z-40 touch-none ${isResizing() ? 'bg-primary/20' : 'bg-transparent hover:bg-primary/10'}`}
+                    class={`absolute top-0 right-0 bottom-0 z-40 w-4 translate-x-2 cursor-col-resize touch-none ${isResizing() ? 'bg-primary/20' : 'hover:bg-primary/10 bg-transparent'}`}
                     onMouseDown={startResize}
                     onTouchStart={startResize}
                     style={{ display: isOpen() ? 'block' : 'none' }}
@@ -98,9 +92,9 @@ export const MixerPanel: Component = () => {
 
                 {/* Collapsed View: Just a vertical label or icon (Desktop only) */}
                 <div
-                    class={`h-full w-12 flex-col items-center pt-4 gap-4 hidden md:flex ${isOpen() ? '!hidden' : ''}`}
+                    class={`hidden h-full w-12 flex-col items-center gap-4 pt-4 md:flex ${isOpen() ? '!hidden' : ''}`}
                 >
-                    <div class='flex flex-col items-center text-on-surface font-medium select-none leading-tight gap-1'>
+                    <div class='text-on-surface flex flex-col items-center gap-1 leading-tight font-medium select-none'>
                         <span>调</span>
                         <span>音</span>
                         <span>台</span>
@@ -119,9 +113,9 @@ export const MixerPanel: Component = () => {
                 </div>
 
                 {/* Expanded View */}
-                <div class={`flex-1 flex flex-col overflow-hidden ${isOpen() ? 'flex' : 'hidden'}`}>
-                    <div class='h-12 shrink-0 flex items-center justify-between px-4 border-b border-outline-variant bg-surface-container'>
-                        <span class='font-bold text-on-surface'>{t('mixer.console')}</span>
+                <div class={`flex flex-1 flex-col overflow-hidden ${isOpen() ? 'flex' : 'hidden'}`}>
+                    <div class='border-outline-variant bg-surface-container flex h-12 shrink-0 items-center justify-between border-b px-4'>
+                        <span class='text-on-surface font-bold'>{t('mixer.console')}</span>
                         <div class='flex gap-2'>
                             <IconButton onClick={addMixerTrack} title={t('mixer.addTrack')}>
                                 <svg
@@ -137,7 +131,7 @@ export const MixerPanel: Component = () => {
                         </div>
                     </div>
                     <div class='flex-1 overflow-x-auto overflow-y-hidden p-2'>
-                        <div class='flex gap-2 h-full'>
+                        <div class='flex h-full gap-2'>
                             <For each={mixerTracks()}>
                                 {track => (
                                     <MixerStrip

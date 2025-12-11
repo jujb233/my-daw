@@ -68,7 +68,7 @@ export const DropdownMenu: Component<DropdownMenuProps> = props => {
             <Show when={isOpen()}>
                 <Portal>
                     <div
-                        class='fixed z-50 min-w-[200px] bg-surface-container-high rounded-lg shadow-xl border border-outline-variant py-1 overflow-hidden'
+                        class='bg-surface-container-high border-outline-variant fixed z-50 min-w-[200px] overflow-hidden rounded-lg border py-1 shadow-xl'
                         style={{
                             left: `${position().x}px`,
                             top: direction() === 'down' ? `${position().y + 4}px` : 'auto',
@@ -82,7 +82,7 @@ export const DropdownMenu: Component<DropdownMenuProps> = props => {
                         <For each={props.items}>
                             {item => (
                                 <button
-                                    class='w-full text-left px-4 py-2 text-sm text-on-surface hover:bg-surface-container-highest transition-colors flex items-center gap-2'
+                                    class='text-on-surface hover:bg-surface-container-highest flex w-full items-center gap-2 px-4 py-2 text-left text-sm transition-colors'
                                     onClick={() => {
                                         item.onClick?.()
                                         close()

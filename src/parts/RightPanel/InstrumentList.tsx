@@ -13,7 +13,7 @@ import { PluginHost } from '../../components/PluginHost'
 
 export const InstrumentList: Component = () => {
     return (
-        <div class='flex-1 overflow-y-auto p-4 flex flex-col gap-3'>
+        <div class='flex flex-1 flex-col gap-3 overflow-y-auto p-4'>
             <For each={instances()}>
                 {inst => (
                     <InstrumentCard
@@ -30,7 +30,7 @@ export const InstrumentList: Component = () => {
                     >
                         {/* Label Editor */}
                         <div>
-                            <label class='text-xs text-on-surface-variant block mb-1'>
+                            <label class='text-on-surface-variant mb-1 block text-xs'>
                                 {t('sidebar.label')}
                             </label>
                             <input
@@ -39,7 +39,7 @@ export const InstrumentList: Component = () => {
                                 onInput={e =>
                                     updateInstanceLabel(inst.index, e.currentTarget.value)
                                 }
-                                class='w-full bg-surface-container-highest text-on-surface text-sm px-2 py-1 rounded border-none focus:ring-1 focus:ring-primary outline-none'
+                                class='bg-surface-container-highest text-on-surface focus:ring-primary w-full rounded border-none px-2 py-1 text-sm outline-none focus:ring-1'
                             />
                         </div>
 

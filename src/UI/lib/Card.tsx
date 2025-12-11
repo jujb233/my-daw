@@ -9,17 +9,17 @@ interface CardProps {
 export const Card: ParentComponent<CardProps> = props => {
     return (
         <div
-            class={`bg-surface-container rounded-lg border border-outline-variant shadow-sm overflow-hidden flex flex-col ${props.className || ''}`}
+            class={`bg-surface-container border-outline-variant flex flex-col overflow-hidden rounded-lg border shadow-sm ${props.className || ''}`}
         >
             {(props.title || props.headerActions) && (
-                <div class='bg-surface-container-high px-3 py-2 border-b border-outline-variant flex justify-between items-center min-h-[40px]'>
+                <div class='bg-surface-container-high border-outline-variant flex min-h-[40px] items-center justify-between border-b px-3 py-2'>
                     {props.title && (
-                        <h3 class='text-sm font-semibold text-on-surface'>{props.title}</h3>
+                        <h3 class='text-on-surface text-sm font-semibold'>{props.title}</h3>
                     )}
-                    <div class='flex items-center gap-2 ml-auto'>{props.headerActions}</div>
+                    <div class='ml-auto flex items-center gap-2'>{props.headerActions}</div>
                 </div>
             )}
-            <div class='p-3 flex-1 flex flex-col'>{props.children}</div>
+            <div class='flex flex-1 flex-col p-3'>{props.children}</div>
         </div>
     )
 }

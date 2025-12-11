@@ -21,7 +21,7 @@ export const InstrumentCard: Component<InstrumentCardProps> = props => {
                     {props.onRemove && (
                         <IconButton
                             variant='standard'
-                            class='text-on-surface-variant hover:text-error w-8 h-8'
+                            class='text-on-surface-variant hover:text-error h-8 w-8'
                             onClick={e => {
                                 e.stopPropagation()
                                 props.onRemove?.()
@@ -40,7 +40,7 @@ export const InstrumentCard: Component<InstrumentCardProps> = props => {
                     )}
                     <IconButton
                         variant='standard'
-                        class={`text-on-surface-variant transition-transform duration-200 w-8 h-8 ${props.isExpanded ? 'rotate-180' : ''}`}
+                        class={`text-on-surface-variant h-8 w-8 transition-transform duration-200 ${props.isExpanded ? 'rotate-180' : ''}`}
                         onClick={e => {
                             e.stopPropagation()
                             props.onToggleExpand?.()
@@ -60,13 +60,13 @@ export const InstrumentCard: Component<InstrumentCardProps> = props => {
             }
         >
             {/* Header Content (Always Visible) */}
-            <div class='flex items-center gap-3 cursor-pointer' onClick={props.onToggleExpand}>
-                <div class='w-10 h-10 rounded bg-primary/20 flex items-center justify-center text-primary shrink-0'>
+            <div class='flex cursor-pointer items-center gap-3' onClick={props.onToggleExpand}>
+                <div class='bg-primary/20 text-primary flex h-10 w-10 shrink-0 items-center justify-center rounded'>
                     🎹
                 </div>
-                <div class='flex flex-col flex-1 min-w-0'>
-                    <span class='text-sm font-medium text-on-surface truncate'>{props.label}</span>
-                    <span class='text-xs text-on-surface-variant truncate'>
+                <div class='flex min-w-0 flex-1 flex-col'>
+                    <span class='text-on-surface truncate text-sm font-medium'>{props.label}</span>
+                    <span class='text-on-surface-variant truncate text-xs'>
                         {props.name} #{props.id + 1}
                     </span>
                 </div>
@@ -74,7 +74,7 @@ export const InstrumentCard: Component<InstrumentCardProps> = props => {
 
             {/* Expanded Content */}
             <Show when={props.isExpanded}>
-                <div class='pt-3 mt-3 border-t border-outline-variant/50 flex flex-col gap-3'>
+                <div class='border-outline-variant/50 mt-3 flex flex-col gap-3 border-t pt-3'>
                     {props.children}
                 </div>
             </Show>

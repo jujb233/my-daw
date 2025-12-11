@@ -101,7 +101,7 @@ export const BottomEditor: Component = () => {
     return (
         <Surface
             level={2}
-            class='flex flex-col shrink-0 border-t border-outline-variant relative'
+            class='border-outline-variant relative flex shrink-0 flex-col border-t'
             style={{
                 height: store.selectedClipId !== null ? `${height()}px` : '80px',
                 transition: isResizing() ? 'none' : 'height 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
@@ -109,18 +109,18 @@ export const BottomEditor: Component = () => {
         >
             <Show when={store.selectedClipId !== null}>
                 <div
-                    class='absolute -top-5 left-0 right-0 h-10 cursor-row-resize z-50 flex items-center justify-center group touch-none'
+                    class='group absolute -top-5 right-0 left-0 z-50 flex h-10 cursor-row-resize touch-none items-center justify-center'
                     onPointerDown={handlePointerDown}
                 >
-                    <div class='w-24 h-1.5 rounded-full bg-surface-variant group-hover:bg-primary/50 transition-colors shadow-sm backdrop-blur-sm'></div>
+                    <div class='bg-surface-variant group-hover:bg-primary/50 h-1.5 w-24 rounded-full shadow-sm backdrop-blur-sm transition-colors'></div>
                 </div>
             </Show>
 
             <Show
                 when={store.selectedClipId !== null}
                 fallback={
-                    <div class='flex items-center px-6 py-4 gap-4 h-full'>
-                        <div class='flex gap-4 flex-wrap items-end w-full'>
+                    <div class='flex h-full items-center gap-4 px-6 py-4'>
+                        <div class='flex w-full flex-wrap items-end gap-4'>
                             <Input
                                 label={t('bottom.projectName')}
                                 value={store.info.name}
@@ -162,9 +162,9 @@ export const BottomEditor: Component = () => {
                     </div>
                 }
             >
-                <div class='flex-1 flex flex-col overflow-hidden'>
-                    <div class='h-10 border-b border-outline-variant flex items-center justify-between px-4 bg-surface-container shrink-0'>
-                        <span class='font-medium text-on-surface'>{t('bottom.editor')}</span>
+                <div class='flex flex-1 flex-col overflow-hidden'>
+                    <div class='border-outline-variant bg-surface-container flex h-10 shrink-0 items-center justify-between border-b px-4'>
+                        <span class='text-on-surface font-medium'>{t('bottom.editor')}</span>
                         <IconButton onClick={() => selectClip(null)} variant='standard'>
                             <svg
                                 xmlns='http://www.w3.org/2000/svg'
@@ -177,7 +177,7 @@ export const BottomEditor: Component = () => {
                             </svg>
                         </IconButton>
                     </div>
-                    <div class='flex-1 overflow-hidden relative'>
+                    <div class='relative flex-1 overflow-hidden'>
                         <PianoRoll clipId={store.selectedClipId!} />
                     </div>
                 </div>

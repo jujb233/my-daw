@@ -30,17 +30,17 @@ export const ClipDetails: Component = () => {
     }
 
     return (
-        <div class='h-full flex flex-col p-4 gap-4 overflow-y-auto'>
+        <div class='flex h-full flex-col gap-4 overflow-y-auto p-4'>
             <Show
                 when={clip()}
                 fallback={
-                    <div class='text-on-surface-variant text-center mt-10'>
+                    <div class='text-on-surface-variant mt-10 text-center'>
                         {t('clip.noSelection')}
                     </div>
                 }
             >
                 <div class='flex flex-col gap-2'>
-                    <h2 class='text-lg font-bold text-on-surface'>{t('clip.details')}</h2>
+                    <h2 class='text-on-surface text-lg font-bold'>{t('clip.details')}</h2>
 
                     <Input
                         label={t('clip.name')}
@@ -50,14 +50,14 @@ export const ClipDetails: Component = () => {
 
                     {/* Instrument Selector & Routing */}
                     <div class='flex flex-col gap-2'>
-                        <span class='text-xs text-on-surface-variant'>
+                        <span class='text-on-surface-variant text-xs'>
                             {t('clip.instrumentsAndRouting') || 'Instruments & Routing'}
                         </span>
-                        <div class='flex flex-col gap-2 max-h-[200px] overflow-y-auto border border-outline-variant rounded p-2 bg-surface-container-low'>
+                        <div class='border-outline-variant bg-surface-container-low flex max-h-[200px] flex-col gap-2 overflow-y-auto rounded border p-2'>
                             <Show
                                 when={instances().length > 0}
                                 fallback={
-                                    <div class='text-xs text-on-surface-variant text-center py-4'>
+                                    <div class='text-on-surface-variant py-4 text-center text-xs'>
                                         {t('clip.noInstruments') || 'No instruments available'}
                                     </div>
                                 }
@@ -67,7 +67,7 @@ export const ClipDetails: Component = () => {
                                         const isSelected = () =>
                                             clip()!.instrumentIds?.includes(inst.id)
                                         return (
-                                            <div class='flex flex-col gap-1 border-b border-outline-variant/50 pb-2 last:border-0'>
+                                            <div class='border-outline-variant/50 flex flex-col gap-1 border-b pb-2 last:border-0'>
                                                 <div class='flex items-center gap-2'>
                                                     <input
                                                         type='checkbox'
@@ -99,18 +99,18 @@ export const ClipDetails: Component = () => {
                                                             })
                                                         }}
                                                     />
-                                                    <span class='text-sm text-on-surface truncate flex-1'>
+                                                    <span class='text-on-surface flex-1 truncate text-sm'>
                                                         {inst.label || inst.name}
                                                     </span>
                                                 </div>
 
                                                 <Show when={isSelected()}>
                                                     <div class='flex items-center gap-2 pl-6'>
-                                                        <span class='text-xs text-on-surface-variant'>
+                                                        <span class='text-on-surface-variant text-xs'>
                                                             Route to:
                                                         </span>
                                                         <select
-                                                            class='flex-1 bg-surface-container-highest border border-outline-variant rounded p-1 text-xs text-on-surface outline-none'
+                                                            class='bg-surface-container-highest border-outline-variant text-on-surface flex-1 rounded border p-1 text-xs outline-none'
                                                             value={
                                                                 clip()!.instrumentRoutes?.[
                                                                     inst.id
@@ -150,16 +150,16 @@ export const ClipDetails: Component = () => {
 
                     <div class='grid grid-cols-2 gap-2'>
                         <div class='flex flex-col gap-1'>
-                            <span class='text-xs text-on-surface-variant'>{t('clip.start')}</span>
-                            <span class='text-sm text-on-surface font-mono'>
+                            <span class='text-on-surface-variant text-xs'>{t('clip.start')}</span>
+                            <span class='text-on-surface font-mono text-sm'>
                                 {clip()!.start.bar}.{clip()!.start.beat}.{clip()!.start.sixteenth}
                             </span>
                         </div>
                         <div class='flex flex-col gap-1'>
-                            <span class='text-xs text-on-surface-variant'>
+                            <span class='text-on-surface-variant text-xs'>
                                 {t('clip.duration')}
                             </span>
-                            <span class='text-sm text-on-surface font-mono'>
+                            <span class='text-on-surface font-mono text-sm'>
                                 {defaultTimeService
                                     .ticksToSeconds(clip()!.length.totalTicks)
                                     .toFixed(2)}
@@ -171,7 +171,7 @@ export const ClipDetails: Component = () => {
                     <div class='mt-4'>
                         <Button
                             variant='filled'
-                            class='w-full bg-error text-on-error'
+                            class='bg-error text-on-error w-full'
                             onClick={handleDelete}
                         >
                             {t('clip.delete')}

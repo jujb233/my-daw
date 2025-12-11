@@ -22,9 +22,9 @@ export default function App() {
     })
 
     return (
-        <div class='flex flex-col h-screen w-screen bg-background text-on-background overflow-hidden'>
+        <div class='bg-background text-on-background flex h-screen w-screen flex-col overflow-hidden'>
             {/* Top Bar */}
-            <div class='flex items-center pr-4 bg-surface-container-high border-b border-outline-variant z-30 relative'>
+            <div class='bg-surface-container-high border-outline-variant relative z-30 flex items-center border-b pr-4'>
                 <div class='flex-1'>
                     <TopInfoPanel />
                 </div>
@@ -33,7 +33,7 @@ export default function App() {
                         variant={isSidebarOpen() ? 'filled' : 'standard'}
                         onClick={() => setIsSidebarOpen(!isSidebarOpen())}
                         title={t('app.toggleTimbre')}
-                        class='w-12 h-12'
+                        class='h-12 w-12'
                     >
                         <svg
                             xmlns='http://www.w3.org/2000/svg'
@@ -49,12 +49,12 @@ export default function App() {
             </div>
 
             {/* Main Content */}
-            <div class='flex-1 flex overflow-hidden relative'>
+            <div class='relative flex flex-1 overflow-hidden'>
                 {/* Mixer Panel (Left, Collapsible) */}
                 <MixerPanel />
 
                 {/* Timeline (Center) */}
-                <div class='flex-1 flex flex-col min-w-0 relative z-0'>
+                <div class='relative z-0 flex min-w-0 flex-1 flex-col'>
                     <TrackEditor />
                 </div>
 

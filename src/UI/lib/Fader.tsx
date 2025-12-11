@@ -54,33 +54,31 @@ export const Fader: Component<FaderProps> = props => {
 
     return (
         <div
-            class={`relative flex justify-center touch-none select-none ${props.className || ''}`}
+            class={`relative flex touch-none justify-center select-none ${props.className || ''}`}
             onDblClick={handleDblClick}
             onPointerDown={handlePointerDown}
         >
             {/* Track Background */}
             <div
                 ref={trackRef}
-                class='h-full w-2 bg-surface-container-highest rounded-full relative overflow-hidden pointer-events-none'
+                class='bg-surface-container-highest pointer-events-none relative h-full w-2 overflow-hidden rounded-full'
             >
                 {/* Fill Level (Optional, maybe for meters, but faders usually just have a handle) */}
                 <div
-                    class='absolute bottom-0 left-0 right-0 bg-primary/20 pointer-events-none'
+                    class='bg-primary/20 pointer-events-none absolute right-0 bottom-0 left-0'
                     style={{ height: `${props.value * 100}%` }}
                 />
             </div>
 
             {/* Hit Area & Handle Container */}
-            <div class='absolute inset-0 cursor-ns-resize flex items-end justify-center pointer-events-none'>
+            <div class='pointer-events-none absolute inset-0 flex cursor-ns-resize items-end justify-center'>
                 {/* Thumb / Handle */}
                 <div
-                    class={`w-8 h-12 rounded shadow-md border flex items-center justify-center transition-colors duration-75 absolute mb-[-24px] pointer-events-auto
-                        ${
-                            isDragging()
-                                ? 'bg-primary-container border-primary'
-                                : 'bg-surface-container-high border-outline hover:border-outline-variant'
-                        }
-                    `}
+                    class={`pointer-events-auto absolute mb-[-24px] flex h-12 w-8 items-center justify-center rounded border shadow-md transition-colors duration-75 ${
+                        isDragging()
+                            ? 'bg-primary-container border-primary'
+                            : 'bg-surface-container-high border-outline hover:border-outline-variant'
+                    } `}
                     style={{
                         bottom: `${props.value * 100}%`,
                         transform: 'translateY(50%)'
@@ -88,9 +86,9 @@ export const Fader: Component<FaderProps> = props => {
                 >
                     {/* Handle Grip Lines */}
                     <div class='flex flex-col gap-0.5 opacity-50'>
-                        <div class='w-4 h-[1px] bg-on-surface' />
-                        <div class='w-4 h-[1px] bg-on-surface' />
-                        <div class='w-4 h-[1px] bg-on-surface' />
+                        <div class='bg-on-surface h-[1px] w-4' />
+                        <div class='bg-on-surface h-[1px] w-4' />
+                        <div class='bg-on-surface h-[1px] w-4' />
                     </div>
                 </div>
             </div>

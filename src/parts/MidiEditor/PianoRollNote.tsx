@@ -88,7 +88,7 @@ export const PianoRollNote: Component<PianoRollNoteProps> = props => {
 
     return (
         <div
-            class={`absolute rounded-sm border border-black/30 overflow-hidden cursor-pointer hover:brightness-110 transition-all ${props.isSelected ? 'ring-1 ring-white' : ''}`}
+            class={`absolute cursor-pointer overflow-hidden rounded-sm border border-black/30 transition-all hover:brightness-110 ${props.isSelected ? 'ring-1 ring-white' : ''}`}
             style={{
                 left: `${props.startPx}px`,
                 width: `${props.widthPx}px`,
@@ -104,13 +104,13 @@ export const PianoRollNote: Component<PianoRollNoteProps> = props => {
         >
             {/* Left Resize Handle */}
             <div
-                class='absolute left-0 top-0 bottom-0 w-2 cursor-w-resize hover:bg-white/20 z-10'
+                class='absolute top-0 bottom-0 left-0 z-10 w-2 cursor-w-resize hover:bg-white/20'
                 onMouseDown={handleResizeLeft}
             ></div>
 
             {/* Right Resize Handle */}
             <div
-                class='absolute right-0 top-0 bottom-0 w-2 cursor-w-resize hover:bg-white/20 z-10'
+                class='absolute top-0 right-0 bottom-0 z-10 w-2 cursor-w-resize hover:bg-white/20'
                 onMouseDown={handleResizeRight}
             ></div>
         </div>

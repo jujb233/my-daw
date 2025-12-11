@@ -19,11 +19,11 @@ export const SettingsPanel: Component<SettingsPanelProps> = props => {
         <div class='fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm'>
             <Surface
                 level={1}
-                class='w-[800px] h-[600px] flex flex-col rounded-xl shadow-2xl overflow-hidden'
+                class='flex h-[600px] w-[800px] flex-col overflow-hidden rounded-xl shadow-2xl'
             >
                 {/* Header */}
-                <div class='h-16 px-6 flex items-center justify-between border-b border-outline-variant bg-surface-container'>
-                    <h2 class='text-xl font-semibold text-on-surface'>{t('settings.title')}</h2>
+                <div class='border-outline-variant bg-surface-container flex h-16 items-center justify-between border-b px-6'>
+                    <h2 class='text-on-surface text-xl font-semibold'>{t('settings.title')}</h2>
                     <IconButton onClick={props.onClose}>
                         <svg
                             xmlns='http://www.w3.org/2000/svg'
@@ -37,11 +37,11 @@ export const SettingsPanel: Component<SettingsPanelProps> = props => {
                     </IconButton>
                 </div>
 
-                <div class='flex-1 flex overflow-hidden'>
+                <div class='flex flex-1 overflow-hidden'>
                     {/* Sidebar */}
-                    <div class='w-48 bg-surface-container-low border-r border-outline-variant p-2 flex flex-col gap-1'>
+                    <div class='bg-surface-container-low border-outline-variant flex w-48 flex-col gap-1 border-r p-2'>
                         <button
-                            class={`px-4 py-3 text-left rounded-lg text-sm font-medium transition-colors ${
+                            class={`rounded-lg px-4 py-3 text-left text-sm font-medium transition-colors ${
                                 settingsActiveTab() === 'general'
                                     ? 'bg-secondary-container text-on-secondary-container'
                                     : 'text-on-surface-variant hover:bg-surface-container-highest'
@@ -51,7 +51,7 @@ export const SettingsPanel: Component<SettingsPanelProps> = props => {
                             {t('settings.general')}
                         </button>
                         <button
-                            class={`px-4 py-3 text-left rounded-lg text-sm font-medium transition-colors ${
+                            class={`rounded-lg px-4 py-3 text-left text-sm font-medium transition-colors ${
                                 settingsActiveTab() === 'audio'
                                     ? 'bg-secondary-container text-on-secondary-container'
                                     : 'text-on-surface-variant hover:bg-surface-container-highest'
@@ -61,7 +61,7 @@ export const SettingsPanel: Component<SettingsPanelProps> = props => {
                             {t('settings.audio')}
                         </button>
                         <button
-                            class={`px-4 py-3 text-left rounded-lg text-sm font-medium transition-colors ${
+                            class={`rounded-lg px-4 py-3 text-left text-sm font-medium transition-colors ${
                                 settingsActiveTab() === 'plugins'
                                     ? 'bg-secondary-container text-on-secondary-container'
                                     : 'text-on-surface-variant hover:bg-surface-container-highest'
@@ -73,11 +73,11 @@ export const SettingsPanel: Component<SettingsPanelProps> = props => {
                     </div>
 
                     {/* Content */}
-                    <div class='flex-1 p-6 overflow-y-auto bg-surface'>
+                    <div class='bg-surface flex-1 overflow-y-auto p-6'>
                         <Show when={settingsActiveTab() === 'general'}>
                             <div class='flex flex-col gap-6'>
                                 <section>
-                                    <h3 class='text-lg font-medium text-on-surface mb-4'>
+                                    <h3 class='text-on-surface mb-4 text-lg font-medium'>
                                         {t('settings.language')}
                                     </h3>
                                     <div class='flex gap-2'>
@@ -100,10 +100,10 @@ export const SettingsPanel: Component<SettingsPanelProps> = props => {
                                     </div>
                                 </section>
                                 <section>
-                                    <h3 class='text-lg font-medium text-on-surface mb-4'>
+                                    <h3 class='text-on-surface mb-4 text-lg font-medium'>
                                         {t('settings.theme')}
                                     </h3>
-                                    <div class='p-4 rounded-lg bg-surface-container-highest text-on-surface-variant'>
+                                    <div class='bg-surface-container-highest text-on-surface-variant rounded-lg p-4'>
                                         Theme settings coming soon...
                                     </div>
                                 </section>
@@ -113,10 +113,10 @@ export const SettingsPanel: Component<SettingsPanelProps> = props => {
                         <Show when={settingsActiveTab() === 'audio'}>
                             <div class='flex flex-col gap-6'>
                                 <section>
-                                    <h3 class='text-lg font-medium text-on-surface mb-4'>
+                                    <h3 class='text-on-surface mb-4 text-lg font-medium'>
                                         {t('settings.audioDevice')}
                                     </h3>
-                                    <div class='p-4 rounded-lg bg-surface-container-highest text-on-surface-variant'>
+                                    <div class='bg-surface-container-highest text-on-surface-variant rounded-lg p-4'>
                                         Audio device configuration coming soon...
                                     </div>
                                 </section>
@@ -125,8 +125,8 @@ export const SettingsPanel: Component<SettingsPanelProps> = props => {
 
                         <Show when={settingsActiveTab() === 'plugins'}>
                             <div class='flex flex-col gap-6'>
-                                <div class='flex justify-between items-center'>
-                                    <h3 class='text-lg font-medium text-on-surface'>
+                                <div class='flex items-center justify-between'>
+                                    <h3 class='text-on-surface text-lg font-medium'>
                                         {t('settings.plugins')}
                                     </h3>
                                     <Button
@@ -158,15 +158,15 @@ export const SettingsPanel: Component<SettingsPanelProps> = props => {
                                 <div class='flex flex-col gap-2'>
                                     <For each={availablePlugins()}>
                                         {plugin => (
-                                            <div class='flex items-center justify-between p-3 bg-surface-container-highest rounded-lg'>
+                                            <div class='bg-surface-container-highest flex items-center justify-between rounded-lg p-3'>
                                                 <div class='flex flex-col'>
-                                                    <span class='font-medium text-on-surface'>
+                                                    <span class='text-on-surface font-medium'>
                                                         {t(`plugins.${plugin.unique_id}`) ===
                                                         `plugins.${plugin.unique_id}`
                                                             ? plugin.name
                                                             : t(`plugins.${plugin.unique_id}`)}
                                                     </span>
-                                                    <span class='text-xs text-on-surface-variant'>
+                                                    <span class='text-on-surface-variant text-xs'>
                                                         {plugin.vendor}
                                                     </span>
                                                 </div>

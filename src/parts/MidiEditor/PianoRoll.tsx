@@ -135,20 +135,20 @@ export const PianoRoll: Component<PianoRollProps> = props => {
     }
 
     return (
-        <div class='flex h-full w-full bg-surface-container-low overflow-hidden relative'>
+        <div class='bg-surface-container-low relative flex h-full w-full overflow-hidden'>
             {/* Zoom Controls */}
-            <div class='absolute bottom-4 right-4 z-30 flex gap-2 bg-surface-container-high p-1 rounded-full shadow-md border border-outline-variant'>
+            <div class='bg-surface-container-high border-outline-variant absolute right-4 bottom-4 z-30 flex gap-2 rounded-full border p-1 shadow-md'>
                 <IconButton
                     onClick={() => setZoom(z => Math.max(10, z * 0.8))}
                     variant='standard'
-                    class='w-8 h-8'
+                    class='h-8 w-8'
                 >
                     -
                 </IconButton>
                 <IconButton
                     onClick={() => setZoom(z => Math.min(500, z * 1.2))}
                     variant='standard'
-                    class='w-8 h-8'
+                    class='h-8 w-8'
                 >
                     +
                 </IconButton>
@@ -157,7 +157,7 @@ export const PianoRoll: Component<PianoRollProps> = props => {
             {/* Keys (Left) */}
             <div
                 ref={el => (keysContainer = el)}
-                class='w-16 shrink-0 border-r border-outline-variant overflow-hidden bg-white'
+                class='border-outline-variant w-16 shrink-0 overflow-hidden border-r bg-white'
             >
                 <div class='relative' style={{ height: `${KEYS.length * NOTE_HEIGHT}px` }}>
                     <For each={KEYS}>
@@ -165,7 +165,7 @@ export const PianoRoll: Component<PianoRollProps> = props => {
                             const isBlack = [1, 3, 6, 8, 10].includes(note % 12)
                             return (
                                 <div
-                                    class={`absolute left-0 right-0 border-b border-outline-variant/50 flex items-center justify-end pr-1 text-[10px] ${isBlack ? 'bg-black text-white' : 'bg-white text-black'}`}
+                                    class={`border-outline-variant/50 absolute right-0 left-0 flex items-center justify-end border-b pr-1 text-[10px] ${isBlack ? 'bg-black text-white' : 'bg-white text-black'}`}
                                     style={{
                                         top: `${(127 - note) * NOTE_HEIGHT}px`,
                                         height: `${NOTE_HEIGHT}px`
@@ -182,7 +182,7 @@ export const PianoRoll: Component<PianoRollProps> = props => {
             {/* Grid (Right) */}
             <div
                 ref={el => (gridContainer = el)}
-                class='flex-1 overflow-auto relative bg-surface-container-lowest cursor-crosshair'
+                class='bg-surface-container-lowest relative flex-1 cursor-crosshair overflow-auto'
                 onScroll={handleScroll}
                 onMouseDown={handleGridClick}
             >
@@ -194,12 +194,12 @@ export const PianoRoll: Component<PianoRollProps> = props => {
                     }}
                 >
                     {/* Grid Lines */}
-                    <div class='absolute inset-0 pointer-events-none'>
+                    <div class='pointer-events-none absolute inset-0'>
                         {/* Vertical lines for beats */}
                         <For each={Array.from({ length: 100 })}>
                             {(_, i) => (
                                 <div
-                                    class='absolute top-0 bottom-0 border-l border-outline-variant/20'
+                                    class='border-outline-variant/20 absolute top-0 bottom-0 border-l'
                                     style={{ left: `${i() * PPQ * pixelsPerTick()}px` }}
                                 ></div>
                             )}
@@ -208,7 +208,7 @@ export const PianoRoll: Component<PianoRollProps> = props => {
                         <For each={KEYS}>
                             {note => (
                                 <div
-                                    class='absolute left-0 right-0 border-b border-outline-variant/10'
+                                    class='border-outline-variant/10 absolute right-0 left-0 border-b'
                                     style={{
                                         top: `${(127 - note) * NOTE_HEIGHT}px`,
                                         height: `${NOTE_HEIGHT}px`
@@ -221,7 +221,7 @@ export const PianoRoll: Component<PianoRollProps> = props => {
                     {/* Playback Cursor */}
                     <Show when={cursorPosition() !== null}>
                         <div
-                            class='absolute top-0 bottom-0 w-[2px] bg-primary z-20 pointer-events-none'
+                            class='bg-primary pointer-events-none absolute top-0 bottom-0 z-20 w-[2px]'
                             style={{ left: `${cursorPosition()}px` }}
                         />
                     </Show>

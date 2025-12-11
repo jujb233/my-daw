@@ -27,10 +27,10 @@ const Playhead: Component = () => {
 
     return (
         <div
-            class='absolute top-0 bottom-0 w-[1px] bg-red-500 z-50 pointer-events-none'
+            class='pointer-events-none absolute top-0 bottom-0 z-50 w-[1px] bg-red-500'
             style={{ left: `${left()}px` }}
         >
-            <div class='absolute -top-1 -left-1.5 w-3 h-3 bg-red-500 rotate-45'></div>
+            <div class='absolute -top-1 -left-1.5 h-3 w-3 rotate-45 bg-red-500'></div>
         </div>
     )
 }
@@ -71,23 +71,23 @@ const Ruler: Component<{ scrollRef: (el: HTMLDivElement) => void }> = props => {
     }
 
     return (
-        <div class='h-8 bg-surface-container-highest border-b border-outline-variant flex items-end z-20 shrink-0'>
-            <div class='w-[200px] shrink-0 border-r border-outline-variant bg-surface-container-highest flex items-center justify-center text-xs text-on-surface font-bold'>
+        <div class='bg-surface-container-highest border-outline-variant z-20 flex h-8 shrink-0 items-end border-b'>
+            <div class='border-outline-variant bg-surface-container-highest text-on-surface flex w-[200px] shrink-0 items-center justify-center border-r text-xs font-bold'>
                 {t('tracks.header')}
             </div>
             <div
                 ref={props.scrollRef}
-                class='flex-1 relative overflow-hidden whitespace-nowrap cursor-pointer h-full'
+                class='relative h-full flex-1 cursor-pointer overflow-hidden whitespace-nowrap'
             >
                 {/* Container for ruler content that matches track width */}
-                <div class='h-full relative min-w-[4000px]' onMouseDown={handleMouseDown}>
-                    <div class='absolute bottom-0 left-0 w-full h-full flex text-xs text-on-surface-variant font-mono pointer-events-none'>
+                <div class='relative h-full min-w-[4000px]' onMouseDown={handleMouseDown}>
+                    <div class='text-on-surface-variant pointer-events-none absolute bottom-0 left-0 flex h-full w-full font-mono text-xs'>
                         <For each={Array.from({ length: 100 })}>
                             {(_, i) => {
                                 const barNum = i() + 1
                                 return (
                                     <div
-                                        class='absolute bottom-0 border-l border-outline-variant pl-1 h-4 flex items-center select-none'
+                                        class='border-outline-variant absolute bottom-0 flex h-4 items-center border-l pl-1 select-none'
                                         style={{ left: `${(barNum - 1) * PIXELS_PER_BAR}px` }}
                                     >
                                         {barNum}
@@ -98,12 +98,12 @@ const Ruler: Component<{ scrollRef: (el: HTMLDivElement) => void }> = props => {
                     </div>
                     {/* Playhead Marker in Ruler */}
                     <div
-                        class='absolute bottom-0 h-full w-[1px] bg-red-500 z-50 pointer-events-none'
+                        class='pointer-events-none absolute bottom-0 z-50 h-full w-[1px] bg-red-500'
                         style={{
                             left: `${(defaultTimeService.positionToTicks(store.playback.currentPosition) / (PPQ * store.info.timeSignature.numerator)) * PIXELS_PER_BAR}px`
                         }}
                     >
-                        <div class='absolute top-0 -left-1.5 w-3 h-3 bg-red-500 rotate-45'></div>
+                        <div class='absolute top-0 -left-1.5 h-3 w-3 rotate-45 bg-red-500'></div>
                     </div>
                 </div>
             </div>
@@ -114,31 +114,31 @@ const Ruler: Component<{ scrollRef: (el: HTMLDivElement) => void }> = props => {
 const TrackHeader: Component<{ track: any }> = props => {
     return (
         <div
-            class={`w-[200px] shrink-0 h-24 border-r border-b border-outline-variant flex flex-col p-2 gap-2 relative group cursor-pointer transition-colors ${store.selectedTrackId === props.track.id ? 'bg-secondary-container/30' : 'bg-surface-container-low'}`}
+            class={`border-outline-variant group relative flex h-24 w-[200px] shrink-0 cursor-pointer flex-col gap-2 border-r border-b p-2 transition-colors ${store.selectedTrackId === props.track.id ? 'bg-secondary-container/30' : 'bg-surface-container-low'}`}
             onClick={() => selectTrack(props.track.id)}
         >
             <div
-                class='absolute left-0 top-0 bottom-0 w-1'
+                class='absolute top-0 bottom-0 left-0 w-1'
                 style={{ 'background-color': props.track.color }}
             ></div>
-            <div class='flex justify-between items-center pl-2'>
-                <span class='font-medium text-sm truncate text-on-surface'>{props.track.name}</span>
-                <div class='flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity'>
+            <div class='flex items-center justify-between pl-2'>
+                <span class='text-on-surface truncate text-sm font-medium'>{props.track.name}</span>
+                <div class='flex gap-1 opacity-0 transition-opacity group-hover:opacity-100'>
                     <div
                         title={t('icons.mute')}
-                        class={`w-4 h-4 rounded text-[10px] flex items-center justify-center cursor-pointer ${props.track.muted ? 'bg-primary text-on-primary' : 'bg-on-surface-variant/20 hover:bg-primary hover:text-on-primary'}`}
+                        class={`flex h-4 w-4 cursor-pointer items-center justify-center rounded text-[10px] ${props.track.muted ? 'bg-primary text-on-primary' : 'bg-on-surface-variant/20 hover:bg-primary hover:text-on-primary'}`}
                     >
                         M
                     </div>
                     <div
                         title={t('icons.solo')}
-                        class={`w-4 h-4 rounded text-[10px] flex items-center justify-center cursor-pointer ${props.track.soloed ? 'bg-tertiary text-on-tertiary' : 'bg-on-surface-variant/20 hover:bg-tertiary hover:text-on-tertiary'}`}
+                        class={`flex h-4 w-4 cursor-pointer items-center justify-center rounded text-[10px] ${props.track.soloed ? 'bg-tertiary text-on-tertiary' : 'bg-on-surface-variant/20 hover:bg-tertiary hover:text-on-tertiary'}`}
                     >
                         S
                     </div>
                     <div
                         title={t('tracks.delete')}
-                        class='w-4 h-4 rounded text-[10px] flex items-center justify-center cursor-pointer bg-on-surface-variant/20 hover:bg-error hover:text-on-error'
+                        class='bg-on-surface-variant/20 hover:bg-error hover:text-on-error flex h-4 w-4 cursor-pointer items-center justify-center rounded text-[10px]'
                         onClick={e => {
                             e.stopPropagation()
                             if (confirm(t('tracks.deleteConfirm') || 'Delete track?')) {
@@ -260,15 +260,15 @@ const TrackLane: Component<{ track: any }> = props => {
 
     return (
         <div
-            class='flex-1 h-24 border-b border-outline-variant relative bg-surface-container-lowest min-w-[4000px]'
+            class='border-outline-variant bg-surface-container-lowest relative h-24 min-w-[4000px] flex-1 border-b'
             onDblClick={handleDblClick}
         >
             {/* Grid Lines */}
-            <div class='absolute inset-0 pointer-events-none'>
+            <div class='pointer-events-none absolute inset-0'>
                 <For each={Array.from({ length: 100 })}>
                     {(_, i) => (
                         <div
-                            class='absolute top-0 bottom-0 border-l border-outline-variant/30'
+                            class='border-outline-variant/30 absolute top-0 bottom-0 border-l'
                             style={{ left: `${i() * PIXELS_PER_BAR}px` }}
                         ></div>
                     )}
@@ -309,9 +309,9 @@ export const TrackEditor: Component = () => {
     }
 
     return (
-        <div class='flex-1 flex flex-col overflow-hidden bg-surface'>
+        <div class='bg-surface flex flex-1 flex-col overflow-hidden'>
             <Ruler scrollRef={el => (rulerScroll = el)} />
-            <div class='flex-1 overflow-y-auto overflow-x-hidden relative'>
+            <div class='relative flex-1 overflow-x-hidden overflow-y-auto'>
                 <Playhead />
                 <div
                     ref={scrollContainer}
@@ -329,7 +329,7 @@ export const TrackEditor: Component = () => {
                         </For>
                         {/* Add Track Button Area */}
                         <div class='flex'>
-                            <div class='w-[200px] shrink-0 p-2 border-r border-outline-variant'>
+                            <div class='border-outline-variant w-[200px] shrink-0 border-r p-2'>
                                 <Button
                                     variant='text'
                                     class='w-full justify-start'
@@ -340,7 +340,7 @@ export const TrackEditor: Component = () => {
                                     + {t('tracks.add')}
                                 </Button>
                             </div>
-                            <div class='flex-1 border-b border-outline-variant bg-surface-container-lowest'></div>
+                            <div class='border-outline-variant bg-surface-container-lowest flex-1 border-b'></div>
                         </div>
                     </div>
                 </div>

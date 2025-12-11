@@ -118,7 +118,7 @@ export const GridClip: Component<GridClipProps> = props => {
 
     return (
         <div
-            class={`absolute h-full rounded border overflow-hidden cursor-pointer hover:brightness-110 transition-all group flex flex-col ${props.isSelected ? 'border-white ring-1 ring-white' : 'border-black/20'} ${dragState() ? 'opacity-80 z-50' : ''}`}
+            class={`group absolute flex h-full cursor-pointer flex-col overflow-hidden rounded border transition-all hover:brightness-110 ${props.isSelected ? 'border-white ring-1 ring-white' : 'border-black/20'} ${dragState() ? 'z-50 opacity-80' : ''}`}
             style={{
                 width: `${currentWidth()}px`,
                 left: `${currentLeft()}px`,
@@ -129,24 +129,24 @@ export const GridClip: Component<GridClipProps> = props => {
         >
             {/* Left Resize Handle */}
             <div
-                class='absolute left-0 top-0 bottom-0 w-2 cursor-w-resize hover:bg-white/20 z-10'
+                class='absolute top-0 bottom-0 left-0 z-10 w-2 cursor-w-resize hover:bg-white/20'
                 onMouseDown={handleResizeLeft}
             ></div>
 
-            <div class='px-2 py-1 text-xs font-medium text-white truncate select-none flex justify-between items-center pointer-events-none'>
+            <div class='pointer-events-none flex items-center justify-between truncate px-2 py-1 text-xs font-medium text-white select-none'>
                 <span>{props.name}</span>
             </div>
 
             {/* Right Resize Handle */}
             <div
-                class='absolute right-0 top-0 bottom-0 w-2 cursor-w-resize hover:bg-white/20 z-10'
+                class='absolute top-0 right-0 bottom-0 z-10 w-2 cursor-w-resize hover:bg-white/20'
                 onMouseDown={handleResizeRight}
             ></div>
 
             {/* Remove Button (visible on hover) */}
             {props.onRemove && (
                 <div
-                    class='absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 rounded-full p-0.5 cursor-pointer hover:bg-black/70 z-20'
+                    class='absolute top-1 right-1 z-20 cursor-pointer rounded-full bg-black/50 p-0.5 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-black/70'
                     onMouseDown={e => {
                         e.stopPropagation()
                         props.onRemove?.()

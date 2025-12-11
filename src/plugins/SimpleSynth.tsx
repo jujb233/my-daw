@@ -22,7 +22,7 @@ export const SimpleSynth: Component<SimpleSynthProps> = props => {
             />
 
             <div class='flex flex-col gap-2'>
-                <span class='text-xs text-on-surface-variant'>{t('sidebar.waveform')}</span>
+                <span class='text-on-surface-variant text-xs'>{t('sidebar.waveform')}</span>
                 <div class='grid grid-cols-4 gap-1'>
                     {[
                         { label: t('sidebar.waveform.sine'), value: 0 },
@@ -31,7 +31,7 @@ export const SimpleSynth: Component<SimpleSynthProps> = props => {
                         { label: t('sidebar.waveform.tri'), value: 3 }
                     ].map(w => (
                         <button
-                            class={`px-1 py-1.5 text-xs font-medium rounded transition-colors ${
+                            class={`rounded px-1 py-1.5 text-xs font-medium transition-colors ${
                                 props.params[1] === w.value
                                     ? 'bg-primary text-on-primary'
                                     : 'bg-surface-container-highest text-on-surface-variant hover:bg-surface-container-high'

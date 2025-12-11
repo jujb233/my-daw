@@ -16,7 +16,7 @@ export const Ruler: Component<RulerProps> = props => {
 
     return (
         <div
-            class='bg-surface-container-high border-b border-outline-variant relative overflow-hidden select-none cursor-pointer'
+            class='bg-surface-container-high border-outline-variant relative cursor-pointer overflow-hidden border-b select-none'
             style={{ height: `${props.height || 32}px`, width: `${props.length * props.zoom}px` }}
             onClick={e => {
                 const rect = e.currentTarget.getBoundingClientRect()
@@ -28,7 +28,7 @@ export const Ruler: Component<RulerProps> = props => {
             <For each={markers()}>
                 {i => (
                     <div
-                        class='absolute bottom-0 border-l border-on-surface-variant/50 text-[10px] pl-1 text-on-surface-variant flex items-end pb-1'
+                        class='border-on-surface-variant/50 text-on-surface-variant absolute bottom-0 flex items-end border-l pb-1 pl-1 text-[10px]'
                         style={{
                             left: `${(i - (props.start || 0)) * props.zoom}px`,
                             height: '50%'

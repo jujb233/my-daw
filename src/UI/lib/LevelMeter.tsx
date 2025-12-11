@@ -24,13 +24,13 @@ export const LevelMeter: Component<LevelMeterProps> = _props => {
 
     return (
         <div class={`flex gap-1 ${props.className || ''}`}>
-            <div class='relative flex-1 bg-surface-container-highest rounded-sm overflow-hidden border border-outline-variant h-full min-w-[10px]'>
+            <div class='bg-surface-container-highest border-outline-variant relative h-full min-w-[10px] flex-1 overflow-hidden rounded-sm border'>
                 {/* Background Grid/Ticks */}
-                <div class='absolute inset-0 pointer-events-none z-10'>
+                <div class='pointer-events-none absolute inset-0 z-10'>
                     <For each={ticks}>
                         {tick => (
                             <div
-                                class='absolute w-full h-[1px] bg-on-surface opacity-40'
+                                class='bg-on-surface absolute h-[1px] w-full opacity-40'
                                 style={{ bottom: `${tick.percent}%` }}
                             />
                         )}
@@ -38,7 +38,7 @@ export const LevelMeter: Component<LevelMeterProps> = _props => {
                 </div>
 
                 <div
-                    class='absolute bottom-0 left-0 right-0 transition-all duration-75 ease-out'
+                    class='absolute right-0 bottom-0 left-0 transition-all duration-75 ease-out'
                     style={{
                         height: `${heightPercent()}%`,
                         background: gradient
@@ -47,7 +47,7 @@ export const LevelMeter: Component<LevelMeterProps> = _props => {
             </div>
 
             {props.showLabels && (
-                <div class='relative h-full w-6 text-[9px] font-mono text-on-surface-variant select-none'>
+                <div class='text-on-surface-variant relative h-full w-6 font-mono text-[9px] select-none'>
                     <For each={ticks}>
                         {tick => (
                             <div

@@ -23,14 +23,14 @@ export const GenericPluginUI: Component<GenericPluginUIProps> = props => {
                                 }
                             >
                                 <div class='flex flex-col gap-1'>
-                                    <span class='text-xs text-on-surface-variant'>
+                                    <span class='text-on-surface-variant text-xs'>
                                         {param.name}
                                     </span>
                                     <div class='flex gap-1'>
                                         <For each={(param.value_type as { Enum: string[] }).Enum}>
                                             {(option, index) => (
                                                 <button
-                                                    class={`px-2 py-1 text-xs rounded ${
+                                                    class={`rounded px-2 py-1 text-xs ${
                                                         (props.currentValues[param.id] ??
                                                             param.default_value) === index()
                                                             ? 'bg-primary text-on-primary'

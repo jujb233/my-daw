@@ -76,47 +76,45 @@ export const Slider: Component<SliderProps> = props => {
     }
 
     return (
-        <div class={`flex flex-col gap-2 touch-none select-none ${local.class || ''}`}>
-            <div class='flex justify-between items-center px-1'>
+        <div class={`flex touch-none flex-col gap-2 select-none ${local.class || ''}`}>
+            <div class='flex items-center justify-between px-1'>
                 {local.label && (
-                    <label class='text-xs font-medium text-on-surface-variant'>{local.label}</label>
+                    <label class='text-on-surface-variant text-xs font-medium'>{local.label}</label>
                 )}
                 {local.valueDisplay !== undefined && (
-                    <span class='text-xs font-mono text-on-surface-variant bg-surface-container px-1 rounded'>
+                    <span class='text-on-surface-variant bg-surface-container rounded px-1 font-mono text-xs'>
                         {local.valueDisplay}
                     </span>
                 )}
             </div>
 
             <div
-                class='h-8 relative flex items-center cursor-ew-resize'
+                class='relative flex h-8 cursor-ew-resize items-center'
                 onPointerDown={handlePointerDown}
             >
                 {/* Track Background */}
-                <div class='w-full h-2 bg-surface-container-highest rounded-full overflow-hidden'>
+                <div class='bg-surface-container-highest h-2 w-full overflow-hidden rounded-full'>
                     {/* Fill */}
                     <div
-                        class='h-full bg-primary transition-all duration-75'
+                        class='bg-primary h-full transition-all duration-75'
                         style={{ width: `${percentage()}%` }}
                     />
                 </div>
 
                 {/* Thumb (Larger for touch) */}
                 <div
-                    class={`absolute w-6 h-6 rounded-full shadow-sm border flex items-center justify-center transition-transform duration-100
-                        ${
-                            isDragging()
-                                ? 'bg-primary-container border-primary scale-110'
-                                : 'bg-surface border-outline hover:border-primary'
-                        }
-                    `}
+                    class={`absolute flex h-6 w-6 items-center justify-center rounded-full border shadow-sm transition-transform duration-100 ${
+                        isDragging()
+                            ? 'bg-primary-container border-primary scale-110'
+                            : 'bg-surface border-outline hover:border-primary'
+                    } `}
                     style={{
                         left: `${percentage()}%`,
                         transform: 'translateX(-50%)'
                     }}
                 >
                     <div
-                        class={`w-2 h-2 rounded-full ${isDragging() ? 'bg-primary' : 'bg-on-surface-variant'}`}
+                        class={`h-2 w-2 rounded-full ${isDragging() ? 'bg-primary' : 'bg-on-surface-variant'}`}
                     />
                 </div>
             </div>

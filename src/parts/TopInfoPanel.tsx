@@ -10,12 +10,12 @@ export const TopInfoPanel: Component = () => {
     return (
         <Surface
             level={2}
-            class='h-16 flex items-center px-4 gap-4 md:gap-8 shrink-0 z-10 shadow-sm overflow-x-auto'
+            class='z-10 flex h-16 shrink-0 items-center gap-4 overflow-x-auto px-4 shadow-sm md:gap-8'
         >
-            <div class='flex items-center gap-2 mr-4 shrink-0'>
+            <div class='mr-4 flex shrink-0 items-center gap-2'>
                 <IconButton
                     onClick={() => openSettings('general')}
-                    class='w-10 h-10'
+                    class='h-10 w-10'
                     title={t('settings.title')}
                 >
                     <svg
@@ -30,10 +30,10 @@ export const TopInfoPanel: Component = () => {
                 </IconButton>
 
                 {/* Snap Selector */}
-                <div class='flex items-center gap-2 border border-outline-variant rounded px-2 py-1'>
-                    <span class='text-xs text-on-surface-variant'>Snap:</span>
+                <div class='border-outline-variant flex items-center gap-2 rounded border px-2 py-1'>
+                    <span class='text-on-surface-variant text-xs'>Snap:</span>
                     <select
-                        class='bg-transparent text-sm text-on-surface outline-none'
+                        class='text-on-surface bg-transparent text-sm outline-none'
                         value={store.snapInterval}
                         onChange={e => setSnapInterval(e.currentTarget.value as SnapGrid)}
                     >
@@ -49,7 +49,7 @@ export const TopInfoPanel: Component = () => {
                 <IconButton
                     variant='filled'
                     onClick={togglePlayback}
-                    class='w-12 h-12 !rounded-full'
+                    class='h-12 w-12 !rounded-full'
                 >
                     {store.playback.isPlaying ? (
                         <svg
@@ -75,28 +75,28 @@ export const TopInfoPanel: Component = () => {
                 </IconButton>
             </div>
 
-            <div class='flex gap-6 md:gap-8 shrink-0'>
-                <div class='flex flex-col min-w-[60px]'>
-                    <span class='text-xs text-on-surface-variant font-medium'>
+            <div class='flex shrink-0 gap-6 md:gap-8'>
+                <div class='flex min-w-[60px] flex-col'>
+                    <span class='text-on-surface-variant text-xs font-medium'>
                         {t('top.duration')}
                     </span>
-                    <span class='text-xl font-mono text-primary whitespace-nowrap'>00:00:00</span>
+                    <span class='text-primary font-mono text-xl whitespace-nowrap'>00:00:00</span>
                 </div>
-                <div class='flex flex-col min-w-[60px]'>
-                    <span class='text-xs text-on-surface-variant font-medium'>{t('top.bars')}</span>
-                    <span class='text-xl font-mono text-primary whitespace-nowrap'>
+                <div class='flex min-w-[60px] flex-col'>
+                    <span class='text-on-surface-variant text-xs font-medium'>{t('top.bars')}</span>
+                    <span class='text-primary font-mono text-xl whitespace-nowrap'>
                         {store.playback.currentPosition.bar}.{store.playback.currentPosition.beat}
                     </span>
                 </div>
-                <div class='flex flex-col min-w-[60px]'>
-                    <span class='text-xs text-on-surface-variant font-medium'>{t('top.bpm')}</span>
-                    <span class='text-xl font-mono text-primary whitespace-nowrap'>
+                <div class='flex min-w-[60px] flex-col'>
+                    <span class='text-on-surface-variant text-xs font-medium'>{t('top.bpm')}</span>
+                    <span class='text-primary font-mono text-xl whitespace-nowrap'>
                         {store.info.bpm.toFixed(2)}
                     </span>
                 </div>
-                <div class='flex flex-col min-w-[60px]'>
-                    <span class='text-xs text-on-surface-variant font-medium'>{t('top.sig')}</span>
-                    <span class='text-xl font-mono text-primary whitespace-nowrap'>
+                <div class='flex min-w-[60px] flex-col'>
+                    <span class='text-on-surface-variant text-xs font-medium'>{t('top.sig')}</span>
+                    <span class='text-primary font-mono text-xl whitespace-nowrap'>
                         {store.info.timeSignature.numerator}/{store.info.timeSignature.denominator}
                     </span>
                 </div>
