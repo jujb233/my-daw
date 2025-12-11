@@ -11,5 +11,9 @@
     "quoteProps": "as-needed",
     "jsxSingleQuote": true,
     "bracketSameLine": false,
-    "plugins": ["prettier-plugin-tailwindcss"]
+    "proseWrap": "preserve",
+    "htmlWhitespaceSensitivity": "strict",
+    "embeddedLanguageFormatting": "auto",
+    "plugins": ["prettier-plugin-tailwindcss"],
+    "tailwindFunctions": ["clsx", "cn", "cva", "tw"]
 }
