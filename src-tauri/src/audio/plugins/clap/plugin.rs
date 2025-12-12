@@ -48,7 +48,7 @@ unsafe impl Send for ClapPlugin {}
 unsafe impl Sync for ClapPlugin {}
 
 impl ClapPlugin {
-    pub unsafe fn new(path: &str) -> Result<Self, String> {
+    pub unsafe fn new(path: &str) -> Result<Self, String> { unsafe {
         let lib = Library::new(path).map_err(|e| e.to_string())?;
         let lib = Arc::new(lib);
 
@@ -139,7 +139,7 @@ impl ClapPlugin {
             }, // 目前假设为立体声输出
             params,
         })
-    }
+    }}
 }
 
 impl Drop for ClapPlugin {

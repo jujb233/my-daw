@@ -27,7 +27,7 @@
     "active": true,
     "targets": "all",
     "android": {
-      "minSdkVersion": 26
+      "minSdkVersion": 29
     },
     "icon": [
       "icons/32x32.png",

@@ -1,9 +1,8 @@
 [package]
 name = "my-daw"
-version = "0.0.3"
 description = "A Tauri App"
 authors = ["jujb233"]
-edition = "2021"
+edition = "2024"
 license = "GPL-3.0-or-later"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
