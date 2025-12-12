@@ -1,0 +1,58 @@
+# Rustfmt 建议配置（仅包含稳定选项）
+# 本文件列出 rustfmt 的稳定配置项，给出说明与文档中标注的默认值。
+# 根据团队偏好调整值；注释中的 “默认” 为 rustfmt 文档列出的默认值。
+
+# --------------------------- 基本排版 ---------------------------
+
+# 每行的最大宽度（默认: 100）
+max_width = 100
+
+# 是否使用硬制表符（tab）进行缩进。默认: false
+hard_tabs = false
+
+# 当使用空格缩进时，每个缩进级别对应的空格数。默认: 4
+tab_spaces = 4
+
+# 换行风格："Unix" 或 "Windows"。默认: "Unix"
+newline_style = "Unix"
+
+# 是否重新排序 `use` / `extern crate` 语句（按字母）。
+# 文档示例显示 `reorder_imports = false`，项目可按偏好设置。
+reorder_imports = true
+
+# ------------------------ 函数与表达式 ------------------------
+
+# 控制函数参数布局（默认: "Tall"）。可选: "Compressed", "Tall", "Vertical"。
+fn_params_layout = "Tall"
+
+# 函数调用参数转为垂直格式的宽度阈值（默认: 60）。
+fn_call_width = 60
+
+# 函数式属性（attribute-like fn）参数变为垂直格式的宽度（默认: 70）。
+attr_fn_like_width = 70
+
+# 数组字面量转为垂直格式的宽度阈值（默认: 60）。
+array_width = 60
+
+# 单行 if-else 最大宽度（默认: 50）。0 表示强制多行。
+single_line_if_else_max_width = 50
+
+# ------------------------ 语法/风格 ------------------------
+
+# 是否将多个 #[derive(...)] 合并为一个（默认: true）。
+merge_derives = true
+
+# 是否使用字段初始化简写（{ x } 代替 { x: x }）。默认: false。
+use_field_init_shorthand = false
+
+# ------------------------ 宏与启用版本 ------------------------
+
+# 简化宽度相关启发式设置。默认: "Default"。可选: "Default", "Off", "Max"。
+use_small_heuristics = "Default"
+
+# 可选：在文件中指定所需的 rustfmt 版本，便于 CI 保持一致（示例，非必填）。
+# required_version = "1.0.0"
+
+# 说明：本文件只包含文档中标注为 Stable 的常用配置项及其说明。
+# 若需启用更细粒度或实验性选项（如 imports_layout、indent_style 等），
+# 请注意这些选项可能仍为 unstable/nightly，请在文档中确认并谨慎使用。

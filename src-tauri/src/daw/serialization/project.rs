@@ -3,7 +3,7 @@ use crate::daw::serialization::schema::*;
 use crate::daw::state::AppState;
 use anyhow::Result;
 use mlua::{Lua, Table};
-use rusqlite::{params, Connection};
+use rusqlite::{Connection, params};
 use std::fs;
 use std::path::Path;
 

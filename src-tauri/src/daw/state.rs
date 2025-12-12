@@ -1,10 +1,10 @@
+use crate::audio::core::plugin::Plugin;
 use crate::audio::engine::AudioEngine;
 use crate::audio::plugins::manager::PluginManager;
-use crate::audio::core::plugin::Plugin;
 use crate::daw::model::{ArrangementTrack, Clip};
 use serde::{Deserialize, Serialize};
-use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 use uuid::Uuid;
 
 #[derive(Clone, Serialize, Deserialize)]

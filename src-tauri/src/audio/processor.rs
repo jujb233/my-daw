@@ -1,13 +1,12 @@
 #[allow(dead_code)]
+/// 处理上下文：包含运行时参数（当前仅采样率）。
 pub struct ProcessContext {
     pub sample_rate: f32,
 }
 
-/// 表示音频图中可生成或处理音频的节点的 trait。
+/// 音频处理节点接口。实现者应填充输出缓冲区并使用提供的上下文。
 #[allow(dead_code)]
 pub trait AudioProcessor: Send + Sync {
-    /// 处理音频并填充输出缓冲区。
-    /// 当通道数 > 1 时，缓冲区为交错格式（interleaved）。
-    /// 例如：立体声为 [L, R, L, R, ...]。
+    /// 将处理结果写入 `output`（交错格式，当 `channels` > 1 时）。
     fn process(&mut self, output: &mut [f32], channels: usize, context: &ProcessContext);
 }

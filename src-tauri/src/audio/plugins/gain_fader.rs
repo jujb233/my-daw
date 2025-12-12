@@ -74,11 +74,7 @@ impl Plugin for GainFader {
     }
 
     fn get_param(&self, id: u32) -> f32 {
-        if id == 0 {
-            self.gain
-        } else {
-            0.0
-        }
+        if id == 0 { self.gain } else { 0.0 }
     }
 
     fn set_param(&mut self, id: u32, value: f32) {

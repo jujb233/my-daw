@@ -19,9 +19,9 @@ impl FunctionalPlugin {
         name: &str,
         unique_id: &str,
         process_fn: impl FnMut(&mut AudioBuffer, &[PluginEvent], &mut Vec<PluginEvent>)
-            + Send
-            + Sync
-            + 'static,
+        + Send
+        + Sync
+        + 'static,
     ) -> Self {
         Self {
             id: Uuid::new_v4(),

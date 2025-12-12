@@ -95,13 +95,17 @@ impl Plugin for PluginContainer {
     fn set_state(&mut self, state: &[u8]) {
         let mut cursor = 0;
         for plugin in &mut self.plugins {
-            if cursor + 4 > state.len() { break; }
-            let len_bytes: [u8; 4] = state[cursor..cursor+4].try_into().unwrap();
+            if cursor + 4 > state.len() {
+                break;
+            }
+            let len_bytes: [u8; 4] = state[cursor..cursor + 4].try_into().unwrap();
             let len = u32::from_le_bytes(len_bytes) as usize;
             cursor += 4;
-            
-            if cursor + len > state.len() { break; }
-            plugin.set_state(&state[cursor..cursor+len]);
+
+            if cursor + len > state.len() {
+                break;
+            }
+            plugin.set_state(&state[cursor..cursor + len]);
             cursor += len;
         }
     }

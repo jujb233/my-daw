@@ -3,11 +3,19 @@ use crate::audio::core::plugin::Plugin;
 use crate::audio::plugins::mixer::mixer_plugin::MixerPlugin;
 
 use crate::daw::sequencer::{get_is_playing, get_playback_position};
-use tauri::State;
-use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+use tauri::State;
 
-pub fn create_audio_graph(state: &State<'_, AppState>) -> Result<(Box<dyn Plugin>, HashMap<String, Arc<Mutex<Box<dyn Plugin>>>>), String> {
+pub fn create_audio_graph(
+    state: &State<'_, AppState>,
+) -> Result<
+    (
+        Box<dyn Plugin>,
+        HashMap<String, Arc<Mutex<Box<dyn Plugin>>>>,
+    ),
+    String,
+> {
     let plugins = state
         .active_plugins
         .lock()
@@ -169,7 +177,10 @@ pub fn rebuild_engine(state: &State<'_, AppState>) -> Result<(), String> {
 
     // 更新 AppState 中的实例引用
     {
-        let mut state_instances = state.plugin_instances.lock().map_err(|_| "Failed to lock plugin instances")?;
+        let mut state_instances = state
+            .plugin_instances
+            .lock()
+            .map_err(|_| "Failed to lock plugin instances")?;
         *state_instances = instances;
     }
 

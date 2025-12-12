@@ -1,10 +1,12 @@
 use crate::audio::core::plugin::{AudioBuffer, Plugin, PluginEvent};
 use anyhow::Result;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use crossbeam_channel::{unbounded, Receiver, Sender};
+use crossbeam_channel::{Receiver, Sender, unbounded};
 
 pub struct AudioEngine {
+    // 输出音频流；`None` 表示引擎未运行
     stream: Option<cpal::Stream>,
+    // 向音频回调线程发送插件事件（MIDI / 参数 / 传输）
     command_sender: Option<Sender<PluginEvent>>,
 }
 
@@ -40,7 +42,7 @@ impl AudioEngine {
             cpal::SampleFormat::F32 => device.build_output_stream(
                 &config,
                 move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
-                    // 从队列中收集事件
+                    // 读取本音频块期间可用的所有事件（非阻塞）
                     let mut events = Vec::new();
                     while let Ok(event) = rx.try_recv() {
                         events.push(event);
@@ -52,10 +54,11 @@ impl AudioEngine {
                         sample_rate,
                     };
 
+                    // 调用插件处理音频（就地修改 samples）
                     let mut output_events = Vec::new();
                     plugin.process(&mut buffer, &events, &mut output_events);
 
-                    // TODO: 处理输出事件（例如：发送回主线程）
+                    // 输出事件收集在 `output_events` 中，可选择发送回主线程或记录
                 },
                 err_fn,
                 None,
@@ -64,7 +67,7 @@ impl AudioEngine {
                 return Err(anyhow::anyhow!(
                     "Unsupported sample format: {:?}",
                     sample_format
-                ))
+                ));
             }
         };
 

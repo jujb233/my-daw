@@ -1,6 +1,6 @@
+use crate::AppState;
 use crate::daw::core::rebuild_engine;
 use crate::daw::model::{Clip, MusicalLength, Note, Position};
-use crate::AppState;
 use std::collections::HashMap;
 use tauri::State;
 use uuid::Uuid;
@@ -65,8 +65,16 @@ pub fn update_clip(
     instrument_routes: Option<HashMap<String, usize>>,
 ) -> Result<(), String> {
     println!("ClipCommand: update_clip called for id: {}", id);
-    println!("ClipCommand: Inputs - name: {:?}, start: {:?}, track_id: {:?}, length: {:?}, notes_count: {:?}, instrument_ids: {:?}, routes: {:?}", 
-        name, start, track_id, length, notes.as_ref().map(|n| n.len()), instrument_ids, instrument_routes);
+    println!(
+        "ClipCommand: Inputs - name: {:?}, start: {:?}, track_id: {:?}, length: {:?}, notes_count: {:?}, instrument_ids: {:?}, routes: {:?}",
+        name,
+        start,
+        track_id,
+        length,
+        notes.as_ref().map(|n| n.len()),
+        instrument_ids,
+        instrument_routes
+    );
 
     let mut needs_rebuild = false;
 
