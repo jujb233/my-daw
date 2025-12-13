@@ -9,7 +9,6 @@ import {
 import { openSettings } from '../../store/ui'
 import { t } from '../../i18n'
 import { InstrumentCard } from '../../UI/components/InstrumentCard'
-import { PluginHost } from '../../components/PluginHost'
 
 export const InstrumentList: Component = () => {
     return (
@@ -43,12 +42,8 @@ export const InstrumentList: Component = () => {
                             />
                         </div>
 
-                        {/* Plugin UI */}
-                        <PluginHost
-                            instId={inst.id}
-                            uniqueId={inst.name}
-                            currentValues={inst.params}
-                        />
+                        {/* Plugin UI: external plugins render their own frontends; host shows placeholder */}
+                        <div class='text-on-surface-variant text-sm'>{t('plugins.externalUI')}</div>
                     </InstrumentCard>
                 )}
             </For>
