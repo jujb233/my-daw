@@ -11,26 +11,26 @@ use std::path::{Path, PathBuf};
 pub struct ProjectManager;
 
 impl ProjectManager {
-    pub fn save_project(state: &AppState, project_path: &Path) -> Result<()> {
-        if !project_path.exists() {
-            fs::create_dir_all(project_path)?;
-        }
+        pub fn save_project(state: &AppState, project_path: &Path) -> Result<()> {
+                if !project_path.exists() {
+                        fs::create_dir_all(project_path)?;
+                }
 
-        let db_path = project_path.join("data.db");
-        let mut conn = Connection::open(&db_path)?;
+                let db_path = project_path.join("data.db");
+                let mut conn = Connection::open(&db_path)?;
 
-        // Initialize DB
-        conn.execute(
-            "CREATE TABLE IF NOT EXISTS plugins (
+                // Initialize DB
+                conn.execute(
+                        "CREATE TABLE IF NOT EXISTS plugins (
                 id TEXT PRIMARY KEY,
                 name TEXT,
                 state BLOB
             )",
-            [],
-        )?;
+                        [],
+                )?;
 
-        conn.execute(
-            "CREATE TABLE IF NOT EXISTS notes (
+                conn.execute(
+                        "CREATE TABLE IF NOT EXISTS notes (
                 clip_id TEXT,
                 note_index INTEGER,
                 note INTEGER,
@@ -39,339 +39,372 @@ impl ProjectManager {
                 velocity REAL,
                 PRIMARY KEY (clip_id, note_index)
             )",
-            [],
-        )?;
+                        [],
+                )?;
 
-        // Prepare data for Lua
-        let tracks = state.arrangement_tracks.lock().unwrap();
-        let clips = state.clips.lock().unwrap();
-        let mixer_tracks = state.mixer_tracks.lock().unwrap();
-        let plugins = state.active_plugins.lock().unwrap();
+                // Prepare data for Lua
+                let tracks = state.arrangement_tracks.lock().unwrap();
+                let clips = state.clips.lock().unwrap();
+                let mixer_tracks = state.mixer_tracks.lock().unwrap();
+                let plugins = state.active_plugins.lock().unwrap();
 
-        // Save Plugin States
-        let instances = state.plugin_instances.lock().unwrap();
-        let tx = conn.transaction()?;
-        for plugin in plugins.iter() {
-            let state_blob = if let Some(instance) = instances.get(&plugin.id) {
-                if let Ok(inst) = instance.lock() {
-                    inst.get_state()
-                } else {
-                    Vec::new()
+                // Save Plugin States
+                let instances = state.plugin_instances.lock().unwrap();
+                let tx = conn.transaction()?;
+                for plugin in plugins.iter() {
+                        let state_blob = if let Some(instance) = instances.get(&plugin.id) {
+                                if let Ok(inst) = instance.lock() {
+                                        inst.get_state()
+                                } else {
+                                        Vec::new()
+                                }
+                        } else {
+                                Vec::new()
+                        };
+
+                        tx.execute(
+                                "INSERT OR REPLACE INTO plugins (id, name, state) VALUES (?1, ?2, ?3)",
+                                params![plugin.id, plugin.name, state_blob],
+                        )?;
                 }
-            } else {
-                Vec::new()
-            };
 
-            tx.execute(
-                "INSERT OR REPLACE INTO plugins (id, name, state) VALUES (?1, ?2, ?3)",
-                params![plugin.id, plugin.name, state_blob],
-            )?;
-        }
-
-        // Save Notes to DB
-        for clip in clips.iter() {
-            for (idx, note) in clip.notes.iter().enumerate() {
-                tx.execute(
+                // Save Notes to DB
+                for clip in clips.iter() {
+                        for (idx, note) in clip.notes.iter().enumerate() {
+                                tx.execute(
                     "INSERT OR REPLACE INTO notes (clip_id, note_index, note, start, duration, velocity) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
                     params![clip.id, idx, note.note, note.start.time, note.duration.seconds, note.velocity],
                 )?;
-            }
+                        }
+                }
+                tx.commit()?;
+
+                // Copy used plugins into project folder to ensure reproducibility.
+                // For each active plugin, determine its source (local/clap/builtin) and copy
+                // the necessary files and a manifest into `project_path/plugins/...`.
+                let plugin_mgr = state.plugin_manager.lock().unwrap();
+                let plugins_dir = project_path.join("plugins");
+                if !plugins_dir.exists() {
+                        fs::create_dir_all(&plugins_dir).ok();
+                }
+
+                for plugin in plugins.iter() {
+                        match plugin_mgr.get_plugin_source(&plugin.id) {
+                                PluginSource::Local(lib_path) => {
+                                        // Try locate manifest by walking upward from lib path
+                                        let mut folder = lib_path.clone();
+                                        let mut found_manifest = false;
+                                        while folder.parent().is_some() {
+                                                if folder.join("manifest.lua").exists() {
+                                                        found_manifest = true;
+                                                        break;
+                                                }
+                                                if !folder.pop() {
+                                                        break;
+                                                }
+                                        }
+
+                                        if found_manifest {
+                                                // Read manifest to check whether plugin requests being copied into project
+                                                let manifest_path = folder.join("manifest.lua");
+                                                let mut should_copy = true;
+                                                if manifest_path.exists() {
+                                                        if let Ok(content) = fs::read_to_string(&manifest_path) {
+                                                                if let Ok(tbl) =
+                                                                        Lua::new().load(&content).eval::<Table>()
+                                                                {
+                                                                        if let Ok(flag) =
+                                                                                tbl.get::<bool>("copy_on_project_save")
+                                                                        {
+                                                                                should_copy = flag;
+                                                                        }
+                                                                }
+                                                        }
+                                                }
+
+                                                if should_copy {
+                                                        // copy plugin folder into plugins/official/<folder_name>
+                                                        let folder_name = folder
+                                                                .file_name()
+                                                                .map(|s| s.to_string_lossy().to_string())
+                                                                .unwrap_or(plugin.id.clone());
+                                                        let dest = plugins_dir.join("official").join(folder_name);
+                                                        if let Err(e) = Self::copy_dir_all(&folder, &dest) {
+                                                                println!("Failed to copy plugin folder: {}", e);
+                                                        }
+                                                        // If manifest declares children, copy them as well (children may control copying themselves)
+                                                        if let Err(e) =
+                                                                Self::copy_children_from_manifest(&folder, &plugins_dir)
+                                                        {
+                                                                println!("Failed to copy child plugins: {}", e);
+                                                        }
+                                                } else {
+                                                        // plugin manifest explicitly asked not to be copied; skip
+                                                }
+                                        } else {
+                                                // No manifest found: copy library file into plugins/local/<id>/ and create minimal manifest
+                                                let dest_dir = plugins_dir.join("local").join(&plugin.id);
+                                                if let Err(e) = fs::create_dir_all(&dest_dir) {
+                                                        println!("Failed to create plugin dest dir: {}", e);
+                                                }
+                                                if let Some(fname) = lib_path.file_name() {
+                                                        let _ = fs::copy(&lib_path, dest_dir.join(fname));
+                                                        let manifest = format!(
+                                                                "return {{ id = \"{}\", name = \"{}\", backend = {{ type = \"local\", path = \"{}\" }} }}\n",
+                                                                plugin.id,
+                                                                plugin.name,
+                                                                fname.to_string_lossy()
+                                                        );
+                                                        let _ = fs::write(dest_dir.join("manifest.lua"), manifest);
+                                                }
+                                        }
+                                }
+                                PluginSource::Clap(p) => {
+                                        let folder_name = p
+                                                .file_name()
+                                                .map(|s| s.to_string_lossy().to_string())
+                                                .unwrap_or(plugin.id.clone());
+                                        let dest = plugins_dir.join("clap").join(folder_name);
+                                        if p.is_dir() {
+                                                if let Err(e) = Self::copy_dir_all(&p, &dest) {
+                                                        println!("Failed to copy clap plugin: {}", e);
+                                                }
+                                        } else {
+                                                if let Some(parent) = dest.parent() {
+                                                        let _ = fs::create_dir_all(parent);
+                                                }
+                                                let _ = fs::copy(&p, &dest);
+                                        }
+                                }
+                                PluginSource::Builtin(module_opt) => {
+                                        // Create a minimal manifest describing builtin mapping so host can reproduce
+                                        let dest_folder = plugins_dir.join("official").join(&plugin.id);
+                                        if let Err(e) = fs::create_dir_all(&dest_folder) {
+                                                println!("Failed to create builtin plugin folder: {}", e);
+                                        }
+                                        let module_field = if let Some(m) = module_opt {
+                                                format!("module = \"{}\"", m)
+                                        } else {
+                                                String::new()
+                                        };
+                                        let manifest = format!(
+                                                "return {{ id = \"{}\", name = \"{}\", backend = {{ type = \"builtin\", {} }} }}\n",
+                                                plugin.id, plugin.name, module_field
+                                        );
+                                        let _ = fs::write(dest_folder.join("manifest.lua"), manifest);
+                                        // builtin manifest may reference children via module/state; nothing to copy for builtin here
+                                }
+                                PluginSource::Unknown => {
+                                        // nothing to copy
+                                }
+                        }
+                }
+
+                // Generate Lua Script
+                let lua_script = Self::generate_lua_script(&tracks, &clips, &mixer_tracks, &plugins, project_path);
+                fs::write(project_path.join("project.lua"), lua_script)?;
+
+                Ok(())
         }
-        tx.commit()?;
 
-        // Copy used plugins into project folder to ensure reproducibility.
-        // For each active plugin, determine its source (local/clap/builtin) and copy
-        // the necessary files and a manifest into `project_path/plugins/...`.
-        let plugin_mgr = state.plugin_manager.lock().unwrap();
-        let plugins_dir = project_path.join("plugins");
-        if !plugins_dir.exists() {
-            fs::create_dir_all(&plugins_dir).ok();
-        }
+        fn generate_lua_script(
+                tracks: &Vec<ArrangementTrack>,
+                clips: &Vec<Clip>,
+                mixer_tracks: &Vec<crate::daw::state::MixerTrackData>,
+                plugins: &Vec<crate::daw::state::PluginInstanceData>,
+                project_path: &Path,
+        ) -> String {
+                let mut script = String::new();
 
-        for plugin in plugins.iter() {
-            match plugin_mgr.get_plugin_source(&plugin.id) {
-                PluginSource::Local(lib_path) => {
-                    // Try locate manifest by walking upward from lib path
-                    let mut folder = lib_path.clone();
-                    let mut found_manifest = false;
-                    while folder.parent().is_some() {
-                        if folder.join("manifest.lua").exists() {
-                            found_manifest = true;
-                            break;
-                        }
-                        if !folder.pop() {
-                            break;
-                        }
-                    }
+                script.push_str("-- MyDAW Project File\n");
+                script.push_str("-- Generated by MyDAW Serializer\n\n");
 
-                    if found_manifest {
-                        // copy plugin folder into plugins/official/<folder_name>
-                        let folder_name = folder
-                            .file_name()
-                            .map(|s| s.to_string_lossy().to_string())
-                            .unwrap_or(plugin.id.clone());
-                        let dest = plugins_dir.join("official").join(folder_name);
-                        if let Err(e) = Self::copy_dir_all(&folder, &dest) {
-                            println!("Failed to copy plugin folder: {}", e);
-                        }
-                        // If manifest declares children, copy them as well
-                        if let Err(e) = Self::copy_children_from_manifest(&folder, &plugins_dir) {
-                            println!("Failed to copy child plugins: {}", e);
-                        }
-                    } else {
-                        // No manifest found: copy library file into plugins/local/<id>/ and create minimal manifest
-                        let dest_dir = plugins_dir.join("local").join(&plugin.id);
-                        if let Err(e) = fs::create_dir_all(&dest_dir) {
-                            println!("Failed to create plugin dest dir: {}", e);
-                        }
-                        if let Some(fname) = lib_path.file_name() {
-                            let _ = fs::copy(&lib_path, dest_dir.join(fname));
-                            let manifest = format!(
-                                "return {{ id = \"{}\", name = \"{}\", backend = {{ type = \"local\", path = \"{}\" }} }}\n",
-                                plugin.id,
-                                plugin.name,
-                                fname.to_string_lossy()
-                            );
-                            let _ = fs::write(dest_dir.join("manifest.lua"), manifest);
-                        }
-                    }
-                }
-                PluginSource::Clap(p) => {
-                    let folder_name = p
-                        .file_name()
-                        .map(|s| s.to_string_lossy().to_string())
-                        .unwrap_or(plugin.id.clone());
-                    let dest = plugins_dir.join("clap").join(folder_name);
-                    if p.is_dir() {
-                        if let Err(e) = Self::copy_dir_all(&p, &dest) {
-                            println!("Failed to copy clap plugin: {}", e);
-                        }
-                    } else {
-                        if let Some(parent) = dest.parent() {
-                            let _ = fs::create_dir_all(parent);
-                        }
-                        let _ = fs::copy(&p, &dest);
-                    }
-                }
-                PluginSource::Builtin(module_opt) => {
-                    // Create a minimal manifest describing builtin mapping so host can reproduce
-                    let dest_folder = plugins_dir.join("official").join(&plugin.id);
-                    if let Err(e) = fs::create_dir_all(&dest_folder) {
-                        println!("Failed to create builtin plugin folder: {}", e);
-                    }
-                    let module_field = if let Some(m) = module_opt {
-                        format!("module = \"{}\"", m)
-                    } else {
-                        String::new()
-                    };
-                    let manifest = format!(
-                        "return {{ id = \"{}\", name = \"{}\", backend = {{ type = \"builtin\", {} }} }}\n",
-                        plugin.id, plugin.name, module_field
-                    );
-                    let _ = fs::write(dest_folder.join("manifest.lua"), manifest);
-                    // builtin manifest may reference children via module/state; nothing to copy for builtin here
-                }
-                PluginSource::Unknown => {
-                    // nothing to copy
-                }
-            }
-        }
+                script.push_str("project {\n");
+                script.push_str("  name = \"Untitled Project\",\n");
+                script.push_str("  bpm = 120.0,\n");
+                script.push_str("  sample_rate = 44100\n");
+                script.push_str("}\n\n");
 
-        // Generate Lua Script
-        let lua_script =
-            Self::generate_lua_script(&tracks, &clips, &mixer_tracks, &plugins, project_path);
-        fs::write(project_path.join("project.lua"), lua_script)?;
-
-        Ok(())
-    }
-
-    fn generate_lua_script(
-        tracks: &Vec<ArrangementTrack>,
-        clips: &Vec<Clip>,
-        mixer_tracks: &Vec<crate::daw::state::MixerTrackData>,
-        plugins: &Vec<crate::daw::state::PluginInstanceData>,
-        project_path: &Path,
-    ) -> String {
-        let mut script = String::new();
-
-        script.push_str("-- MyDAW Project File\n");
-        script.push_str("-- Generated by MyDAW Serializer\n\n");
-
-        script.push_str("project {\n");
-        script.push_str("  name = \"Untitled Project\",\n");
-        script.push_str("  bpm = 120.0,\n");
-        script.push_str("  sample_rate = 44100\n");
-        script.push_str("}\n\n");
-
-        for plugin in plugins {
-            script.push_str(&format!(
+                for plugin in plugins {
+                        script.push_str(&format!(
                 "plugin {{\n  id = \"{}\",\n  name = \"{}\",\n  label = \"{}\",\n  routing_track = {},\n  format = \"Internal\"\n}}\n\n",
                 plugin.id, plugin.name, plugin.label, plugin.routing_track_index
             ));
-        }
-
-        for track in tracks {
-            script.push_str(&format!("track {{\n  id = {},\n  name = \"{}\",\n  color = \"{}\",\n  target_mixer = {}\n}}\n\n", 
-                track.id, track.name, track.color, track.target_mixer_track_id));
-        }
-
-        for clip in clips {
-            let mut audio_path_str = String::new();
-            if let crate::daw::model::ClipContent::Audio { path: audio_src } = &clip.content {
-                // Copy audio asset
-                let assets_dir = project_path.join("assets");
-                if !assets_dir.exists() {
-                    fs::create_dir_all(&assets_dir).ok();
                 }
 
-                let src_path = Path::new(audio_src);
-                if let Some(file_name) = src_path.file_name() {
-                    let dest_path = assets_dir.join(file_name);
-                    if let Err(e) = fs::copy(src_path, &dest_path) {
-                        println!("Failed to copy asset: {}", e);
-                    }
-                    // Store relative path
-                    audio_path_str = format!("assets/{}", file_name.to_string_lossy());
+                for track in tracks {
+                        script.push_str(&format!(
+        "track {{\n  id = {},\n  name = \"{}\",\n  color = \"{}\",\n  target_mixer = {}\n}}\n\n",
+        track.id, track.name, track.color, track.target_mixer_track_id
+      ));
                 }
-            }
-            let content_type = match clip.content {
-                crate::daw::model::ClipContent::Midi => "midi",
-                crate::daw::model::ClipContent::Audio { .. } => "audio",
-            };
 
-            let inst_ids_str = clip
-                .instrument_ids
-                .iter()
-                .map(|id| format!("\"{}\"", id))
-                .collect::<Vec<_>>()
-                .join(", ");
+                for clip in clips {
+                        let mut audio_path_str = String::new();
+                        if let crate::daw::model::ClipContent::Audio { path: audio_src } = &clip.content {
+                                // Copy audio asset
+                                let assets_dir = project_path.join("assets");
+                                if !assets_dir.exists() {
+                                        fs::create_dir_all(&assets_dir).ok();
+                                }
 
-            let inst_routes_str = clip
-                .instrument_routes
-                .iter()
-                .map(|(k, v)| format!("[\"{}\"] = {}", k, v))
-                .collect::<Vec<_>>()
-                .join(", ");
+                                let src_path = Path::new(audio_src);
+                                if let Some(file_name) = src_path.file_name() {
+                                        let dest_path = assets_dir.join(file_name);
+                                        if let Err(e) = fs::copy(src_path, &dest_path) {
+                                                println!("Failed to copy asset: {}", e);
+                                        }
+                                        // Store relative path
+                                        audio_path_str = format!("assets/{}", file_name.to_string_lossy());
+                                }
+                        }
+                        let content_type = match clip.content {
+                                crate::daw::model::ClipContent::Midi => "midi",
+                                crate::daw::model::ClipContent::Audio { .. } => "audio",
+                        };
 
-            script.push_str(&format!("clip {{\n  id = \"{}\",\n  track_id = {},\n  name = \"{}\",\n  color = \"{}\",\n  start = {},\n  start_bar = {},\n  start_beat = {},\n  start_sixteenth = {},\n  start_tick = {},\n  duration = {},\n  duration_bars = {},\n  duration_beats = {},\n  duration_sixteenths = {},\n  duration_ticks = {},\n  duration_total_ticks = {},\n  type = \"{}\",\n  audio_path = \"{}\",\n  instrument_ids = {{{}}},\n  instrument_routes = {{{}}}\n}}\n\n",
+                        let inst_ids_str = clip
+                                .instrument_ids
+                                .iter()
+                                .map(|id| format!("\"{}\"", id))
+                                .collect::<Vec<_>>()
+                                .join(", ");
+
+                        let inst_routes_str = clip
+                                .instrument_routes
+                                .iter()
+                                .map(|(k, v)| format!("[\"{}\"] = {}", k, v))
+                                .collect::<Vec<_>>()
+                                .join(", ");
+
+                        script.push_str(&format!("clip {{\n  id = \"{}\",\n  track_id = {},\n  name = \"{}\",\n  color = \"{}\",\n  start = {},\n  start_bar = {},\n  start_beat = {},\n  start_sixteenth = {},\n  start_tick = {},\n  duration = {},\n  duration_bars = {},\n  duration_beats = {},\n  duration_sixteenths = {},\n  duration_ticks = {},\n  duration_total_ticks = {},\n  type = \"{}\",\n  audio_path = \"{}\",\n  instrument_ids = {{{}}},\n  instrument_routes = {{{}}}\n}}\n\n",
                 clip.id, clip.track_id, clip.name, clip.color,
                 clip.start.time, clip.start.bar, clip.start.beat, clip.start.sixteenth, clip.start.tick,
                 clip.length.seconds, clip.length.bars, clip.length.beats, clip.length.sixteenths, clip.length.ticks, clip.length.total_ticks,
                 content_type, audio_path_str, inst_ids_str, inst_routes_str));
-        }
-
-        for mixer in mixer_tracks {
-            script.push_str(&format!("mixer_strip {{\n  id = {},\n  volume = {:.2},\n  pan = {:.2},\n  mute = {},\n  solo = {}\n}}\n\n",
-                mixer.id, mixer.volume, mixer.pan, mixer.mute, mixer.solo));
-        }
-
-        script
-    }
-
-    fn copy_dir_all(src: &Path, dst: &Path) -> Result<(), anyhow::Error> {
-        if !dst.exists() {
-            fs::create_dir_all(&dst)?;
-        }
-        for entry in fs::read_dir(src)? {
-            let entry = entry?;
-            let file_type = entry.file_type()?;
-            let from = entry.path();
-            let to = dst.join(entry.file_name());
-            if file_type.is_dir() {
-                Self::copy_dir_all(&from, &to)?;
-            } else if file_type.is_file() {
-                fs::copy(&from, &to)?;
-            }
-        }
-        Ok(())
-    }
-
-    fn find_plugin_folder_with_manifest(start: &Path) -> Option<PathBuf> {
-        let mut folder = start.to_path_buf();
-        while folder.parent().is_some() {
-            if folder.join("manifest.lua").exists() {
-                return Some(folder);
-            }
-            if !folder.pop() {
-                break;
-            }
-        }
-        None
-    }
-
-    fn copy_children_from_manifest(
-        manifest_folder: &Path,
-        plugins_dir: &Path,
-    ) -> Result<(), anyhow::Error> {
-        let manifest_path = manifest_folder.join("manifest.lua");
-        if !manifest_path.exists() {
-            return Ok(());
-        }
-        let content = fs::read_to_string(&manifest_path)?;
-        if let Ok(tbl) = Lua::new().load(&content).eval::<Table>() {
-            if let Ok(children_tbl) = tbl.get::<Table>("children") {
-                for pair in children_tbl.sequence_values::<Table>() {
-                    if let Ok(child_tbl) = pair {
-                        if let Ok(backend_tbl) = child_tbl.get::<Table>("backend") {
-                            if let Ok(t) = backend_tbl.get::<String>("type") {
-                                if t == "local" {
-                                    if let Ok(p) = backend_tbl.get::<String>("path") {
-                                        // resolve path relative to manifest_folder
-                                        let child_path = manifest_folder.join(&p);
-                                        // find plugin folder that contains a manifest
-                                        if let Some(child_folder) =
-                                            Self::find_plugin_folder_with_manifest(&child_path)
-                                        {
-                                            let folder_name = child_folder
-                                                .file_name()
-                                                .map(|s| s.to_string_lossy().to_string())
-                                                .unwrap_or_else(|| "child_plugin".to_string());
-                                            let dest =
-                                                plugins_dir.join("official").join(folder_name);
-                                            if let Err(e) = Self::copy_dir_all(&child_folder, &dest)
-                                            {
-                                                println!(
-                                                    "Failed to copy child plugin folder: {}",
-                                                    e
-                                                );
-                                            }
-                                            // Recurse into child's manifest
-                                            let _ = Self::copy_children_from_manifest(
-                                                &child_folder,
-                                                plugins_dir,
-                                            );
-                                        } else {
-                                            // If no manifest folder found, try to copy file
-                                            if child_path.exists() {
-                                                let dest_dir = plugins_dir.join("local");
-                                                let _ = fs::create_dir_all(&dest_dir);
-                                                if let Some(fname) = child_path.file_name() {
-                                                    let _ =
-                                                        fs::copy(&child_path, dest_dir.join(fname));
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
                 }
-            }
+
+                for mixer in mixer_tracks {
+                        script.push_str(&format!("mixer_strip {{\n  id = {},\n  volume = {:.2},\n  pan = {:.2},\n  mute = {},\n  solo = {}\n}}\n\n",
+                mixer.id, mixer.volume, mixer.pan, mixer.mute, mixer.solo));
+                }
+
+                script
         }
-        Ok(())
-    }
 
-    pub fn load_project(path: &Path) -> Result<ProjectSchema> {
-        let lua = Lua::new();
-        let script_path = path.join("project.lua");
-        let script_content = fs::read_to_string(script_path)?;
+        fn copy_dir_all(src: &Path, dst: &Path) -> Result<(), anyhow::Error> {
+                if !dst.exists() {
+                        fs::create_dir_all(&dst)?;
+                }
+                for entry in fs::read_dir(src)? {
+                        let entry = entry?;
+                        let file_type = entry.file_type()?;
+                        let from = entry.path();
+                        let to = dst.join(entry.file_name());
+                        if file_type.is_dir() {
+                                Self::copy_dir_all(&from, &to)?;
+                        } else if file_type.is_file() {
+                                fs::copy(&from, &to)?;
+                        }
+                }
+                Ok(())
+        }
 
-        let globals = lua.globals();
+        fn find_plugin_folder_with_manifest(start: &Path) -> Option<PathBuf> {
+                let mut folder = start.to_path_buf();
+                while folder.parent().is_some() {
+                        if folder.join("manifest.lua").exists() {
+                                return Some(folder);
+                        }
+                        if !folder.pop() {
+                                break;
+                        }
+                }
+                None
+        }
 
-        // Define schema accumulators in Lua
-        lua.load(
-            r#"
+        fn copy_children_from_manifest(manifest_folder: &Path, plugins_dir: &Path) -> Result<(), anyhow::Error> {
+                let manifest_path = manifest_folder.join("manifest.lua");
+                if !manifest_path.exists() {
+                        return Ok(());
+                }
+
+                let content = match fs::read_to_string(&manifest_path) {
+                        Ok(c) => c,
+                        Err(_) => return Ok(()),
+                };
+
+                if let Ok(tbl) = Lua::new().load(&content).eval::<Table>() {
+                        if let Ok(children_tbl) = tbl.get::<Table>("children") {
+                                for pair in children_tbl.sequence_values::<Table>() {
+                                        if let Ok(child_tbl) = pair {
+                                                if let Ok(backend_tbl) = child_tbl.get::<Table>("backend") {
+                                                        if let Ok(t) = backend_tbl.get::<String>("type") {
+                                                                if t == "local" {
+                                                                        if let Ok(p) = backend_tbl.get::<String>("path")
+                                                                        {
+                                                                                let child_path =
+                                                                                        manifest_folder.join(&p);
+                                                                                if let Some(child_folder) = Self::find_plugin_folder_with_manifest(&child_path)
+                    {
+                      // inspect child's manifest for copy_on_project_save
+                      let child_manifest = child_folder.join("manifest.lua");
+                      let mut child_should_copy = true;
+                      if child_manifest.exists() {
+                        if let Ok(child_content) = fs::read_to_string(&child_manifest) {
+                          if let Ok(child_tbl2) = Lua::new().load(&child_content).eval::<Table>() {
+                            if let Ok(flag) = child_tbl2.get::<bool>("copy_on_project_save") {
+                              child_should_copy = flag;
+                            }
+                          }
+                        }
+                      }
+
+                      if child_should_copy {
+                        let folder_name = child_folder
+                          .file_name()
+                          .map(|s| s.to_string_lossy().to_string())
+                          .unwrap_or_else(|| "child_plugin".to_string());
+                        let dest = plugins_dir.join("official").join(folder_name);
+                        if let Err(e) = Self::copy_dir_all(&child_folder, &dest) {
+                          println!("Failed to copy child plugin folder: {}", e);
+                        }
+                        // Recurse into child's manifest
+                        let _ = Self::copy_children_from_manifest(&child_folder, plugins_dir);
+                      } else {
+                        // child asked not to be copied
+                      }
+                    } else {
+                      // If no manifest folder found, try to copy file
+                      if child_path.exists() {
+                        let dest_dir = plugins_dir.join("local");
+                        let _ = fs::create_dir_all(&dest_dir);
+                        if let Some(fname) = child_path.file_name() {
+                          let _ = fs::copy(&child_path, dest_dir.join(fname));
+                        }
+                      }
+                    }
+                                                                        }
+                                                                }
+                                                        }
+                                                }
+                                        }
+                                }
+                        }
+                }
+
+                Ok(())
+        }
+
+        pub fn load_project(path: &Path) -> Result<ProjectSchema> {
+                let lua = Lua::new();
+                let script_path = path.join("project.lua");
+                let script_content = fs::read_to_string(script_path)?;
+
+                let globals = lua.globals();
+
+                // Define schema accumulators in Lua
+                lua.load(r#"
             _G.project_data = {
                 meta = {},
                 tracks = {},
@@ -399,197 +432,182 @@ impl ProjectManager {
             function plugin(t)
                 table.insert(_G.project_data.plugins, t)
             end
-        "#,
-        )
-        .exec()
-        .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+        "#)
+                        .exec()
+                        .map_err(|e| anyhow::anyhow!(e.to_string()))?;
 
-        // Run the project script
-        lua.load(&script_content)
-            .exec()
-            .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+                // Run the project script
+                lua.load(&script_content)
+                        .exec()
+                        .map_err(|e| anyhow::anyhow!(e.to_string()))?;
 
-        // Extract data
-        let project_data: Table = globals
-            .get("project_data")
-            .map_err(|e| anyhow::anyhow!(e.to_string()))?;
-        let meta: Table = project_data
-            .get("meta")
-            .map_err(|e| anyhow::anyhow!(e.to_string()))?;
-        let tracks_tbl: Vec<Table> = project_data
-            .get("tracks")
-            .map_err(|e| anyhow::anyhow!(e.to_string()))?;
-        let clips_tbl: Vec<Table> = project_data
-            .get("clips")
-            .map_err(|e| anyhow::anyhow!(e.to_string()))?;
-        let _mixer_tbl: Vec<Table> = project_data
-            .get("mixer")
-            .map_err(|e| anyhow::anyhow!(e.to_string()))?;
-        let plugins_tbl: Vec<Table> = project_data
-            .get("plugins")
-            .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+                // Extract data
+                let project_data: Table = globals
+                        .get("project_data")
+                        .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+                let meta: Table = project_data.get("meta").map_err(|e| anyhow::anyhow!(e.to_string()))?;
+                let tracks_tbl: Vec<Table> = project_data.get("tracks").map_err(|e| anyhow::anyhow!(e.to_string()))?;
+                let clips_tbl: Vec<Table> = project_data.get("clips").map_err(|e| anyhow::anyhow!(e.to_string()))?;
+                let _mixer_tbl: Vec<Table> = project_data.get("mixer").map_err(|e| anyhow::anyhow!(e.to_string()))?;
+                let plugins_tbl: Vec<Table> = project_data
+                        .get("plugins")
+                        .map_err(|e| anyhow::anyhow!(e.to_string()))?;
 
-        let mut schema = ProjectSchema {
-            meta: ProjectMetadata {
-                name: meta
-                    .get("name")
-                    .map_err(|e| anyhow::anyhow!(e.to_string()))
-                    .unwrap_or("Untitled".to_string()),
-                author: "Unknown".to_string(),
-                version: "0.0.1".to_string(),
-                created_at: 0,
-                updated_at: 0,
-                description: "".to_string(),
-            },
-            settings: ProjectSettings {
-                bpm: meta
-                    .get("bpm")
-                    .map_err(|e| anyhow::anyhow!(e.to_string()))
-                    .unwrap_or(120.0),
-                sample_rate: meta
-                    .get("sample_rate")
-                    .map_err(|e| anyhow::anyhow!(e.to_string()))
-                    .unwrap_or(44100),
-                time_signature: (4, 4),
-            },
-            tracks: vec![],
-            mixer: MixerSchema { tracks: vec![] },
-            plugins: vec![],
-        };
+                let mut schema = ProjectSchema {
+                        meta: ProjectMetadata {
+                                name: meta
+                                        .get("name")
+                                        .map_err(|e| anyhow::anyhow!(e.to_string()))
+                                        .unwrap_or("Untitled".to_string()),
+                                author: "Unknown".to_string(),
+                                version: "0.0.1".to_string(),
+                                created_at: 0,
+                                updated_at: 0,
+                                description: "".to_string(),
+                        },
+                        settings: ProjectSettings {
+                                bpm: meta
+                                        .get("bpm")
+                                        .map_err(|e| anyhow::anyhow!(e.to_string()))
+                                        .unwrap_or(120.0),
+                                sample_rate: meta
+                                        .get("sample_rate")
+                                        .map_err(|e| anyhow::anyhow!(e.to_string()))
+                                        .unwrap_or(44100),
+                                time_signature: (4, 4),
+                        },
+                        tracks: vec![],
+                        mixer: MixerSchema { tracks: vec![] },
+                        plugins: vec![],
+                };
 
-        for t in tracks_tbl {
-            schema.tracks.push(TrackSchema {
-                id: t.get("id").map_err(|e| anyhow::anyhow!(e.to_string()))?,
-                name: t.get("name").map_err(|e| anyhow::anyhow!(e.to_string()))?,
-                color: t.get("color").map_err(|e| anyhow::anyhow!(e.to_string()))?,
-                track_type: TrackType::Audio, // Default
-                clips: vec![],                // Will populate later
-                target_mixer_track_id: t
-                    .get("target_mixer")
-                    .map_err(|e| anyhow::anyhow!(e.to_string()))?,
-            });
-        }
-
-        for p in plugins_tbl {
-            schema.plugins.push(PluginSchema {
-                id: p.get("id").map_err(|e| anyhow::anyhow!(e.to_string()))?,
-                name: p.get("name").map_err(|e| anyhow::anyhow!(e.to_string()))?,
-                label: p
-                    .get("label")
-                    .unwrap_or_else(|_| p.get("name").unwrap_or("Unknown".to_string())),
-                routing_track_index: p.get("routing_track").unwrap_or(0),
-                format: p.get("format").unwrap_or("Internal".to_string()),
-                state_blob_id: None, // Will be loaded from DB separately if needed, or matched by ID
-            });
-        }
-
-        // Load Notes from DB
-        let db_path = path.join("data.db");
-        let conn = Connection::open(&db_path)?;
-        let mut stmt =
-            conn.prepare("SELECT note, start, duration, velocity FROM notes WHERE clip_id = ?1")?;
-
-        // Map clips to tracks
-        for c in clips_tbl {
-            let track_id: usize = c
-                .get("track_id")
-                .map_err(|e| anyhow::anyhow!(e.to_string()))?;
-            let clip_id: String = c.get("id").map_err(|e| anyhow::anyhow!(e.to_string()))?;
-
-            // Fetch notes
-            let note_iter = stmt.query_map(params![clip_id], |row| {
-                Ok(NoteSchema {
-                    note: row.get(0)?,
-                    start: row.get(1)?,
-                    duration: row.get(2)?,
-                    velocity: row.get(3)?,
-                    channel: 0,
-                })
-            })?;
-
-            let mut notes = Vec::new();
-            for note in note_iter {
-                notes.push(note?);
-            }
-
-            let type_str: String = c.get("type").unwrap_or("midi".to_string());
-            let audio_path: String = c.get("audio_path").unwrap_or("".to_string());
-
-            let content_type = if type_str == "audio" {
-                // Resolve absolute path
-                let abs_path = path.join(&audio_path);
-                ClipContentType::Audio {
-                    file_path: abs_path.to_string_lossy().to_string(),
+                for t in tracks_tbl {
+                        schema.tracks.push(TrackSchema {
+                                id: t.get("id").map_err(|e| anyhow::anyhow!(e.to_string()))?,
+                                name: t.get("name").map_err(|e| anyhow::anyhow!(e.to_string()))?,
+                                color: t.get("color").map_err(|e| anyhow::anyhow!(e.to_string()))?,
+                                track_type: TrackType::Audio, // Default
+                                clips: vec![],                // Will populate later
+                                target_mixer_track_id: t
+                                        .get("target_mixer")
+                                        .map_err(|e| anyhow::anyhow!(e.to_string()))?,
+                        });
                 }
-            } else {
-                ClipContentType::Midi
-            };
 
-            let inst_ids_tbl: Option<Table> = c.get("instrument_ids").ok();
-            let mut instrument_ids = Vec::new();
-            if let Some(tbl) = inst_ids_tbl {
-                for pair in tbl.pairs::<usize, String>() {
-                    if let Ok((_, id)) = pair {
-                        instrument_ids.push(id);
-                    }
+                for p in plugins_tbl {
+                        schema.plugins.push(PluginSchema {
+                                id: p.get("id").map_err(|e| anyhow::anyhow!(e.to_string()))?,
+                                name: p.get("name").map_err(|e| anyhow::anyhow!(e.to_string()))?,
+                                label: p.get("label")
+                                        .unwrap_or_else(|_| p.get("name").unwrap_or("Unknown".to_string())),
+                                routing_track_index: p.get("routing_track").unwrap_or(0),
+                                format: p.get("format").unwrap_or("Internal".to_string()),
+                                state_blob_id: None, // Will be loaded from DB separately if needed, or matched by ID
+                        });
                 }
-            }
 
-            let inst_routes_tbl: Option<Table> = c.get("instrument_routes").ok();
-            let mut instrument_routes = std::collections::HashMap::new();
-            if let Some(tbl) = inst_routes_tbl {
-                for pair in tbl.pairs::<String, usize>() {
-                    if let Ok((k, v)) = pair {
-                        instrument_routes.insert(k, v);
-                    }
+                // Load Notes from DB
+                let db_path = path.join("data.db");
+                let conn = Connection::open(&db_path)?;
+                let mut stmt = conn.prepare("SELECT note, start, duration, velocity FROM notes WHERE clip_id = ?1")?;
+
+                // Map clips to tracks
+                for c in clips_tbl {
+                        let track_id: usize = c.get("track_id").map_err(|e| anyhow::anyhow!(e.to_string()))?;
+                        let clip_id: String = c.get("id").map_err(|e| anyhow::anyhow!(e.to_string()))?;
+
+                        // Fetch notes
+                        let note_iter = stmt.query_map(params![clip_id], |row| {
+                                Ok(NoteSchema {
+                                        note: row.get(0)?,
+                                        start: row.get(1)?,
+                                        duration: row.get(2)?,
+                                        velocity: row.get(3)?,
+                                        channel: 0,
+                                })
+                        })?;
+
+                        let mut notes = Vec::new();
+                        for note in note_iter {
+                                notes.push(note?);
+                        }
+
+                        let type_str: String = c.get("type").unwrap_or("midi".to_string());
+                        let audio_path: String = c.get("audio_path").unwrap_or("".to_string());
+
+                        let content_type = if type_str == "audio" {
+                                // Resolve absolute path
+                                let abs_path = path.join(&audio_path);
+                                ClipContentType::Audio {
+                                        file_path: abs_path.to_string_lossy().to_string(),
+                                }
+                        } else {
+                                ClipContentType::Midi
+                        };
+
+                        let inst_ids_tbl: Option<Table> = c.get("instrument_ids").ok();
+                        let mut instrument_ids = Vec::new();
+                        if let Some(tbl) = inst_ids_tbl {
+                                for pair in tbl.pairs::<usize, String>() {
+                                        if let Ok((_, id)) = pair {
+                                                instrument_ids.push(id);
+                                        }
+                                }
+                        }
+
+                        let inst_routes_tbl: Option<Table> = c.get("instrument_routes").ok();
+                        let mut instrument_routes = std::collections::HashMap::new();
+                        if let Some(tbl) = inst_routes_tbl {
+                                for pair in tbl.pairs::<String, usize>() {
+                                        if let Ok((k, v)) = pair {
+                                                instrument_routes.insert(k, v);
+                                        }
+                                }
+                        }
+
+                        if let Some(track) = schema.tracks.iter_mut().find(|t| t.id == track_id) {
+                                track.clips.push(ClipSchema {
+                                        id: clip_id,
+                                        name: c.get("name").map_err(|e| anyhow::anyhow!(e.to_string()))?,
+                                        color: c.get("color").unwrap_or("#3b82f6".to_string()),
+                                        start_position: c.get("start").map_err(|e| anyhow::anyhow!(e.to_string()))?,
+                                        start_bar: c.get("start_bar").unwrap_or(0),
+                                        start_beat: c.get("start_beat").unwrap_or(0),
+                                        start_sixteenth: c.get("start_sixteenth").unwrap_or(0),
+                                        start_tick: c.get("start_tick").unwrap_or(0),
+                                        duration: c.get("duration").map_err(|e| anyhow::anyhow!(e.to_string()))?,
+                                        duration_bars: c.get("duration_bars").unwrap_or(0),
+                                        duration_beats: c.get("duration_beats").unwrap_or(0),
+                                        duration_sixteenths: c.get("duration_sixteenths").unwrap_or(0),
+                                        duration_ticks: c.get("duration_ticks").unwrap_or(0),
+                                        duration_total_ticks: c.get("duration_total_ticks").unwrap_or(0),
+                                        offset: 0.0,
+                                        content_type,
+                                        note_count: notes.len(),
+                                        notes,
+                                        instrument_ids,
+                                        instrument_routes,
+                                });
+                        }
                 }
-            }
 
-            if let Some(track) = schema.tracks.iter_mut().find(|t| t.id == track_id) {
-                track.clips.push(ClipSchema {
-                    id: clip_id,
-                    name: c.get("name").map_err(|e| anyhow::anyhow!(e.to_string()))?,
-                    color: c.get("color").unwrap_or("#3b82f6".to_string()),
-                    start_position: c.get("start").map_err(|e| anyhow::anyhow!(e.to_string()))?,
-                    start_bar: c.get("start_bar").unwrap_or(0),
-                    start_beat: c.get("start_beat").unwrap_or(0),
-                    start_sixteenth: c.get("start_sixteenth").unwrap_or(0),
-                    start_tick: c.get("start_tick").unwrap_or(0),
-                    duration: c
-                        .get("duration")
-                        .map_err(|e| anyhow::anyhow!(e.to_string()))?,
-                    duration_bars: c.get("duration_bars").unwrap_or(0),
-                    duration_beats: c.get("duration_beats").unwrap_or(0),
-                    duration_sixteenths: c.get("duration_sixteenths").unwrap_or(0),
-                    duration_ticks: c.get("duration_ticks").unwrap_or(0),
-                    duration_total_ticks: c.get("duration_total_ticks").unwrap_or(0),
-                    offset: 0.0,
-                    content_type,
-                    note_count: notes.len(),
-                    notes,
-                    instrument_ids,
-                    instrument_routes,
-                });
-            }
+                Ok(schema)
         }
 
-        Ok(schema)
-    }
+        pub fn load_plugin_states(path: &Path) -> Result<std::collections::HashMap<String, Vec<u8>>> {
+                let db_path = path.join("data.db");
+                let conn = Connection::open(&db_path)?;
+                let mut stmt = conn.prepare("SELECT id, state FROM plugins")?;
 
-    pub fn load_plugin_states(path: &Path) -> Result<std::collections::HashMap<String, Vec<u8>>> {
-        let db_path = path.join("data.db");
-        let conn = Connection::open(&db_path)?;
-        let mut stmt = conn.prepare("SELECT id, state FROM plugins")?;
+                let rows = stmt.query_map([], |row| {
+                        Ok((row.get::<_, String>(0)?, row.get::<_, Vec<u8>>(1)?))
+                })?;
 
-        let rows = stmt.query_map([], |row| {
-            Ok((row.get::<_, String>(0)?, row.get::<_, Vec<u8>>(1)?))
-        })?;
-
-        let mut states = std::collections::HashMap::new();
-        for row in rows {
-            let (id, state) = row?;
-            states.insert(id, state);
+                let mut states = std::collections::HashMap::new();
+                for row in rows {
+                        let (id, state) = row?;
+                        states.insert(id, state);
+                }
+                Ok(states)
         }
-        Ok(states)
-    }
 }

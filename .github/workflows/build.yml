@@ -1,202 +1,202 @@
 name: 构建发布
 
 on:
-    push:
-        tags:
-            - 'v*'
-    workflow_dispatch:
+        push:
+                tags:
+                        - 'v*'
+        workflow_dispatch:
 
 jobs:
-    build-desktop:
-        name: 构建桌面版
-        permissions:
-            contents: write
-        strategy:
-            fail-fast: false
-            matrix:
-                platform: [ubuntu-latest, windows-latest]
+        build-desktop:
+                name: 构建桌面版
+                permissions:
+                        contents: write
+                strategy:
+                        fail-fast: false
+                        matrix:
+                                platform: [ubuntu-latest, windows-latest]
 
-        runs-on: ${{ matrix.platform }}
-        steps:
-            - uses: actions/checkout@v4
+                runs-on: ${{ matrix.platform }}
+                steps:
+                        - uses: actions/checkout@v4
 
-            - name: 安装 Node.js
-              uses: actions/setup-node@v4
-              with:
-                  node-version: 20
+                        - name: 安装 Node.js
+                          uses: actions/setup-node@v4
+                          with:
+                                  node-version: 20
 
-            - name: 安装 Rust
-              uses: dtolnay/rust-toolchain@stable
+                        - name: 安装 Rust
+                          uses: dtolnay/rust-toolchain@stable
 
-            - name: 安装依赖 (Ubuntu)
-              if: matrix.platform == 'ubuntu-latest'
-              run: |
-                  sudo apt-get update
-                  sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev rpm libasound2-dev
+                        - name: 安装依赖 (Ubuntu)
+                          if: matrix.platform == 'ubuntu-latest'
+                          run: |
+                                  sudo apt-get update
+                                  sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev rpm libasound2-dev
 
-            - name: 安装前端依赖
-              run: npm install
+                        - name: 安装前端依赖
+                          run: npm install
 
-            - name: 构建桌面版应用
-              uses: tauri-apps/tauri-action@v0
-              with:
-                  # 省略 tagName/releaseName，以便操作仅构建，而不创建发布
-                  args: ${{ matrix.platform == 'ubuntu-latest' && '--bundles appimage,rpm' || '--bundles nsis' }}
+                        - name: 构建桌面版应用
+                          uses: tauri-apps/tauri-action@v0
+                          with:
+                                  # 省略 tagName/releaseName，以便操作仅构建，而不创建发布
+                                  args: ${{ matrix.platform == 'ubuntu-latest' && '--bundles appimage,rpm' || '--bundles nsis' }}
 
-            - name: 列出桌面构建产物（调试）
-              run: |
-                  echo "Bundle tree:"
-                  ls -R src-tauri/target/release/bundle || true
+                        - name: 列出桌面构建产物（调试）
+                          run: |
+                                  echo "Bundle tree:"
+                                  ls -R src-tauri/target/release/bundle || true
 
-            - name: 上传 Ubuntu 最终包 (AppImage & RPM)
-              if: ${{ always() && matrix.platform == 'ubuntu-latest' }}
-              uses: actions/upload-artifact@v4
-              with:
-                  name: desktop-ubuntu-latest
-                  path: |
-                      src-tauri/target/release/bundle/**/*.AppImage
-                      src-tauri/target/release/bundle/**/*.appimage
-                      src-tauri/target/release/bundle/**/*.rpm
+                        - name: 上传 Ubuntu 最终包 (AppImage & RPM)
+                          if: ${{ always() && matrix.platform == 'ubuntu-latest' }}
+                          uses: actions/upload-artifact@v4
+                          with:
+                                  name: desktop-ubuntu-latest
+                                  path: |
+                                          src-tauri/target/release/bundle/**/*.AppImage
+                                          src-tauri/target/release/bundle/**/*.appimage
+                                          src-tauri/target/release/bundle/**/*.rpm
 
-            - name: 上传 Windows 最终包 (EXE)
-              if: ${{ always() && matrix.platform == 'windows-latest' }}
-              uses: actions/upload-artifact@v4
-              with:
-                  name: desktop-windows-latest
-                  path: |
-                      src-tauri/target/release/bundle/**/*.exe
+                        - name: 上传 Windows 最终包 (EXE)
+                          if: ${{ always() && matrix.platform == 'windows-latest' }}
+                          uses: actions/upload-artifact@v4
+                          with:
+                                  name: desktop-windows-latest
+                                  path: |
+                                          src-tauri/target/release/bundle/**/*.exe
 
-    build-android:
-        name: 构建安卓版
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v4
+        build-android:
+                name: 构建安卓版
+                runs-on: ubuntu-latest
+                steps:
+                        - uses: actions/checkout@v4
 
-            - name: 安装 Node.js
-              uses: actions/setup-node@v4
-              with:
-                  node-version: 20
+                        - name: 安装 Node.js
+                          uses: actions/setup-node@v4
+                          with:
+                                  node-version: 20
 
-            - name: 安装 Java
-              uses: actions/setup-java@v4
-              with:
-                  distribution: 'temurin'
-                  java-version: '21'
+                        - name: 安装 Java
+                          uses: actions/setup-java@v4
+                          with:
+                                  distribution: 'temurin'
+                                  java-version: '21'
 
-            - name: 安装 Android SDK
-              uses: android-actions/setup-android@v3
+                        - name: 安装 Android SDK
+                          uses: android-actions/setup-android@v3
 
-            - name: 安装 Android NDK
-              run: |
-                  sdkmanager "ndk;29.0.14206865"
-                  echo "NDK_HOME=$ANDROID_HOME/ndk/29.0.14206865" >> $GITHUB_ENV
-                  echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/29.0.14206865" >> $GITHUB_ENV
+                        - name: 安装 Android NDK
+                          run: |
+                                  sdkmanager "ndk;29.0.14206865"
+                                  echo "NDK_HOME=$ANDROID_HOME/ndk/29.0.14206865" >> $GITHUB_ENV
+                                  echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/29.0.14206865" >> $GITHUB_ENV
 
-            - name: 安装 Rust
-              uses: dtolnay/rust-toolchain@stable
-              with:
-                  targets: aarch64-linux-android armv7-linux-androideabi
+                        - name: 安装 Rust
+                          uses: dtolnay/rust-toolchain@stable
+                          with:
+                                  targets: aarch64-linux-android armv7-linux-androideabi
 
-            - name: Rust 缓存
-              uses: swatinem/rust-cache@v2
-              with:
-                  workspaces: src-tauri
+                        - name: Rust 缓存
+                          uses: swatinem/rust-cache@v2
+                          with:
+                                  workspaces: src-tauri
 
-            - name: 安装前端依赖
-              run: npm install
+                        - name: 安装前端依赖
+                          run: npm install
 
-            - name: 生成 Debug Keystore
-              run: |
-                  mkdir -p ~/.android
-                  if [ ! -f ~/.android/debug.keystore ]; then
-                    keytool -genkey -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
-                  fi
+                        - name: 生成 Debug Keystore
+                          run: |
+                                  mkdir -p ~/.android
+                                  if [ ! -f ~/.android/debug.keystore ]; then
+                                    keytool -genkey -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+                                  fi
 
-            - name: 构建 Android APK
-              run: |
-                  echo "Using NDK: $NDK_HOME"
+                        - name: 构建 Android APK
+                          run: |
+                                  echo "Using NDK: $NDK_HOME"
 
-                  # 显式设置编译器和链接器路径，强制使用 API 29 (Android 10)
-                  # 这是因为 cpal/oboe 依赖的 AAudio 库仅在 API 26+ 可用，
-                  # 同时我们将最低支持版本提升到 Android 10（API 29），
-                  # 因此使用 API 29 的工具链以保持一致。
+                                  # 显式设置编译器和链接器路径，强制使用 API 29 (Android 10)
+                                  # 这是因为 cpal/oboe 依赖的 AAudio 库仅在 API 26+ 可用，
+                                  # 同时我们将最低支持版本提升到 Android 10（API 29），
+                                  # 因此使用 API 29 的工具链以保持一致。
 
-                  TOOLCHAIN=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin
+                                  TOOLCHAIN=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin
 
-                  export CC_aarch64_linux_android="$TOOLCHAIN/aarch64-linux-android29-clang"
-                  export CXX_aarch64_linux_android="$TOOLCHAIN/aarch64-linux-android29-clang++"
-                  export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="$TOOLCHAIN/aarch64-linux-android29-clang"
-                  export CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS="-C linker=$TOOLCHAIN/aarch64-linux-android29-clang"
+                                  export CC_aarch64_linux_android="$TOOLCHAIN/aarch64-linux-android29-clang"
+                                  export CXX_aarch64_linux_android="$TOOLCHAIN/aarch64-linux-android29-clang++"
+                                  export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="$TOOLCHAIN/aarch64-linux-android29-clang"
+                                  export CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS="-C linker=$TOOLCHAIN/aarch64-linux-android29-clang"
 
-                  export CC_armv7_linux_androideabi="$TOOLCHAIN/armv7a-linux-androideabi29-clang"
-                  export CXX_armv7_linux_androideabi="$TOOLCHAIN/armv7a-linux-androideabi29-clang++"
-                  export CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_LINKER="$TOOLCHAIN/armv7a-linux-androideabi29-clang"
-                  export CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_RUSTFLAGS="-C linker=$TOOLCHAIN/armv7a-linux-androideabi29-clang"
+                                  export CC_armv7_linux_androideabi="$TOOLCHAIN/armv7a-linux-androideabi29-clang"
+                                  export CXX_armv7_linux_androideabi="$TOOLCHAIN/armv7a-linux-androideabi29-clang++"
+                                  export CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_LINKER="$TOOLCHAIN/armv7a-linux-androideabi29-clang"
+                                  export CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_RUSTFLAGS="-C linker=$TOOLCHAIN/armv7a-linux-androideabi29-clang"
 
-                  npm run tauri android build -- --apk true
+                                  npm run tauri android build -- --apk true
 
-            - name: 上传 Android 产物
-              uses: actions/upload-artifact@v4
-              with:
-                  name: android-app
-                  path: src-tauri/gen/android/app/build/outputs/apk/**/*.apk
+                        - name: 上传 Android 产物
+                          uses: actions/upload-artifact@v4
+                          with:
+                                  name: android-app
+                                  path: src-tauri/gen/android/app/build/outputs/apk/**/*.apk
 
-    publish-release:
-        name: 发布 Release（汇总并上传所有平台资产）
-        needs: [build-desktop, build-android]
-        runs-on: ubuntu-latest
-        permissions:
-            contents: write
-        steps:
-            - name: Checkout code
-              uses: actions/checkout@v4
+        publish-release:
+                name: 发布 Release（汇总并上传所有平台资产）
+                needs: [build-desktop, build-android]
+                runs-on: ubuntu-latest
+                permissions:
+                        contents: write
+                steps:
+                        - name: Checkout code
+                          uses: actions/checkout@v4
 
-            - name: 下载 Ubuntu 桌面产物
-              uses: actions/download-artifact@v4
-              with:
-                  name: desktop-ubuntu-latest
-                  path: artifacts/ubuntu
+                        - name: 下载 Ubuntu 桌面产物
+                          uses: actions/download-artifact@v4
+                          with:
+                                  name: desktop-ubuntu-latest
+                                  path: artifacts/ubuntu
 
-            - name: 下载 Windows 桌面产物
-              uses: actions/download-artifact@v4
-              with:
-                  name: desktop-windows-latest
-                  path: artifacts/windows
+                        - name: 下载 Windows 桌面产物
+                          uses: actions/download-artifact@v4
+                          with:
+                                  name: desktop-windows-latest
+                                  path: artifacts/windows
 
-            - name: 下载 Android 产物
-              uses: actions/download-artifact@v4
-              with:
-                  name: android-app
-                  path: artifacts/android
+                        - name: 下载 Android 产物
+                          uses: actions/download-artifact@v4
+                          with:
+                                  name: android-app
+                                  path: artifacts/android
 
-            - name: 列出待上传资产（调试）
-              run: |
-                  echo "Artifacts tree:"
-                  ls -R artifacts || true
+                        - name: 列出待上传资产（调试）
+                          run: |
+                                  echo "Artifacts tree:"
+                                  ls -R artifacts || true
 
-            - name: 创建 Release 并上传所有资产
-              uses: softprops/action-gh-release@v2
-              with:
-                  # 仅上传最终的捆绑包，以免尝试上传
-                  # 内部文件（例如共享库），这可能导致冲突
-                  # 在覆盖期间或触发更新请求导致 404。
-                  files: |
-                      artifacts/ubuntu/**/*.AppImage
-                      artifacts/ubuntu/**/*.appimage
-                      artifacts/ubuntu/**/*.rpm
-                      artifacts/windows/**/*.exe
-                      artifacts/android/**/*.apk
-                  tag_name: ${{ github.ref_name }}
-                  name: 'App ${{ github.ref_name }}'
-                  body: '请在下方 Assets 中下载安装包。'
-                  draft: false
-                  prerelease: false
-                  # 避免尝试更新/替换现有资产。如果您想要
-                  # 替换行为，请设置为 true，并确保发布存在
-                  # 事先具有正确匹配的资产名称。
-                  overwrite_files: false
-                  # 如果某些 glob 不匹配，不要失败 — 并非每次运行都产生
-                  # 所有平台工件。保持 `fail_on_unmatched_files` 关闭。
-                  fail_on_unmatched_files: false
-                  # 显式提供令牌（默认为 GITHUB_TOKEN）以明确
-                  token: ${{ secrets.GITHUB_TOKEN }}
+                        - name: 创建 Release 并上传所有资产
+                          uses: softprops/action-gh-release@v2
+                          with:
+                                  # 仅上传最终的捆绑包，以免尝试上传
+                                  # 内部文件（例如共享库），这可能导致冲突
+                                  # 在覆盖期间或触发更新请求导致 404。
+                                  files: |
+                                          artifacts/ubuntu/**/*.AppImage
+                                          artifacts/ubuntu/**/*.appimage
+                                          artifacts/ubuntu/**/*.rpm
+                                          artifacts/windows/**/*.exe
+                                          artifacts/android/**/*.apk
+                                  tag_name: ${{ github.ref_name }}
+                                  name: 'App ${{ github.ref_name }}'
+                                  body: '请在下方 Assets 中下载安装包。'
+                                  draft: false
+                                  prerelease: false
+                                  # 避免尝试更新/替换现有资产。如果您想要
+                                  # 替换行为，请设置为 true，并确保发布存在
+                                  # 事先具有正确匹配的资产名称。
+                                  overwrite_files: false
+                                  # 如果某些 glob 不匹配，不要失败 — 并非每次运行都产生
+                                  # 所有平台工件。保持 `fail_on_unmatched_files` 关闭。
+                                  fail_on_unmatched_files: false
+                                  # 显式提供令牌（默认为 GITHUB_TOKEN）以明确
+                                  token: ${{ secrets.GITHUB_TOKEN }}

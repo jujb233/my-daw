@@ -2,91 +2,94 @@ import { invoke } from '@tauri-apps/api/core'
 import { Clip, Position, MusicalLength } from '../store/model'
 
 export const DawService = {
-    async addClip(
-        trackId: number,
-        name: string,
-        start: Position,
-        length: MusicalLength
-    ): Promise<string> {
-        return await invoke('add_clip', {
-            trackId,
-            name,
-            start,
-            length
-        })
-    },
+        async addClip(trackId: number, name: string, start: Position, length: MusicalLength): Promise<string> {
+                return await invoke('add_clip', {
+                        trackId,
+                        name,
+                        start,
+                        length
+                })
+        },
 
-    async updateClip(id: string, updates: Partial<Clip>): Promise<void> {
-        console.log('DawService.updateClip', id, updates)
-        await invoke('update_clip', {
-            id,
-            name: updates.name,
-            start: updates.start,
-            trackId: updates.trackId,
-            length: updates.length,
-            notes: updates.notes,
-            instrumentIds: updates.instrumentIds,
-            instrumentRoutes: updates.instrumentRoutes
-        })
-    },
+        async updateClip(id: string, updates: Partial<Clip>): Promise<void> {
+                console.log('DawService.updateClip', id, updates)
+                await invoke('update_clip', {
+                        id,
+                        name: updates.name,
+                        start: updates.start,
+                        trackId: updates.trackId,
+                        length: updates.length,
+                        notes: updates.notes,
+                        instrumentIds: updates.instrumentIds,
+                        instrumentRoutes: updates.instrumentRoutes
+                })
+        },
 
-    async copyClip(originalId: string, newTrackId: number, newStart: Position): Promise<string> {
-        return await invoke('copy_clip', {
-            originalId,
-            newTrackId,
-            newStart
-        })
-    },
+        async copyClip(originalId: string, newTrackId: number, newStart: Position): Promise<string> {
+                return await invoke('copy_clip', {
+                        originalId,
+                        newTrackId,
+                        newStart
+                })
+        },
 
-    async getClip(id: string): Promise<Clip> {
-        return await invoke('get_clip', { id })
-    },
+        async getClip(id: string): Promise<Clip> {
+                return await invoke('get_clip', { id })
+        },
 
-    async getAllClips(): Promise<Clip[]> {
-        return await invoke('get_all_clips')
-    },
+        async getAllClips(): Promise<Clip[]> {
+                return await invoke('get_all_clips')
+        },
 
-    async removeClip(id: string): Promise<void> {
-        await invoke('remove_clip', { id })
-    },
+        async removeClip(id: string): Promise<void> {
+                await invoke('remove_clip', { id })
+        },
 
-    async play(): Promise<void> {
-        await invoke('play')
-    },
+        async play(): Promise<void> {
+                await invoke('play')
+        },
 
-    async saveProject(path: string): Promise<void> {
-        await invoke('save_project_cmd', { path })
-    },
+        async saveProject(path: string): Promise<void> {
+                await invoke('save_project_cmd', { path })
+        },
 
-    async loadProject(path: string): Promise<void> {
-        await invoke('load_project_cmd', { path })
-    },
+        async loadProject(path: string): Promise<void> {
+                await invoke('load_project_cmd', { path })
+        },
 
-    async pause(): Promise<void> {
-        await invoke('pause')
-    },
+        async pause(): Promise<void> {
+                await invoke('pause')
+        },
 
-    async getPlaybackState(): Promise<[boolean, number]> {
-        return await invoke('get_playback_state')
-    },
+        async getPlaybackState(): Promise<[boolean, number]> {
+                return await invoke('get_playback_state')
+        },
 
-    async addTrack(): Promise<void> {
-        await invoke('add_arrangement_track')
-    },
+        async addTrack(): Promise<void> {
+                await invoke('add_arrangement_track')
+        },
 
-    async removeTrack(id: number): Promise<void> {
-        await invoke('remove_arrangement_track', { id })
-    },
+        async removeTrack(id: number): Promise<void> {
+                await invoke('remove_arrangement_track', { id })
+        },
 
-    async getTracks(): Promise<any[]> {
-        return await invoke('get_arrangement_tracks')
-    },
+        async getTracks(): Promise<any[]> {
+                return await invoke('get_arrangement_tracks')
+        },
 
-    async getActivePlugins(): Promise<any[]> {
-        return await invoke('get_active_plugins')
-    },
+        async getActivePlugins(): Promise<any[]> {
+                return await invoke('get_active_plugins')
+        },
 
-    async log(msg: string): Promise<void> {
-        await invoke('log_msg', { msg })
-    }
+        async rescanPlugins(): Promise<any[]> {
+                return await invoke('rescan_plugins')
+        },
+
+        async scanProjectPlugins(projectPath: string): Promise<any[]> {
+                return await invoke('scan_project_plugins', { projectPath })
+        },
+
+        async log(msg: string): Promise<void> {
+                await invoke('log_msg', { msg })
+        }
 }

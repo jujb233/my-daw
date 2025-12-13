@@ -5,13 +5,13 @@
 # --------------------------- 基本排版 ---------------------------
 
 # 每行的最大宽度（默认: 100）
-max_width = 100
+max_width = 120
 
 # 是否使用硬制表符（tab）进行缩进。默认: false
 hard_tabs = false
 
 # 当使用空格缩进时，每个缩进级别对应的空格数。默认: 4
-tab_spaces = 4
+tab_spaces = 8
 
 # 换行风格："Unix" 或 "Windows"。默认: "Unix"
 newline_style = "Unix"

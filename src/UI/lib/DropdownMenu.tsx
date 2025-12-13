@@ -2,102 +2,104 @@ import { Component, createSignal, Show, For, onCleanup, onMount } from 'solid-js
 import { Portal } from 'solid-js/web'
 
 export interface MenuItem {
-    label: string
-    icon?: any
-    onClick?: () => void
-    children?: MenuItem[]
+        label: string
+        icon?: any
+        onClick?: () => void
+        children?: MenuItem[]
 }
 
 interface DropdownMenuProps {
-    trigger: (props: { onClick: (e: MouseEvent) => void; isOpen: boolean }) => any
-    items: MenuItem[]
-    class?: string
+        trigger: (props: { onClick: (e: MouseEvent) => void; isOpen: boolean }) => any
+        items: MenuItem[]
+        class?: string
 }
 
 export const DropdownMenu: Component<DropdownMenuProps> = props => {
-    const [isOpen, setIsOpen] = createSignal(false)
-    const [position, setPosition] = createSignal({ x: 0, y: 0 })
-    const [direction, setDirection] = createSignal<'down' | 'up' | 'right' | 'left'>('down')
-    let triggerRef: HTMLDivElement | undefined
+        const [isOpen, setIsOpen] = createSignal(false)
+        const [position, setPosition] = createSignal({ x: 0, y: 0 })
+        const [direction, setDirection] = createSignal<'down' | 'up' | 'right' | 'left'>('down')
+        let triggerRef: HTMLDivElement | undefined
 
-    const toggle = (e: MouseEvent) => {
-        e.preventDefault()
-        e.stopPropagation()
-        console.log('Dropdown toggle', isOpen())
+        const toggle = (e: MouseEvent) => {
+                e.preventDefault()
+                e.stopPropagation()
+                console.log('Dropdown toggle', isOpen())
 
-        if (!isOpen() && triggerRef) {
-            const rect = triggerRef.getBoundingClientRect()
-            const windowHeight = window.innerHeight
+                if (!isOpen() && triggerRef) {
+                        const rect = triggerRef.getBoundingClientRect()
+                        const windowHeight = window.innerHeight
 
-            // Simple logic: if below middle, open up. Else open down.
-            // Can be improved with actual menu height measurement.
-            if (rect.bottom > windowHeight * 0.6) {
-                setDirection('up')
-                setPosition({ x: rect.left, y: rect.top })
-            } else {
-                setDirection('down')
-                setPosition({ x: rect.left, y: rect.bottom })
-            }
+                        // Simple logic: if below middle, open up. Else open down.
+                        // Can be improved with actual menu height measurement.
+                        if (rect.bottom > windowHeight * 0.6) {
+                                setDirection('up')
+                                setPosition({ x: rect.left, y: rect.top })
+                        } else {
+                                setDirection('down')
+                                setPosition({ x: rect.left, y: rect.bottom })
+                        }
+                }
+                setIsOpen(!isOpen())
         }
-        setIsOpen(!isOpen())
-    }
 
-    const close = () => setIsOpen(false)
+        const close = () => setIsOpen(false)
 
-    // Click outside to close
-    const handleClickOutside = () => {
-        if (isOpen()) {
-            close()
+        // Click outside to close
+        const handleClickOutside = () => {
+                if (isOpen()) {
+                        close()
+                }
         }
-    }
 
-    onMount(() => {
-        document.addEventListener('click', handleClickOutside)
-    })
+        onMount(() => {
+                document.addEventListener('click', handleClickOutside)
+        })
 
-    onCleanup(() => {
-        document.removeEventListener('click', handleClickOutside)
-    })
+        onCleanup(() => {
+                document.removeEventListener('click', handleClickOutside)
+        })
 
-    return (
-        <>
-            <div ref={triggerRef} class={`inline-block ${props.class || ''}`}>
-                {props.trigger({ onClick: toggle, isOpen: isOpen() })}
-            </div>
+        return (
+                <>
+                        <div ref={triggerRef} class={`inline-block ${props.class || ''}`}>
+                                {props.trigger({ onClick: toggle, isOpen: isOpen() })}
+                        </div>
 
-            <Show when={isOpen()}>
-                <Portal>
-                    <div
-                        class='bg-surface-container-high border-outline-variant fixed z-50 min-w-[200px] overflow-hidden rounded-lg border py-1 shadow-xl'
-                        style={{
-                            left: `${position().x}px`,
-                            top: direction() === 'down' ? `${position().y + 4}px` : 'auto',
-                            bottom:
-                                direction() === 'up'
-                                    ? `${window.innerHeight - position().y + 4}px`
-                                    : 'auto'
-                        }}
-                        onClick={e => e.stopPropagation()}
-                    >
-                        <For each={props.items}>
-                            {item => (
-                                <button
-                                    class='text-on-surface hover:bg-surface-container-highest flex w-full items-center gap-2 px-4 py-2 text-left text-sm transition-colors'
-                                    onClick={() => {
-                                        item.onClick?.()
-                                        close()
-                                    }}
-                                >
-                                    <Show when={item.icon}>
-                                        <span class='text-on-surface-variant'>{item.icon}</span>
-                                    </Show>
-                                    <span>{item.label}</span>
-                                </button>
-                            )}
-                        </For>
-                    </div>
-                </Portal>
-            </Show>
-        </>
-    )
+                        <Show when={isOpen()}>
+                                <Portal>
+                                        <div
+                                                class='bg-surface-container-high border-outline-variant fixed z-50 min-w-[200px] overflow-hidden rounded-lg border py-1 shadow-xl'
+                                                style={{
+                                                        left: `${position().x}px`,
+                                                        top: direction() === 'down' ? `${position().y + 4}px` : 'auto',
+                                                        bottom:
+                                                                direction() === 'up'
+                                                                        ? `${window.innerHeight - position().y + 4}px`
+                                                                        : 'auto'
+                                                }}
+                                                onClick={e => e.stopPropagation()}
+                                        >
+                                                <For each={props.items}>
+                                                        {item => (
+                                                                <button
+                                                                        class='text-on-surface hover:bg-surface-container-highest flex w-full items-center gap-2 px-4 py-2 text-left text-sm transition-colors'
+                                                                        onClick={() => {
+                                                                                item.onClick?.()
+                                                                                close()
+                                                                        }}
+                                                                >
+                                                                        <Show when={item.icon}>
+                                                                                <span class='text-on-surface-variant'>
+                                                                                        {item.icon}
+                                                                                </span>
+                                                                        </Show>
+                                                                        <span>{item.label}</span>
+                                                                </button>
+                                                        )}
+                                                </For>
+                                        </div>
+                                </Portal>
+                        </Show>
+                </>
+        )
 }
