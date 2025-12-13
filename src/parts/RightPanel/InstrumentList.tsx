@@ -9,6 +9,7 @@ import {
 import { openSettings } from '../../store/ui'
 import { t } from '../../i18n'
 import { InstrumentCard } from '../../UI/components/InstrumentCard'
+import { GenericPluginUI } from '../../components/GenericPluginUI'
 
 export const InstrumentList: Component = () => {
     return (
@@ -42,8 +43,14 @@ export const InstrumentList: Component = () => {
                             />
                         </div>
 
-                        {/* Plugin UI: external plugins render their own frontends; host shows placeholder */}
-                        <div class='text-on-surface-variant text-sm'>{t('plugins.externalUI')}</div>
+                        {/* Plugin UI: render built-in/native plugin UIs when available */}
+                        <div class='text-on-surface-variant text-sm'>
+                            <GenericPluginUI
+                                uniqueId={inst.name}
+                                instanceId={inst.id}
+                                currentValues={inst.params}
+                            />
+                        </div>
                     </InstrumentCard>
                 )}
             </For>
