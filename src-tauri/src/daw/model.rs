@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+// DAW 数据模型：位置、时长、音符、片段（Clip）、编排轨道等
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[allow(dead_code)]
 pub struct TimeSignature {
@@ -14,7 +15,7 @@ pub struct Position {
         pub beat: u32,
         pub sixteenth: u32,
         pub tick: u32,
-        pub time: f64, // 以秒为单位
+        pub time: f64,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -25,7 +26,7 @@ pub struct MusicalLength {
         pub sixteenths: u32,
         pub ticks: u32,
         pub total_ticks: u64,
-        pub seconds: f64, // 以秒为单位
+        pub seconds: f64,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -51,15 +52,18 @@ pub enum ClipContent {
 #[serde(rename_all = "camelCase")]
 pub struct Clip {
         pub id: String,
-        pub track_id: usize, // Refers to ArrangementTrack ID
+        // 引用编排轨道 ID
+        pub track_id: usize,
         pub name: String,
         pub color: String,
         pub start: Position,
         pub length: MusicalLength,
         pub notes: Vec<Note>,
         pub content: ClipContent,
+        // 使用的乐器 UUID 列表
         pub instrument_ids: Vec<String>,
-        pub instrument_routes: HashMap<String, usize>, // InstrumentID -> MixerTrackID (Direct routing override)
+        // 乐器 UUID -> MixerTrackID 的直接路由覆盖
+        pub instrument_routes: HashMap<String, usize>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

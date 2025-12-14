@@ -1,3 +1,4 @@
+/// 全局 Tauri 命令：播放控制、轨道/插件管理与项目保存/加载（通过 AppState/Engine 操作）
 use super::core::{create_audio_graph, rebuild_engine};
 use super::state::{AppState, MixerTrackData, PluginInstanceData};
 use crate::audio::core::plugin::{NoteEvent, ParameterType, PluginEvent, PluginParameter};
@@ -12,6 +13,7 @@ use uuid::Uuid;
 
 #[tauri::command]
 pub fn greet(name: &str) -> String {
+        // 简单示例命令，用于测试 IPC 通道
         format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
@@ -37,7 +39,7 @@ pub fn add_mixer_track(state: State<'_, AppState>) -> Result<(), String> {
                         pan: 0.0,
                         mute: false,
                         solo: false,
-                        meter_id: Some(Uuid::new_v4()), // 在这里生成 ID
+                        meter_id: Some(Uuid::new_v4()), // 生成电平表 ID
                 });
         }
         rebuild_engine(&state)?;
@@ -46,7 +48,7 @@ pub fn add_mixer_track(state: State<'_, AppState>) -> Result<(), String> {
 
 #[tauri::command]
 pub fn remove_mixer_track(state: State<'_, AppState>, index: usize) -> Result<(), String> {
-        // 0 号轨道是总轨，不可删除
+        // Master 轨（0）不可删除
         if index == 0 {
                 return Err("Cannot remove Master track".to_string());
         }
@@ -132,8 +134,7 @@ pub fn toggle_audio(state: State<'_, AppState>) -> Result<bool, String> {
 
                 engine.start(root).map_err(|e| e.to_string())?;
 
-                // 立即向所有合成器发送测试音符？
-                // 目前我们使用广播 MIDI 的方式。
+                // 启动后发送测试音符以验证音频路径
                 engine.send_event(PluginEvent::Midi(NoteEvent::NoteOn {
                         note: 69,
                         velocity: 1.0,
@@ -145,7 +146,7 @@ pub fn toggle_audio(state: State<'_, AppState>) -> Result<bool, String> {
 
 #[tauri::command]
 pub fn update_parameter(state: State<'_, AppState>, param_id: u32, value: f32) -> Result<(), String> {
-        // println!("Command: update_parameter {} {}", param_id, value); // 太嘈杂？
+        // 发送参数更新事件（若音频引擎运行）
         let engine = state.audio_engine.lock().map_err(|_| "Failed to lock audio engine")?;
 
         if engine.is_running() {
@@ -309,6 +310,7 @@ pub fn seek(state: State<'_, AppState>, position: f64) -> Result<(), String> {
 
 #[tauri::command]
 pub fn save_project_cmd(state: State<'_, AppState>, path: String) -> Result<(), String> {
+        // 封装 ProjectManager 保存入口
         let path_buf = PathBuf::from(path);
         ProjectManager::save_project(&state, &path_buf).map_err(|e| e.to_string())
 }

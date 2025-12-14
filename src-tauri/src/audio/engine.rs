@@ -4,9 +4,9 @@ use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use crossbeam_channel::{Receiver, Sender, unbounded};
 
 pub struct AudioEngine {
-        // 输出音频流；`None` 表示引擎未运行
+        // 当前输出流；`None` 表示未启动
         stream: Option<cpal::Stream>,
-        // 向音频回调线程发送插件事件（MIDI / 参数 / 传输）
+        // 发送到音频回调线程的插件事件通道
         command_sender: Option<Sender<PluginEvent>>,
 }
 
@@ -33,6 +33,7 @@ impl AudioEngine {
                 println!("Audio Device: {:?}", device.name());
                 println!("Sample Rate: {}, Channels: {}", sample_rate, channels);
 
+                // 创建事件通道：主线程可通过 `send_event` 发送事件到音频回调
                 let (tx, rx): (Sender<PluginEvent>, Receiver<PluginEvent>) = unbounded();
                 self.command_sender = Some(tx);
 
@@ -42,7 +43,7 @@ impl AudioEngine {
                         cpal::SampleFormat::F32 => device.build_output_stream(
                                 &config,
                                 move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
-                                        // 读取本音频块期间可用的所有事件（非阻塞）
+                                        // 非阻塞读取该音频块期间到达的所有事件
                                         let mut events = Vec::new();
                                         while let Ok(event) = rx.try_recv() {
                                                 events.push(event);
@@ -54,11 +55,9 @@ impl AudioEngine {
                                                 sample_rate,
                                         };
 
-                                        // 调用插件处理音频（就地修改 samples）
+                                        // 插件就地处理 samples，可能产生输出事件
                                         let mut output_events = Vec::new();
                                         plugin.process(&mut buffer, &events, &mut output_events);
-
-                                        // 输出事件收集在 `output_events` 中，可选择发送回主线程或记录
                                 },
                                 err_fn,
                                 None,

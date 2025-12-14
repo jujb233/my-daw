@@ -3,28 +3,24 @@ use crate::audio::core::plugin::{NoteEvent, PluginEvent};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-// 全局原子变量用于播放位置（以样本或 f64 位表示）
-// 使用 AtomicU64 存储 f64 位，以便在没有 Mutex 的情况下实现线程安全
+// 全局原子量：以 f64 的位模式存储播放位置，避免在回调中使用 Mutex
 pub static PLAYBACK_POSITION_BITS: AtomicU64 = AtomicU64::new(0);
 pub static IS_PLAYING: AtomicU64 = AtomicU64::new(0); // 0 = false, 1 = true
 
 pub fn get_playback_position() -> f64 {
         f64::from_bits(PLAYBACK_POSITION_BITS.load(Ordering::Relaxed))
 }
-
 pub fn get_is_playing() -> bool {
         IS_PLAYING.load(Ordering::Relaxed) == 1
 }
 
+// 简单的音序器：维护 Clips、播放时间与活动音符，并按块生成插件事件与路由映射
 pub struct Sequencer {
         pub clips: Vec<Clip>,
         pub sample_rate: f32,
         pub current_time: f64,
-        pub tempo: f64, // BPM（每分钟拍数）
+        pub tempo: f64,
         pub playing: bool,
-        // 跟踪活动音符: InstrumentID -> Map<Note, Velocity>
-        // 我们使用 Map 来处理同一音符的多个实例（如果需要），但 Set 通常就足够了。
-        // 让我们只存储活动音符以便在停止时发送 NoteOff。
         pub active_notes: HashMap<usize, Vec<u8>>,
 }
 
@@ -40,6 +36,7 @@ impl Sequencer {
                 }
         }
 
+        // 设置传输状态（播放/位置/节拍）
         pub fn set_transport(&mut self, playing: bool, position: Option<f64>, tempo: Option<f64>) {
                 self.playing = playing;
                 if let Some(pos) = position {
@@ -54,16 +51,16 @@ impl Sequencer {
                 self.clips.push(clip);
         }
 
-        // 返回:
-        // 1. 乐器事件: HashMap<InstrumentID, Vec<PluginEvent>>
-        // 2. 当前块的路由: HashMap<InstrumentID, Vec<TrackID>>
+        // 处理音频块并返回：
+        // 1) 每个乐器的事件列表 (NoteOn/NoteOff 等)
+        // 2) 每个乐器当前对应的目标轨道路由
         pub fn process(&mut self, samples: usize) -> (HashMap<usize, Vec<PluginEvent>>, HashMap<usize, Vec<usize>>) {
                 let mut events = HashMap::new();
                 let mut routing = HashMap::new();
 
                 let duration = samples as f64 / self.sample_rate as f64;
 
-                // 计算循环长度（最大 Clip 结束时间或 8 小节）
+                // 计算循环长度（取所有 Clip 的最大结束时间或至少 8 小节）
                 let mut max_end = 0.0;
                 for clip in &self.clips {
                         let end = clip.start_time + clip.duration;
@@ -71,7 +68,6 @@ impl Sequencer {
                                 max_end = end;
                         }
                 }
-                // 默认 8 小节: 8 * 4 * (60/tempo)
                 let min_length = 8.0 * 4.0 * (60.0 / self.tempo);
                 let loop_length = if max_end > min_length {
                         max_end
@@ -88,11 +84,11 @@ impl Sequencer {
                 // 处理循环回绕
                 let mut looped = false;
                 if self.playing && end_time >= loop_length {
-                        end_time = loop_length; // 钳制到当前块
+                        end_time = loop_length;
                         looped = true;
                 }
 
-                // 处理停止/暂停：终止所有活动音符
+                // 非播放状态：发送所有活动音符的 NoteOff
                 if !self.playing {
                         for (inst_id, notes) in self.active_notes.drain() {
                                 let inst_events = events.entry(inst_id).or_insert(Vec::new());
@@ -102,9 +98,8 @@ impl Sequencer {
                         }
                 }
 
-                // 查找活动 Clip
+                // 遍历 Clips，收集路由与事件（仅在播放时生成 NoteOn/NoteOff）
                 for clip in &self.clips {
-                        // 检查重叠
                         let is_active = if self.playing {
                                 clip.start_time < end_time && (clip.start_time + clip.duration) > self.current_time
                         } else {
@@ -113,9 +108,7 @@ impl Sequencer {
                         };
 
                         if is_active {
-                                // println!("Sequencer: Clip {} is active. Insts: {:?}", clip.name, clip.instrument_ids);
-                                // 1. 收集路由
-                                // 如果多个 Clip 使用相同的乐器，我们合并目标轨道
+                                // 收集路由覆盖
                                 for &inst_id in &clip.instrument_ids {
                                         if let Some(target_tracks) = clip.instrument_routes.get(&inst_id) {
                                                 let tracks = routing.entry(inst_id).or_insert(Vec::new());
@@ -127,7 +120,6 @@ impl Sequencer {
                                         }
                                 }
 
-                                // 2. 收集事件（仅当播放时）
                                 if self.playing {
                                         for &inst_id in &clip.instrument_ids {
                                                 let inst_events = events.entry(inst_id).or_insert(Vec::new());
@@ -138,14 +130,10 @@ impl Sequencer {
                                                         let note_start_abs = clip.start_time + note.relative_start;
                                                         let note_end_abs = note_start_abs + note.duration;
 
-                                                        // 检查 Note On
+                                                        // NoteOn
                                                         if note_start_abs >= self.current_time
                                                                 && note_start_abs < end_time
                                                         {
-                                                                println!(
-                                                                        "Sequencer: NoteOn {} vel {} for inst {}",
-                                                                        note.note, note.velocity, inst_id
-                                                                );
                                                                 inst_events.push(PluginEvent::Midi(
                                                                         NoteEvent::NoteOn {
                                                                                 note: note.note,
@@ -155,7 +143,7 @@ impl Sequencer {
                                                                 active_list.push(note.note);
                                                         }
 
-                                                        // 检查 Note Off
+                                                        // NoteOff
                                                         if note_end_abs >= self.current_time && note_end_abs < end_time
                                                         {
                                                                 inst_events.push(PluginEvent::Midi(
@@ -168,9 +156,7 @@ impl Sequencer {
                                                                 }
                                                         }
 
-                                                        // 边缘情况：如果我们在该块循环，并且音符仍然处于活动状态，是否将其终止？
-                                                        // 或者如果 note_end_abs > loop_length？
-                                                        // 目前，如果我们正在循环且音符正在播放，我们强制发送 NoteOff。
+                                                        // 循环边界处强制终止仍在播放的音符
                                                         if looped
                                                                 && note_start_abs < end_time
                                                                 && note_end_abs >= end_time
@@ -192,13 +178,13 @@ impl Sequencer {
 
                 if self.playing {
                         if looped {
-                                self.current_time = 0.0;
+                                self.current_time = 0.0
                         } else {
-                                self.current_time = end_time;
+                                self.current_time = end_time
                         }
                 }
 
-                // 更新全局状态
+                // 更新全局播放状态
                 PLAYBACK_POSITION_BITS.store(self.current_time.to_bits(), Ordering::Relaxed);
                 IS_PLAYING.store(if self.playing { 1 } else { 0 }, Ordering::Relaxed);
 

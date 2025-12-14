@@ -61,9 +61,9 @@ fn log_msg(msg: String) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-        // 使用 5 个默认轨道初始化
+        // 初始化默认混音轨道（0 = Master，后续为常规轨道）
         let mut tracks = Vec::new();
-        // Track 0 is Master
+        // Track 0 为 Master
         tracks.push(MixerTrackData {
                 id: 0,
                 label: "Master".to_string(),
@@ -86,7 +86,7 @@ pub fn run() {
                 });
         }
 
-        // 使用默认的 SimpleSynth 初始化
+        // 添加示例 SimpleSynth 插件实例
         let mut plugins = Vec::new();
         plugins.push(PluginInstanceData {
                 id: Uuid::new_v4().to_string(),
@@ -95,9 +95,8 @@ pub fn run() {
                 routing_track_index: 0,
         });
 
-        // 初始化编排轨道 (Arrangement Tracks)
-        // 默认创建 4 个编排轨道，分别路由到 Mixer Track 1, 2, 3, 4
-        // 注意：Mixer Track 0 是 Master
+        // 初始化编排轨道（创建 4 个，默认路由到对应的 Mixer Track 1-4）
+        // 注意：Mixer Track 0 为 Master
         let mut arrangement_tracks = Vec::new();
         for i in 0..4 {
                 arrangement_tracks.push(ArrangementTrack {

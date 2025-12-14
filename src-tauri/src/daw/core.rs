@@ -1,3 +1,5 @@
+/// 创建/重建音频图（audio graph）。
+/// `create_audio_graph` 返回 root 插件（通常为 Mixer）和实例映射（UUID -> Plugin 实例）。
 use super::state::AppState;
 use crate::audio::core::plugin::Plugin;
 use crate::audio::plugins::mixer::mixer_plugin::MixerPlugin;
@@ -22,18 +24,18 @@ pub fn create_audio_graph(
 
         let mut mixer = MixerPlugin::new(0);
 
-        // 创建配置的轨道
+        // 根据 MixerTrack 创建 Mixer 路径（用于电平表映射）
         for track_data in tracks.iter() {
                 mixer.add_track(track_data.meter_id);
         }
 
-        // 添加乐器到混音台 (机架)
+        // 创建并注册插件实例到 Mixer（机架）
         let manager = state
                 .plugin_manager
                 .lock()
                 .map_err(|_| "Failed to lock plugin manager")?;
 
-        // 映射 UUID -> 混音台索引
+        // 建立 UUID -> 实例索引映射
         let mut inst_uuid_to_index = std::collections::HashMap::new();
         let mut inst_uuid_to_instance = HashMap::new();
 
@@ -57,12 +59,14 @@ pub fn create_audio_graph(
                 };
 
                 if let Some(idx) = inst_idx {
+                        // 成功创建实例并映射到混音台插槽
                         println!(
                                 "Core: Mapped Plugin UUID {} ({}) to Index {}",
                                 p_data.id, p_data.name, idx
                         );
                         inst_uuid_to_index.insert(p_data.id.clone(), idx);
                 } else {
+                        // 插件创建失败（例如库缺失），记录警告
                         println!(
                                 "Core: Failed to create plugin for UUID {} ({})",
                                 p_data.id, p_data.name
@@ -70,7 +74,7 @@ pub fn create_audio_graph(
                 }
         }
 
-        // 加载 Clip 到音序器
+        // 将 UI Clip 转换并加入 Sequencer
         let clips = state.clips.lock().map_err(|_| "Failed to lock clips")?;
         let arrangement_tracks = state
                 .arrangement_tracks
@@ -127,6 +131,7 @@ pub fn create_audio_graph(
                                 }
                         }
                 }
+                // 将 UI 层的 Clip 转换为音频引擎使用的 Clip 表示并添加到 Sequencer
                 let audio_clip = crate::audio::core::clip::Clip {
                         id: clip.id.clone(),
                         name: clip.name.clone(),

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-/// 简化的 MIDI 事件：按下与释放
+/// 简单的 MIDI 事件：按下 / 释放
 #[derive(Debug, Clone, Copy)]
 pub enum NoteEvent {
         NoteOn {
@@ -16,7 +16,7 @@ pub enum NoteEvent {
 }
 
 #[derive(Debug, Clone)]
-/// 插件运行时事件（输入/输出、参数、传输状态等）
+/// 插件运行时事件：包含 MIDI、参数变化、传输状态等
 pub enum PluginEvent {
         Midi(NoteEvent),
         Parameter {
@@ -24,7 +24,7 @@ pub enum PluginEvent {
                 value: f32,
         },
         Transport {
-                // 是否播放中
+                // 是否正在播放
                 playing: bool,
                 // 可选播放位置（秒）
                 position: Option<f64>,
@@ -35,7 +35,7 @@ pub enum PluginEvent {
         Custom(String),
 }
 
-/// 音频缓冲区引用：对回调提供 samples 的可变借用
+/// 音频缓冲区借用：交错样本数组、通道数与采样率
 pub struct AudioBuffer<'a> {
         pub samples: &'a mut [f32],
         pub channels: usize,
@@ -43,7 +43,7 @@ pub struct AudioBuffer<'a> {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-/// 插件的输入/输出通道配置
+/// 插件 I/O 通道配置
 pub struct IOConfig {
         pub inputs: usize,
         pub outputs: usize,
@@ -56,7 +56,7 @@ impl Default for IOConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-/// 插件类型标识（本地/Clap/VST 等）
+/// 插件类型（Native / Clap / VST 等）
 pub enum PluginType {
         Native,
         Clap,
@@ -64,7 +64,7 @@ pub enum PluginType {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-/// 参数的数据类型
+/// 参数类型定义
 pub enum ParameterType {
         Float,
         Int,
@@ -73,7 +73,7 @@ pub enum ParameterType {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-/// 参数描述：ID、名称、范围与类型
+/// 单参数描述：ID、名称、范围与类型
 pub struct PluginParameter {
         pub id: u32,
         pub name: String,
@@ -85,7 +85,7 @@ pub struct PluginParameter {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(dead_code)]
-/// 插件静态信息（用于 UI/识别）
+/// 插件静态元信息，用于 UI 显示与识别
 pub struct PluginInfo {
         pub name: String,
         pub vendor: String,
@@ -94,34 +94,31 @@ pub struct PluginInfo {
         pub unique_id: String,
 }
 
-/// 插件必须实现的运行时接口
+/// 插件运行时接口：处理音频块、管理参数与（可选）序列化状态
 pub trait Plugin: Send + Sync {
-        #[allow(dead_code)]
-        /// 静态信息（名称、厂商、类型等）
+        /// 静态元信息
         fn info(&self) -> PluginInfo;
 
-        /// 返回插件参数列表
+        /// 返回参数列表
         fn get_parameters(&self) -> Vec<PluginParameter>;
 
-        /// 序列化运行时状态（可选）
+        /// 可选：序列化运行时状态
         fn get_state(&self) -> Vec<u8> {
                 Vec::new()
         }
 
-        /// 反序列化运行时状态（可选）
+        /// 可选：反序列化运行时状态
         fn set_state(&mut self, _state: &[u8]) {}
 
-        #[allow(dead_code)]
-        /// 输入/输出通道配置，默认立体声 I/O
+        /// 可选：I/O 通道配置（默认立体声）
         fn get_io_config(&self) -> IOConfig {
                 IOConfig::default()
         }
 
-        /// 处理一个音频块：就地修改 `buffer.samples`，读取 `events`，并将任何输出事件追加到 `output_events`。
+        /// 核心处理：就地修改 `buffer.samples`，并可读取 `events`、产生 `output_events`
         fn process(&mut self, buffer: &mut AudioBuffer, events: &[PluginEvent], output_events: &mut Vec<PluginEvent>);
 
-        // 参数访问
-        #[allow(dead_code)]
+        /// 参数访问接口
         fn get_param(&self, id: u32) -> f32;
         fn set_param(&mut self, id: u32, value: f32);
 }

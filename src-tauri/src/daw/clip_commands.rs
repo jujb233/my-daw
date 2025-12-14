@@ -1,3 +1,4 @@
+/// Clip 命令：创建/更新/复制/查询/删除剪辑（修改 `AppState.clips` 并在必要时触发 `rebuild_engine`）
 use crate::AppState;
 use crate::daw::core::rebuild_engine;
 use crate::daw::model::{Clip, MusicalLength, Note, Position};
@@ -7,6 +8,7 @@ use uuid::Uuid;
 
 #[tauri::command]
 pub fn get_all_clips(state: State<'_, AppState>) -> Result<Vec<Clip>, String> {
+        // 返回当前所有剪辑的副本（线程安全锁）
         let clips = state.clips.lock().map_err(|_| "Failed to lock clips")?;
         Ok(clips.clone())
 }
@@ -21,16 +23,7 @@ pub fn add_clip(
 ) -> Result<String, String> {
         let id = Uuid::new_v4().to_string();
 
-        // 检查是否已存在同名 Clip 以进行内容同步？
-        // 目前，只是创建新的。
-        // 用户需求："Clip 1, Clip 2..."。
-        // 我们可以在前端或此处处理自动命名。
-        // "复制 Clip 会创建一个同步的实例"。
-        // 这意味着我们应该查找 'name' 是否存在。
-
-        // 但是，add_clip 通常用于 "新建空 Clip"。
-        // 如果用户复制，他们可能会调用不同的命令或我们在此处处理。
-        // 让我们假设 add_clip 创建一个新的唯一 Clip。
+        // 新建空 Clip（不做名字去重或内容同步）
 
         {
                 let mut clips = state.clips.lock().map_err(|_| "Failed to lock clips")?;
@@ -102,7 +95,7 @@ pub fn update_clip(
                                 }
                         }
                 } else {
-                        // 仅更新实例字段（开始时间, 轨道 ID）
+                        // 仅更新实例字段（例如开始时间、轨道）
                         if let Some(pos) = clips.iter().position(|c| c.id == id) {
                                 clips_to_update.push(pos);
                         }
