@@ -1,4 +1,5 @@
 import { Component, For, createSignal, onMount } from 'solid-js'
+import { listen } from '@tauri-apps/api/event'
 import type { PluginParameter } from '../plugins/api'
 import { getInstanceParameters, setInstanceParameter } from '../plugins/api'
 
@@ -21,6 +22,28 @@ export const GenericPluginUI: Component<GenericPluginUIProps> = props => {
                         }
                 } catch (e) {
                         // ignore
+                }
+
+                // listen for parameter change events and update UI values
+                try {
+                        const unlisten = await listen('plugin-parameter-changed', event => {
+                                // payload: { instanceId, paramId, value }
+                                const payload: any = event.payload as any
+                                if (payload.instanceId === props.instanceId) {
+                                        const pId = payload.paramId as number
+                                        const val = payload.value as number
+                                        const idx = params().findIndex(p => p.id === pId)
+                                        if (idx >= 0) {
+                                                const next = [...values()]
+                                                next[idx] = val
+                                                setValues(next)
+                                        }
+                                }
+                        })
+                        // we do not unlisten on unmount for simplicity; listener is lightweight
+                        void unlisten
+                } catch (e) {
+                        // ignore if event subsystem unavailable
                 }
         })
 

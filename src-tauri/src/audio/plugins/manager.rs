@@ -126,6 +126,57 @@ impl PluginManager {
                                                                                                                                 let mut info = info.clone();
                                                                                                                                 info.unique_id = id.clone();
                                                                                                                                 info.name = name.clone();
+                                                                                                                                // If manifest provides parameters table, prefer it
+                                                                                                                                if let Ok(params_tbl) = tbl.get::<mlua::Table>("parameters") {
+                                                                                                                                        let mut params_vec = Vec::new();
+                                                                                                                                        for pair in params_tbl.sequence_values::<mlua::Table>() {
+                                                                                                                                                if let Ok(p) = pair {
+                                                                                                                                                        let id_v: Option<u32> = p.get("id").ok();
+                                                                                                                                                        let name_v: Option<String> = p.get("name").ok();
+                                                                                                                                                        let min_v: Option<f32> = p.get("min").ok();
+                                                                                                                                                        let max_v: Option<f32> = p.get("max").ok();
+                                                                                                                                                        let default_v: Option<f32> = p.get("default").ok();
+                                                                                                                                                        // type can be string or table (enum). Read as Value and branch.
+                                                                                                                                                        let mut value_type = crate::audio::core::plugin::ParameterType::Float;
+                                                                                                                                                        if let Ok(val) = p.get::<mlua::Value>("type") {
+                                                                                                                                                                match val {
+                                                                                                                                                                        mlua::Value::String(s) => {
+                                                                                                                                                                                if let Ok(tstr) = s.to_str() {
+                                                                                                                                                                                        let t = tstr.as_ref();
+                                                                                                                                                                                        match t {
+                                                                                                                                                                                                "Float" => value_type = crate::audio::core::plugin::ParameterType::Float,
+                                                                                                                                                                                                "Int" => value_type = crate::audio::core::plugin::ParameterType::Int,
+                                                                                                                                                                                                "Bool" => value_type = crate::audio::core::plugin::ParameterType::Bool,
+                                                                                                                                                                                                _ => {}
+                                                                                                                                                                                        }
+                                                                                                                                                                                }
+                                                                                                                                                                        }
+                                                                                                                                                                        mlua::Value::Table(arr) => {
+                                                                                                                                                                                let mut vals = Vec::new();
+                                                                                                                                                                                for v in arr.sequence_values::<String>() {
+                                                                                                                                                                                        if let Ok(s) = v {
+                                                                                                                                                                                                vals.push(s);
+                                                                                                                                                                                        }
+                                                                                                                                                                                }
+                                                                                                                                                                                value_type = crate::audio::core::plugin::ParameterType::Enum(vals);
+                                                                                                                                                                        }
+                                                                                                                                                                        _ => {}
+                                                                                                                                                                }
+                                                                                                                                                        }
+
+                                                                                                                                                        let param = crate::audio::core::plugin::PluginParameter {
+                                                                                                                                                                id: id_v.unwrap_or(0),
+                                                                                                                                                                name: name_v.unwrap_or_else(|| "".to_string()),
+                                                                                                                                                                min_value: min_v.unwrap_or(0.0),
+                                                                                                                                                                max_value: max_v.unwrap_or(1.0),
+                                                                                                                                                                default_value: default_v.unwrap_or(0.0),
+                                                                                                                                                                value_type: value_type,
+                                                                                                                                                        };
+                                                                                                                                                        params_vec.push(param);
+                                                                                                                                                }
+                                                                                                                                        }
+                                                                                                                                        info.parameters = Some(params_vec);
+                                                                                                                                }
                                                                                                                                 self.known_plugins.insert(id.clone(), info);
                                                                                                                         }
                                                                                                                         Err(e) => {

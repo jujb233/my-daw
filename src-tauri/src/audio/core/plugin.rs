@@ -92,6 +92,8 @@ pub struct PluginInfo {
         pub url: String,
         pub plugin_type: PluginType,
         pub unique_id: String,
+        #[allow(dead_code)]
+        pub parameters: Option<Vec<PluginParameter>>,
 }
 
 /// 插件运行时接口：处理音频块、管理参数与（可选）序列化状态

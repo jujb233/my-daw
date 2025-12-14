@@ -45,6 +45,7 @@ impl Plugin for LevelMeter {
                         url: "".to_string(),
                         plugin_type: PluginType::Native,
                         unique_id: "com.mydaw.levelmeter".to_string(),
+                        parameters: None,
                 }
         }
 

@@ -138,6 +138,7 @@ impl FFIPlugin {
                                         url: "".to_string(),
                                         plugin_type: crate::audio::core::plugin::PluginType::Native,
                                         unique_id: id,
+                                        parameters: None,
                                 };
                         }
                 }
@@ -148,6 +149,7 @@ impl FFIPlugin {
                         url: "".to_string(),
                         plugin_type: crate::audio::core::plugin::PluginType::Native,
                         unique_id: "".to_string(),
+                        parameters: None,
                 }
         }
 }
@@ -167,7 +169,81 @@ impl Plugin for FFIPlugin {
         }
 
         fn get_parameters(&self) -> Vec<crate::audio::core::plugin::PluginParameter> {
-                // 当前没有可序列化的参数信息，返回空列表
+                // 尝试从 plugin_info_json 中解析 parameters 字段并映射为宿主的 PluginParameter
+                if let Some(json) = self.info_string() {
+                        if let Ok(v) = serde_json::from_str::<serde_json::Value>(&json) {
+                                if let Some(arr) = v.get("parameters").and_then(|p| p.as_array()) {
+                                        let mut out = Vec::new();
+                                        for (i, item) in arr.iter().enumerate() {
+                                                let id = item
+                                                        .get("id")
+                                                        .and_then(|x| x.as_u64())
+                                                        .map(|x| x as u32)
+                                                        .unwrap_or(i as u32);
+                                                let name = item
+                                                        .get("name")
+                                                        .and_then(|s| s.as_str())
+                                                        .unwrap_or("")
+                                                        .to_string();
+                                                let min_value =
+                                                        item.get("min").and_then(|x| x.as_f64()).unwrap_or(0.0) as f32;
+                                                let max_value =
+                                                        item.get("max").and_then(|x| x.as_f64()).unwrap_or(1.0) as f32;
+                                                let default_value = item
+                                                        .get("default")
+                                                        .and_then(|x| x.as_f64())
+                                                        .map(|x| x as f32)
+                                                        .unwrap_or((min_value + max_value) / 2.0);
+
+                                                // 解析类型：支持 string 类型字段或 enum 列表
+                                                use crate::audio::core::plugin::ParameterType;
+                                                let value_type =
+                                                        if let Some(t) = item.get("value_type").or(item.get("type")) {
+                                                                if let Some(s) = t.as_str() {
+                                                                        match s {
+                                                                                "Float" => ParameterType::Float,
+                                                                                "Int" => ParameterType::Int,
+                                                                                "Bool" => ParameterType::Bool,
+                                                                                _ => ParameterType::Float,
+                                                                        }
+                                                                } else if let Some(arr) = t.as_array() {
+                                                                        let mut vals = Vec::new();
+                                                                        for s in arr {
+                                                                                if let Some(ss) = s.as_str() {
+                                                                                        vals.push(ss.to_string());
+                                                                                }
+                                                                        }
+                                                                        ParameterType::Enum(vals)
+                                                                } else {
+                                                                        ParameterType::Float
+                                                                }
+                                                        } else if let Some(enum_arr) =
+                                                                item.get("enum").and_then(|e| e.as_array())
+                                                        {
+                                                                let mut vals = Vec::new();
+                                                                for s in enum_arr {
+                                                                        if let Some(ss) = s.as_str() {
+                                                                                vals.push(ss.to_string());
+                                                                        }
+                                                                }
+                                                                ParameterType::Enum(vals)
+                                                        } else {
+                                                                ParameterType::Float
+                                                        };
+
+                                                out.push(crate::audio::core::plugin::PluginParameter {
+                                                        id,
+                                                        name,
+                                                        min_value,
+                                                        max_value,
+                                                        default_value,
+                                                        value_type,
+                                                });
+                                        }
+                                        return out;
+                                }
+                        }
+                }
                 vec![]
         }
 

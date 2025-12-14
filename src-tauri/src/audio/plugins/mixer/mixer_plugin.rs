@@ -74,6 +74,7 @@ impl Plugin for MixerPlugin {
                         url: "".to_string(),
                         plugin_type: PluginType::Native,
                         unique_id: "com.mydaw.mixer".to_string(),
+                        parameters: None,
                 }
         }
 

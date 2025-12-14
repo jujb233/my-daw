@@ -194,6 +194,7 @@ impl ClapPlugin {
                                         url: "".to_string(),
                                         plugin_type: PluginType::Clap,
                                         unique_id,
+                                        parameters: None,
                                 },
                                 io_config: IOConfig { inputs: 0, outputs: 2 }, // 目前假设为立体声输出
                                 params,

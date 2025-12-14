@@ -45,7 +45,7 @@ pub fn save_plugin_states(
 ) -> Result<()> {
         let tx = conn.transaction()?;
         for plugin in plugins.iter() {
-                let state_blob = if let Some(instance) = instances.get(&plugin.id) {
+                let mut state_blob = if let Some(instance) = instances.get(&plugin.id) {
                         if let Ok(inst) = instance.lock() {
                                 inst.get_state()
                         } else {
@@ -54,6 +54,28 @@ pub fn save_plugin_states(
                 } else {
                         Vec::new()
                 };
+
+                // 如果插件没有提供二进制 state（空），尝试通过参数集合序列化回退保存
+                if state_blob.is_empty() {
+                        if let Some(instance) = instances.get(&plugin.id) {
+                                if let Ok(inst) = instance.lock() {
+                                        let params = inst.get_parameters();
+                                        if !params.is_empty() {
+                                                // 构造 JSON 格式：{"__param_state":true, "params":[{"id":..,"value":..},...]}
+                                                let mut jparams = Vec::new();
+                                                for p in &params {
+                                                        let v = inst.get_param(p.id);
+                                                        jparams.push(serde_json::json!({"id": p.id, "value": v}));
+                                                }
+                                                let wrapper =
+                                                        serde_json::json!({"__param_state": true, "params": jparams});
+                                                if let Ok(s) = serde_json::to_vec(&wrapper) {
+                                                        state_blob = s;
+                                                }
+                                        }
+                                }
+                        }
+                }
 
                 tx.execute(
                         "INSERT OR REPLACE INTO plugins (id, name, state) VALUES (?1, ?2, ?3)",

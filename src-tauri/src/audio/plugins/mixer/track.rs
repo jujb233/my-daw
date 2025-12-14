@@ -32,6 +32,7 @@ impl LocalContainer {
                                 url: "".to_string(),
                                 plugin_type: PluginType::Native,
                                 unique_id: unique_id.to_string(),
+                                parameters: None,
                         },
                 }
         }
@@ -138,6 +139,7 @@ impl Plugin for NoopGain {
                         url: "".to_string(),
                         plugin_type: PluginType::Native,
                         unique_id: "com.mydaw.gainfader".to_string(),
+                        parameters: None,
                 }
         }
 

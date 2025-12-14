@@ -8,6 +8,7 @@ use crate::daw::state::{AppState, MixerTrackData, PluginInstanceData};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::path::PathBuf;
+use tauri::Emitter;
 use tauri::State;
 use uuid::Uuid;
 
@@ -191,6 +192,7 @@ pub fn get_instance_parameters(
 
 #[tauri::command]
 pub fn set_instance_parameter(
+        app: tauri::AppHandle,
         state: State<'_, AppState>,
         instance_id: String,
         param_id: u32,
@@ -204,6 +206,15 @@ pub fn set_instance_parameter(
         if let Some(inst_arc) = instances.get(&instance_id) {
                 if let Ok(mut inst) = inst_arc.lock() {
                         inst.set_param(param_id, value);
+
+                        // emit event to frontend(s) notifying parameter change
+                        let payload = serde_json::json!({
+                                "instanceId": instance_id,
+                                "paramId": param_id,
+                                "value": value,
+                        });
+                        let _ = app.emit("plugin-parameter-changed", payload);
+
                         return Ok(());
                 }
         }
@@ -463,7 +474,8 @@ pub fn load_project_cmd(state: State<'_, AppState>, path: String) -> Result<(), 
 
         rebuild_engine(&state)?;
 
-        // Apply states to new instances
+        // Apply states to new instances. If saved blob is our param-JSON fallback,
+        // parse and call set_param for each entry; otherwise call set_state.
         {
                 let instances = state.plugin_instances.lock().map_err(|_| "Lock error")?;
                 let pending = state.pending_plugin_states.lock().map_err(|_| "Lock error")?;
@@ -471,6 +483,37 @@ pub fn load_project_cmd(state: State<'_, AppState>, path: String) -> Result<(), 
                 for (id, instance) in instances.iter() {
                         if let Some(state_blob) = pending.get(id) {
                                 if let Ok(mut inst) = instance.lock() {
+                                        // Try detect param-state JSON
+                                        if !state_blob.is_empty() {
+                                                if let Ok(v) = serde_json::from_slice::<serde_json::Value>(state_blob) {
+                                                        if v.get("__param_state").and_then(|b| b.as_bool())
+                                                                == Some(true)
+                                                        {
+                                                                if let Some(arr) =
+                                                                        v.get("params").and_then(|p| p.as_array())
+                                                                {
+                                                                        for item in arr {
+                                                                                if let (Some(id_v), Some(val_v)) = (
+                                                                                        item.get("id").and_then(|x| {
+                                                                                                x.as_u64()
+                                                                                        }),
+                                                                                        item.get("value").and_then(
+                                                                                                |x| x.as_f64(),
+                                                                                        ),
+                                                                                ) {
+                                                                                        inst.set_param(
+                                                                                                id_v as u32,
+                                                                                                val_v as f32,
+                                                                                        );
+                                                                                }
+                                                                        }
+                                                                }
+                                                                continue; // applied via set_param
+                                                        }
+                                                }
+                                        }
+
+                                        // Fallback: call plugin's binary set_state
                                         inst.set_state(state_blob);
                                 }
                         }
